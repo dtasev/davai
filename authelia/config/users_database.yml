@@ -1,0 +1,12 @@
+###############################################################
+#             Authelia Users Database (Local Dev)             #
+###############################################################
+
+users:
+  admin:
+    displayname: "Admin User"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$16G2LrRyS8hB+6OFyDYSDQ$UIIgxWj9z4Xh1tLFaunqhEX0p/Ia6EUJlTnecBxfXa4"
+    email: "admin@example.com"
+    groups:
+      - admins
+      - dev

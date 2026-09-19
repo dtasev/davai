@@ -1,0 +1,70 @@
+server:
+  address: 'tcp://0.0.0.0:9091/authelia'
+
+log:
+  level: 'info'
+
+identity_validation:
+  reset_password:
+    jwt_secret: 'davai_authelia_jwt_secret_dev_32_characters_minimum_here'
+
+authentication_backend:
+  file:
+    path: '/config/users_database.yml'
+    password:
+      algorithm: 'argon2'
+
+access_control:
+  default_policy: 'bypass'
+  rules:
+    - domain:
+        - '127.0.0.1'
+        - 'lvh.me'
+        - '*.lvh.me'
+        - 'davai.dtasev.co.uk'
+        - '*.dtasev.co.uk'
+      policy: 'two_factor'
+      resources:
+        - '^/admin.*$'
+        - '^/secure.*$'
+    - domain:
+        - '127.0.0.1'
+        - 'lvh.me'
+        - '*.lvh.me'
+        - 'davai.dtasev.co.uk'
+        - '*.dtasev.co.uk'
+      policy: 'bypass'
+
+session:
+  name: 'authelia_session'
+  secret: 'davai_authelia_session_secret_dev_32_characters_minimum'
+  expiration: '1h'
+  inactivity: '15m'
+  cookies:
+    - domain: '127.0.0.1'
+      authelia_url: 'https://127.0.0.1:6477/authelia'
+      default_redirection_url: 'https://127.0.0.1:6477/'
+    - domain: 'lvh.me'
+      authelia_url: 'https://lvh.me:6477/authelia'
+      default_redirection_url: 'https://lvh.me:6477/'
+    - domain: 'davai.dtasev.co.uk'
+      authelia_url: 'https://davai.dtasev.co.uk/authelia'
+      default_redirection_url: 'https://davai.dtasev.co.uk/'
+
+storage:
+  encryption_key: 'davai_authelia_storage_encryption_key_32_chars'
+  local:
+    path: '/config/db.sqlite3'
+
+notifier:
+  filesystem:
+    filename: '/config/notification.txt'
+
+regulation:
+  max_retries: 50
+  find_time: '1m'
+  ban_time: '1m'
+
+webauthn:
+  display_name: 'Davai'
+  enable_passkey_login: true

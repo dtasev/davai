@@ -1,0 +1,9 @@
+Django==6.1.1
+django-ninja==1.7.1
+pydantic==2.13.5
+uvicorn[standard]==0.53.0
+django-cors-headers==4.9.0
+strawberry-graphql==0.327.7
+strawberry-graphql-django==0.89.2
+mcp==2.2.0
+starlette==1.6.0
