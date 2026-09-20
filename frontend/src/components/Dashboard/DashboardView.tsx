@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, FolderPlus, Activity, Clock, Layers, RefreshCw } from 'lucide-react'
+import { Plus, FolderPlus, Layers, RefreshCw } from 'lucide-react'
 import { Project, BackendInfo } from '../../types'
 import { ProjectCard } from './ProjectCard'
 import { Modal } from '../Common/Modal'
@@ -9,10 +9,10 @@ interface DashboardViewProps {
   loading: boolean
   onSelectProject: (key: string) => void
   onCreateProject: (key: string, name: string, description: string) => Promise<void>
-  backendInfo: BackendInfo | null
-  helloMessage: string
-  backendStatus: string
-  latency: number | null
+  backendInfo?: BackendInfo | null
+  helloMessage?: string
+  backendStatus?: string
+  latency?: number | null
   onRefresh: () => void
 }
 
@@ -21,10 +21,6 @@ export function DashboardView({
   loading,
   onSelectProject,
   onCreateProject,
-  backendInfo,
-  helloMessage,
-  backendStatus,
-  latency,
   onRefresh
 }: DashboardViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -54,53 +50,7 @@ export function DashboardView({
   }
 
   return (
-    <div className="space-y-8">
-      {/* Top Banner & Stats */}
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-        <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/60">
-          <div className="text-[11px] text-zinc-400 uppercase font-medium">Active Projects</div>
-          <div className="text-xl font-bold text-zinc-100 mt-1">{projects.length}</div>
-          <div className="text-xs text-indigo-400">Tracked Workspaces</div>
-        </div>
-
-        <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/60">
-          <div className="text-[11px] text-zinc-400 uppercase font-medium">Total Work Items</div>
-          <div className="text-xl font-bold text-zinc-100 mt-1">
-            {projects.reduce((acc, p) => acc + (p.item_count || 0), 0)}
-          </div>
-          <div className="text-xs text-indigo-400">Across all projects</div>
-        </div>
-
-        <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/60">
-          <div className="text-[11px] text-zinc-400 uppercase font-medium">Runtime Stack</div>
-          <div className="text-sm font-semibold text-zinc-100 mt-1">Django 6.1 + React 19</div>
-          <div className="text-xs text-emerald-400">ORM &amp; Strawberry GraphQL</div>
-        </div>
-
-        <div className="p-3 rounded-xl bg-zinc-900/50 border border-zinc-800/60">
-          <div className="text-[11px] text-zinc-400 uppercase font-medium">Gateway Ingress</div>
-          <div className="text-sm font-semibold text-zinc-100 mt-1">127.0.0.1:6477</div>
-          <div className="text-xs text-emerald-400">Cloudflared Connected</div>
-        </div>
-      </section>
-
-      {/* Live Probe */}
-      <section className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2">
-          <Activity className="w-4 h-4 text-emerald-400" />
-          <span className="text-zinc-400">Live Backend Status:</span>
-          <span className="font-mono text-emerald-300 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/30">
-            {helloMessage || (backendStatus === 'checking' ? 'Checking...' : 'Online')}
-          </span>
-          {latency !== null && (
-            <span className="text-[10px] font-mono text-zinc-500">({latency}ms)</span>
-          )}
-        </div>
-        <div className="text-zinc-500 flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5" />
-          <span>Python {backendInfo?.python || '3.14.5'} &bull; SQLite Persistence</span>
-        </div>
-      </section>
+    <div className="space-y-6">
 
       {/* Projects Grid Section */}
       <section className="space-y-4">

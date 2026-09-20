@@ -102,6 +102,7 @@ describe('Davai Frontend App with React Router', () => {
                 ...mockWorkItem,
                 title: body.title || mockWorkItem.title,
                 descr: body.descr !== undefined ? body.descr : mockWorkItem.descr,
+                priority: body.priority || mockWorkItem.priority,
               }),
           } as Response)
         }
@@ -731,6 +732,11 @@ describe('Davai Frontend App with React Router', () => {
     const deleteWorkItemBtn = screen.getByTestId('delete-work-item-button')
     expect(deleteWorkItemBtn).toBeInTheDocument()
 
+    // Priority select is present in view mode
+    const viewPrioritySelect = screen.getByTestId('work-item-priority-select')
+    expect(viewPrioritySelect).toBeInTheDocument()
+    expect(viewPrioritySelect).toHaveValue('HIGH')
+
     // Click work item title to activate edit mode
     await act(async () => {
       fireEvent.click(screen.getByTestId('work-item-title'))
@@ -738,9 +744,12 @@ describe('Davai Frontend App with React Router', () => {
 
     const editWorkItemTitleInput = screen.getByTestId('edit-work-item-title-input')
     const editWorkItemDescInput = screen.getByTestId('edit-work-item-description-input')
+    const editPrioritySelect = screen.getByTestId('edit-work-item-priority-select')
     const saveWorkItemBtn = screen.getByTestId('save-work-item-button')
     expect(editWorkItemTitleInput).toBeInTheDocument()
     expect(editWorkItemDescInput).toBeInTheDocument()
+    expect(editPrioritySelect).toBeInTheDocument()
+    expect(editPrioritySelect).toHaveValue('HIGH')
     expect(saveWorkItemBtn).toBeInTheDocument()
 
     // Save button is to the left of the delete bin
@@ -755,8 +764,9 @@ describe('Davai Frontend App with React Router', () => {
     })
     expect(screen.getByTestId('edit-work-item-title-input')).toBeInTheDocument()
 
-    // Save changes
+    // Change title and priority, then save
     fireEvent.change(editWorkItemTitleInput, { target: { value: 'Updated Work Item Title' } })
+    fireEvent.change(editPrioritySelect, { target: { value: 'LOW' } })
     await act(async () => {
       fireEvent.click(saveWorkItemBtn)
     })
@@ -764,6 +774,16 @@ describe('Davai Frontend App with React Router', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('save-work-item-button')).not.toBeInTheDocument()
       expect(screen.getByTestId('work-item-title')).toHaveTextContent('Updated Work Item Title')
+      expect(screen.getByTestId('work-item-priority-select')).toHaveValue('LOW')
+    })
+
+    // Changing priority directly in view mode
+    await act(async () => {
+      fireEvent.change(screen.getByTestId('work-item-priority-select'), { target: { value: 'MEDIUM' } })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-priority-select')).toHaveValue('MEDIUM')
     })
   })
 })

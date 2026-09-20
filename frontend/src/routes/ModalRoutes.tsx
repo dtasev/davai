@@ -115,7 +115,11 @@ export function WorkItemModalRoute() {
     navigate(`/projects/${projectKey}`)
   } : undefined
 
-  const handleUpdateDetails = (foundItem || itemKey) ? async (data: { title?: string; descr?: string }) => {
+  const handleUpdateDetails = (foundItem || itemKey) ? async (data: {
+    title?: string
+    descr?: string
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
+  }) => {
     const keyToUpdate = foundItem?.key || itemKey!
     const updated = await handleUpdateWorkItemDetails(keyToUpdate, data)
     if (standaloneItem) setStandaloneItem(updated)

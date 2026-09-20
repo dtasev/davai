@@ -31,7 +31,11 @@ interface WorkItemDetailModalProps {
     entry: { t: string; proof: string; status: string }
   ) => Promise<void>
   onDelete?: () => Promise<void>
-  onUpdateDetails?: (data: { title?: string; descr?: string }) => Promise<void>
+  onUpdateDetails?: (data: {
+    title?: string
+    descr?: string
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
+  }) => Promise<void>
 }
 
 export function WorkItemDetailModal({
@@ -49,10 +53,13 @@ export function WorkItemDetailModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Edit details (title & descr) state
+  // Edit details (title, descr & priority) state
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [editTitle, setEditTitle] = useState(item?.title || '')
   const [editDescr, setEditDescr] = useState(item?.descr || '')
+  const [editPriority, setEditPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>(
+    (item?.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM'
+  )
   const [isSavingDetails, setIsSavingDetails] = useState(false)
 
   // Edit context state
@@ -72,8 +79,9 @@ export function WorkItemDetailModal({
       setProgressStatus(item.status || 'COMPLETED')
       setEditTitle(item.title)
       setEditDescr(item.descr || '')
+      setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
     }
-  }, [item?.key, item?.context?.t, item?.status, item?.title, item?.descr])
+  }, [item?.key, item?.context?.t, item?.status, item?.title, item?.descr, item?.priority])
 
   if (!item) return null
 
@@ -83,7 +91,8 @@ export function WorkItemDetailModal({
     try {
       await onUpdateDetails({
         title: editTitle.trim(),
-        descr: editDescr.trim()
+        descr: editDescr.trim(),
+        priority: editPriority
       })
       setIsEditingDetails(false)
     } finally {
@@ -95,8 +104,18 @@ export function WorkItemDetailModal({
     if (item) {
       setEditTitle(item.title)
       setEditDescr(item.descr || '')
+      setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
     }
     setIsEditingDetails(false)
+  }
+
+  const handlePriorityChange = async (e: ChangeEvent<HTMLSelectElement>) => {
+    const newPriority = e.target.value as 'LOW' | 'MEDIUM' | 'HIGH'
+    if (isEditingDetails) {
+      setEditPriority(newPriority)
+    } else if (onUpdateDetails) {
+      await onUpdateDetails({ priority: newPriority })
+    }
   }
 
   if (!item) return null
@@ -288,7 +307,27 @@ export function WorkItemDetailModal({
 
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-zinc-500">Priority:</span>
-              <PriorityBadge priority={item.priority} />
+              {onUpdateDetails ? (
+                <select
+                  value={isEditingDetails ? editPriority : item.priority}
+                  onChange={handlePriorityChange}
+                  data-testid={isEditingDetails ? 'edit-work-item-priority-select' : 'work-item-priority-select'}
+                  aria-label="Work Item Priority"
+                  className={`px-2 py-0.5 rounded text-[10px] font-semibold border uppercase tracking-wider focus:outline-none cursor-pointer transition ${
+                    (isEditingDetails ? editPriority : item.priority) === 'HIGH'
+                      ? 'text-rose-400 bg-rose-950/40 border-rose-800/40'
+                      : (isEditingDetails ? editPriority : item.priority) === 'MEDIUM'
+                      ? 'text-amber-400 bg-amber-950/40 border-amber-800/40'
+                      : 'text-zinc-400 bg-zinc-800/40 border-zinc-800'
+                  } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
+                >
+                  <option value="LOW" className="bg-zinc-900 text-zinc-300">LOW</option>
+                  <option value="MEDIUM" className="bg-zinc-900 text-amber-400">MEDIUM</option>
+                  <option value="HIGH" className="bg-zinc-900 text-rose-400">HIGH</option>
+                </select>
+              ) : (
+                <PriorityBadge priority={item.priority} />
+              )}
             </div>
 
             {sprint && (

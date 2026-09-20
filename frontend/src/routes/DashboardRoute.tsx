@@ -7,10 +7,6 @@ export function DashboardRoute() {
   const {
     projects,
     loadingProjects,
-    backendInfo,
-    helloMessage,
-    backendStatus,
-    latency,
     fetchProjects,
     handleCreateProject
   } = useApp()
@@ -25,10 +21,6 @@ export function DashboardRoute() {
       loading={loadingProjects}
       onSelectProject={handleSelectProject}
       onCreateProject={handleCreateProject}
-      backendInfo={backendInfo}
-      helloMessage={helloMessage}
-      backendStatus={backendStatus}
-      latency={latency}
       onRefresh={fetchProjects}
     />
   )

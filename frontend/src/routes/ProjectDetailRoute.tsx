@@ -21,7 +21,10 @@ export interface ProjectDetailOutletContext {
   handleDeleteWorkItem: (key: string) => Promise<void>
   handleUpdateSprint: (sprintId: number, data: { name?: string; description?: string }) => Promise<Sprint>
   handleUpdateRelease: (releaseId: number, data: { name?: string; description?: string }) => Promise<Release>
-  handleUpdateWorkItemDetails: (key: string, data: { title?: string; descr?: string }) => Promise<WorkItem>
+  handleUpdateWorkItemDetails: (
+    key: string,
+    data: { title?: string; descr?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string }
+  ) => Promise<WorkItem>
 }
 
 export function ProjectDetailRoute() {
@@ -305,7 +308,7 @@ export function ProjectDetailRoute() {
 
   const handleUpdateWorkItemDetails = async (
     key: string,
-    data: { title?: string; descr?: string }
+    data: { title?: string; descr?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string }
   ) => {
     const res = await fetch(`/api/work-items/${key}`, {
       method: 'PATCH',
