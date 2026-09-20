@@ -38,7 +38,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
         project=test_project,
         key=f"{test_project.key}-100",
         title="GraphQL Test Item",
-        descr="Created for testing GraphQL schema",
+        description="Created for testing GraphQL schema",
         priority="HIGH",
         created_by=test_user
     )
@@ -64,7 +64,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
         workItems {
             key
             title
-            descr
+            description
             status
             priority
             projectKey
@@ -72,7 +72,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
         workItem(key: "DAV-100") {
             key
             title
-            descr
+            description
             status
             context {
                 summary
@@ -94,7 +94,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
     assert any(p["key"] == test_project.key for p in res.data["projects"])
     assert any(i["key"] == f"{test_project.key}-100" for i in res.data["workItems"])
     assert res.data["workItem"]["title"] == "GraphQL Test Item"
-    assert res.data["workItem"]["descr"] == "Created for testing GraphQL schema"
+    assert res.data["workItem"]["description"] == "Created for testing GraphQL schema"
     assert res.data["workItem"]["status"] == "todo"
     assert res.data["workItem"]["context"]["summary"] == "GraphQL Context Summary"
     assert len(res.data["workItem"]["progress"]) == 1

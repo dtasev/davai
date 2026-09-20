@@ -20,7 +20,7 @@ interface WorkItemListProps {
   onSelectWorkItem: (item: WorkItem) => void
   onCreateWorkItem: (data: {
     title: string
-    descr: string
+    description: string
     status: string
     priority: 'LOW' | 'MEDIUM' | 'HIGH'
     parent_key?: string | null
@@ -43,7 +43,7 @@ export function WorkItemList({
 
   // Form state
   const [title, setTitle] = useState('')
-  const [descr, setDescr] = useState('')
+  const [description, setDescription] = useState('')
   const [status, setStatus] = useState(statuses[0]?.name || 'todo')
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
   const [parentKey, setParentKey] = useState('')
@@ -56,7 +56,7 @@ export function WorkItemList({
       const matchesSearch =
         item.title.toLowerCase().includes(search.toLowerCase()) ||
         item.key.toLowerCase().includes(search.toLowerCase()) ||
-        (item.descr && item.descr.toLowerCase().includes(search.toLowerCase()))
+        (item.description && item.description.toLowerCase().includes(search.toLowerCase()))
 
       const matchesStatus =
         filterStatus === 'ALL' ||
@@ -74,7 +74,7 @@ export function WorkItemList({
     try {
       await onCreateWorkItem({
         title: title.trim(),
-        descr: descr.trim(),
+        description: description.trim(),
         status,
         priority,
         parent_key: parentKey.trim() || null,
@@ -83,7 +83,7 @@ export function WorkItemList({
       })
       setIsModalOpen(false)
       setTitle('')
-      setDescr('')
+      setDescription('')
       setParentKey('')
       setSprintId('')
       setReleaseId('')
@@ -207,9 +207,9 @@ export function WorkItemList({
                     {item.title}
                   </h4>
 
-                  {item.descr && (
+                  {item.description && (
                     <p className="text-[11px] text-zinc-400 line-clamp-1">
-                      {item.descr}
+                      {item.description}
                     </p>
                   )}
                 </div>
@@ -284,8 +284,8 @@ export function WorkItemList({
             <textarea
               rows={2}
               placeholder="Detailed description or requirements..."
-              value={descr}
-              onChange={e => setDescr(e.target.value)}
+              value={description}
+              onChange={e => setDescription(e.target.value)}
               className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-200"
             />
           </div>

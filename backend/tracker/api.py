@@ -215,7 +215,7 @@ class WorkItemOut(Schema):
     key: str
     parent_key: Optional[str] = None
     title: str
-    descr: str
+    description: str
     status: str
     priority: str
     project_key: str
@@ -293,7 +293,7 @@ class WorkItemOut(Schema):
 
 class CreateWorkItemIn(Schema):
     title: str
-    descr: str = ""
+    description: str = ""
     project_key: str = "DAV"
     parent_key: Optional[str] = None
     status: Optional[str] = None
@@ -308,7 +308,7 @@ class CreateWorkItemIn(Schema):
 
 class UpdateWorkItemIn(Schema):
     title: Optional[str] = None
-    descr: Optional[str] = None
+    description: Optional[str] = None
     parent_key: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
@@ -619,7 +619,7 @@ def create_work_item(request, payload: CreateWorkItemIn):
         parent=parent,
         key=item_key,
         title=payload.title,
-        descr=payload.descr,
+        description=payload.description,
         status=status_obj,
         priority=payload.priority.upper(),
         active_assignee=assignee,
@@ -643,8 +643,8 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
 
     if payload.title is not None:
         item.title = payload.title
-    if payload.descr is not None:
-        item.descr = payload.descr
+    if payload.description is not None:
+        item.description = payload.description
     if payload.parent_key is not None:
         if payload.parent_key == "":
             item.parent = None

@@ -108,7 +108,7 @@ class WorkItemType:
     key: str
     parent_key: Optional[str]
     title: str
-    descr: str
+    description: str
     status: str
     priority: str
     project_key: str
@@ -149,7 +149,7 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
         key=item.key,
         parent_key=item.parent.key if item.parent else None,
         title=item.title,
-        descr=item.descr or "",
+        description=item.description or "",
         status=item.status.name if item.status else "None",
         priority=item.priority,
         project_key=item.project.key,

@@ -2,7 +2,7 @@ first model is a work item, it has the usual fields:
 
 model WorkItem:
 title: str
-descr: text field
+description: text field
 created: datetime
 created_by: User
 updated: datetime - updated on changes

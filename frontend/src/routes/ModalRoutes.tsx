@@ -128,7 +128,7 @@ export function WorkItemModalRoute() {
 
   const handleUpdateDetails = (foundItem || itemKey) ? async (data: {
     title?: string
-    descr?: string
+    description?: string
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
     sprint_id?: number | null
     release_id?: number | null

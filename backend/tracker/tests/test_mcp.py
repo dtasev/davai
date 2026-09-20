@@ -60,12 +60,13 @@ class TestMCPWithApiClient:
         # 2. Create work item via MCP tool
         created = create_work_item(
             title="MCP Tool Generated Ticket",
-            descr="Created through MCP API Client",
+            description="Created through MCP API Client",
             priority="HIGH",
             status="todo",
             project_key=test_project.key
         )
         assert created["title"] == "MCP Tool Generated Ticket"
+        assert created["description"] == "Created through MCP API Client"
         assert created["key"].startswith("DAV-")
         item_key = created["key"]
 
@@ -73,7 +74,7 @@ class TestMCPWithApiClient:
         fetched = get_work_item(item_key)
         assert fetched["key"] == item_key
         assert fetched["priority"] == "HIGH"
-        assert fetched["descr"] == "Created through MCP API Client"
+        assert fetched["description"] == "Created through MCP API Client"
 
         # 4. Update item via MCP tool
         updated = update_work_item(key=item_key, status="done")

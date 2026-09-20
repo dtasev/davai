@@ -32,7 +32,7 @@ export interface ProjectDetailOutletContext {
     key: string,
     data: {
       title?: string
-      descr?: string
+      description?: string
       priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
       sprint_id?: number | null
       release_id?: number | null
@@ -140,7 +140,7 @@ export function ProjectDetailRoute() {
 
   const handleCreateWorkItem = async (data: {
     title: string
-    descr: string
+    description: string
     status: string
     priority: 'LOW' | 'MEDIUM' | 'HIGH'
     parent_key?: string | null
@@ -325,7 +325,7 @@ export function ProjectDetailRoute() {
     key: string,
     data: {
       title?: string
-      descr?: string
+      description?: string
       priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
       sprint_id?: number | null
       release_id?: number | null

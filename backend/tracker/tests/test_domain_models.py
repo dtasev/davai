@@ -30,10 +30,12 @@ class TestDomainModels:
             project=test_project,
             key="DAV-200",
             title="Auto Status Item",
+            description="Human-readable description",
             created_by=test_user
         )
         assert item.status is not None
         assert item.status.name == "todo"
+        assert item.description == "Human-readable description"
         assert str(item) == "DAV-200: Auto Status Item [todo]"
 
     def test_work_item_subtasks(self, test_project, test_user):

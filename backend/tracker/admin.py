@@ -66,18 +66,18 @@ class ProgressInline(admin.TabularInline):
 class WorkItemAdmin(admin.ModelAdmin):
     list_display = ("key", "title", "project", "status", "priority", "active_assignee", "updated")
     list_filter = ("status", "priority", "project", "sprint", "release")
-    search_fields = ("key", "title", "descr", "active_assignee__username")
+    search_fields = ("key", "title", "description", "active_assignee__username")
     inlines = [ContextInline, ProgressInline]
 
 
 @admin.register(Context)
 class ContextAdmin(admin.ModelAdmin):
     list_display = ("work_item", "user", "timestamp")
-    search_fields = ("work_item__key", "t")
+    search_fields = ("work_item__key", "summary")
 
 
 @admin.register(Progress)
 class ProgressAdmin(admin.ModelAdmin):
     list_display = ("work_item", "user", "status", "proof", "timestamp")
     list_filter = ("status", "timestamp")
-    search_fields = ("work_item__key", "t", "proof")
+    search_fields = ("work_item__key", "summary", "proof")

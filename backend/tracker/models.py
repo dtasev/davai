@@ -121,7 +121,7 @@ class WorkItem(models.Model):
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name="subtasks")
     key = models.CharField(max_length=30, unique=True, db_index=True)
     title = models.CharField(max_length=255)
-    descr = models.TextField(blank=True)
+    description = models.TextField(blank=True)
     created = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name="created_work_items")
     updated = models.DateTimeField(auto_now=True)

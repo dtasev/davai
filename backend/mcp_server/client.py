@@ -86,7 +86,7 @@ class DavaiClient:
     def create_work_item(
         self,
         title: str,
-        descr: str = "",
+        description: str = "",
         priority: str = "MEDIUM",
         status: Optional[str] = None,
         project_key: str = "DAV",
@@ -101,7 +101,7 @@ class DavaiClient:
         """Create a new work item."""
         payload: Dict[str, Any] = {
             "title": title,
-            "descr": descr,
+            "description": description,
             "priority": priority,
             "project_key": project_key,
             "source": source,
@@ -126,7 +126,7 @@ class DavaiClient:
         self,
         key: str,
         title: Optional[str] = None,
-        descr: Optional[str] = None,
+        description: Optional[str] = None,
         status: Optional[str] = None,
         priority: Optional[str] = None,
         active_assignee_username: Optional[str] = None,
@@ -140,8 +140,8 @@ class DavaiClient:
         payload: Dict[str, Any] = {}
         if title is not None:
             payload["title"] = title
-        if descr is not None:
-            payload["descr"] = descr
+        if description is not None:
+            payload["description"] = description
         if status is not None:
             payload["status"] = status
         if priority is not None:

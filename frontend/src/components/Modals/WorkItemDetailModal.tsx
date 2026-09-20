@@ -35,7 +35,7 @@ interface WorkItemDetailModalProps {
   onDelete?: () => Promise<void>
   onUpdateDetails?: (data: {
     title?: string
-    descr?: string
+    description?: string
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
     sprint_id?: number | null
     release_id?: number | null
@@ -59,10 +59,10 @@ export function WorkItemDetailModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Edit details (title, descr, priority, sprint, release, start_date & target_date) state
+  // Edit details (title, description, priority, sprint, release, start_date & target_date) state
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [editTitle, setEditTitle] = useState(item?.title || '')
-  const [editDescr, setEditDescr] = useState(item?.descr || '')
+  const [editDescription, setEditDescription] = useState(item?.description || '')
   const [editPriority, setEditPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>(
     (item?.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM'
   )
@@ -93,12 +93,12 @@ export function WorkItemDetailModal({
   const handleCopyDetails = () => {
     if (!item) return
     const title = isEditingDetails ? editTitle : item.title
-    const descr = isEditingDetails ? editDescr : (item.descr || '')
+    const description = isEditingDetails ? editDescription : (item.description || '')
     const context = isEditingContext ? contextInput : (item.context?.summary || '')
 
     const textToCopy = [
       `ID: ${item.id}\nKey: ${item.key}\nTitle: ${title}`,
-      `Description:\n${descr}`,
+      `Description:\n${description}`,
       `Context:\n${context}`
     ].join('\n\n')
 
@@ -114,7 +114,7 @@ export function WorkItemDetailModal({
       setContextInput(item.context?.summary || '')
       setProgressStatus(item.status || 'COMPLETED')
       setEditTitle(item.title)
-      setEditDescr(item.descr || '')
+      setEditDescription(item.description || '')
       setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
       setEditSprintId(item.sprint_id ?? null)
       setEditReleaseId(item.release_id ?? null)
@@ -126,7 +126,7 @@ export function WorkItemDetailModal({
     item?.context?.summary,
     item?.status,
     item?.title,
-    item?.descr,
+    item?.description,
     item?.priority,
     item?.sprint_id,
     item?.release_id,
@@ -142,7 +142,7 @@ export function WorkItemDetailModal({
     try {
       await onUpdateDetails({
         title: editTitle.trim(),
-        descr: editDescr.trim(),
+        description: editDescription.trim(),
         priority: editPriority,
         sprint_id: editSprintId === null ? 0 : editSprintId,
         release_id: editReleaseId === null ? 0 : editReleaseId,
@@ -158,7 +158,7 @@ export function WorkItemDetailModal({
   const handleCancelEditDetails = () => {
     if (item) {
       setEditTitle(item.title)
-      setEditDescr(item.descr || '')
+      setEditDescription(item.description || '')
       setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
       setEditSprintId(item.sprint_id ?? null)
       setEditReleaseId(item.release_id ?? null)
@@ -596,8 +596,8 @@ export function WorkItemDetailModal({
             <textarea
               data-testid="edit-work-item-description-input"
               aria-label="Edit Work Item Description"
-              value={editDescr}
-              onChange={e => setEditDescr(e.target.value)}
+              value={editDescription}
+              onChange={e => setEditDescription(e.target.value)}
               placeholder="Enter work item description..."
               rows={3}
               className="w-full p-2.5 rounded-lg bg-zinc-950 border border-indigo-500 text-xs text-zinc-200 focus:outline-none resize-y leading-relaxed"
@@ -611,7 +611,7 @@ export function WorkItemDetailModal({
                 onUpdateDetails ? 'cursor-pointer hover:border-zinc-700 transition' : ''
               }`}
             >
-              {item.descr || 'No description provided for this work item.'}
+              {item.description || 'No description provided for this work item.'}
             </div>
           )}
         </div>

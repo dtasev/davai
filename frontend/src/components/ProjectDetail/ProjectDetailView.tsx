@@ -30,7 +30,7 @@ interface ProjectDetailViewProps {
   ) => Promise<void>
   onCreateWorkItem: (data: {
     title: string
-    descr: string
+    description: string
     status: string
     priority: 'LOW' | 'MEDIUM' | 'HIGH'
     parent_key?: string | null

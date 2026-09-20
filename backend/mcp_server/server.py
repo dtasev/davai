@@ -47,7 +47,7 @@ def get_work_item(key: str) -> Dict[str, Any]:
 @mcp_server.tool()
 def create_work_item(
     title: str,
-    descr: str = "",
+    description: str = "",
     priority: str = "MEDIUM",
     status: Optional[str] = None,
     project_key: str = "DAV",
@@ -62,7 +62,7 @@ def create_work_item(
     Create a new work item in Davai.
     Args:
         title: Title of the task.
-        descr: Detailed task description.
+        description: Detailed task description.
         priority: Priority level ('LOW', 'MEDIUM', 'HIGH'). Defaults to 'MEDIUM'.
         status: Status ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
         project_key: Target project key (defaults to 'DAV').
@@ -75,7 +75,7 @@ def create_work_item(
     """
     return get_client().create_work_item(
         title=title,
-        descr=descr,
+        description=description,
         priority=priority,
         status=status,
         project_key=project_key,
@@ -91,7 +91,7 @@ def create_work_item(
 def update_work_item(
     key: str,
     title: Optional[str] = None,
-    descr: Optional[str] = None,
+    description: Optional[str] = None,
     status: Optional[str] = None,
     priority: Optional[str] = None,
     active_assignee_username: Optional[str] = None,
@@ -106,7 +106,7 @@ def update_work_item(
     Args:
         key: Work item key (e.g. 'DAV-1').
         title: Optional new title.
-        descr: Optional new description.
+        description: Optional new description.
         status: Optional new status ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
         priority: Optional new priority ('LOW', 'MEDIUM', 'HIGH').
         active_assignee_username: Optional username to assign to. Pass empty string to unassign.
@@ -119,8 +119,8 @@ def update_work_item(
     kwargs: Dict[str, Any] = {}
     if title is not None:
         kwargs["title"] = title
-    if descr is not None:
-        kwargs["descr"] = descr
+    if description is not None:
+        kwargs["description"] = description
     if status is not None:
         kwargs["status"] = status
     if priority is not None:

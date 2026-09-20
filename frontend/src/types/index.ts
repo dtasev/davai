@@ -59,7 +59,7 @@ export interface WorkItem {
   key: string
   parent_key: string | null
   title: string
-  descr: string
+  description: string
   status: string
   priority: 'LOW' | 'MEDIUM' | 'HIGH'
   project_key: string

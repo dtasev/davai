@@ -260,7 +260,7 @@ class TestNinjaAPI:
             "/work-items",
             json={
                 "title": "Epic Work Item",
-                "descr": "Parent task for testing subtask hierarchy",
+                "description": "Parent task for testing subtask hierarchy",
                 "priority": "HIGH",
                 "status": "todo",
                 "project_key": test_project.key,
@@ -271,6 +271,7 @@ class TestNinjaAPI:
         assert parent_res.status_code == 200
         parent = parent_res.json()
         assert parent["title"] == "Epic Work Item"
+        assert parent["description"] == "Parent task for testing subtask hierarchy"
         assert parent["key"].startswith("DAV-")
         assert parent["created_by"] == test_user.username
         assert parent["status"] == "todo"
@@ -281,7 +282,7 @@ class TestNinjaAPI:
             "/work-items",
             json={
                 "title": "Subtask 1",
-                "descr": "Child subtask",
+                "description": "Child subtask",
                 "parent_key": parent_key,
                 "project_key": test_project.key,
                 "status": "in progress"
@@ -311,7 +312,7 @@ class TestNinjaAPI:
         # 1. Create item
         item_res = ninja_client.post(
             "/work-items",
-            json={"title": "Agent Feature Work", "descr": "Task for LLM", "project_key": test_project.key},
+            json={"title": "Agent Feature Work", "description": "Task for LLM", "project_key": test_project.key},
             headers={"X-API-Key": raw_key}
         )
         assert item_res.status_code == 200
@@ -363,7 +364,7 @@ class TestNinjaAPI:
 
         item_res = ninja_client.post(
             "/work-items",
-            json={"title": "Unversioned Context Item", "descr": "Testing overwrite", "project_key": test_project.key},
+            json={"title": "Unversioned Context Item", "description": "Testing overwrite", "project_key": test_project.key},
             headers={"X-API-Key": raw_key}
         )
         assert item_res.status_code == 200

@@ -16,7 +16,7 @@ describe('Davai Frontend App with React Router', () => {
       key: 'DAV-1',
       parent_key: null,
       title: 'Build AI-Native Data Models',
-      descr: 'Django ORM schema and models',
+      description: 'Django ORM schema and models',
       status: 'done',
       priority: 'HIGH',
       project_key: 'DAV',
@@ -98,7 +98,7 @@ describe('Davai Frontend App with React Router', () => {
         }
         if (urlStr.includes('/api/work-items/DAV-1')) {
           if (body.title) mockWorkItem.title = body.title
-          if (body.descr !== undefined) mockWorkItem.descr = body.descr
+          if (body.description !== undefined) mockWorkItem.description = body.description
           if (body.priority) mockWorkItem.priority = body.priority
           if (body.sprint_id !== undefined) mockWorkItem.sprint_id = body.sprint_id === 0 ? null : body.sprint_id
           if (body.release_id !== undefined) mockWorkItem.release_id = body.release_id === 0 ? null : body.release_id
