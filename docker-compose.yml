@@ -11,17 +11,39 @@ services:
       - authelia
     restart: unless-stopped
 
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-davai}
+      - POSTGRES_USER=${POSTGRES_USER:-davai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-davai_dev_secret_password_6477}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-davai} -d ${POSTGRES_DB:-davai}"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
   backend:
     build: ./backend
     volumes:
       - ./backend:/app
       - backend_data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       - DEBUG=1
       - SECRET_KEY=django-insecure-dev-key-change-in-production-6477
       - ALLOWED_HOSTS=*
       - CORS_ALLOW_ALL_ORIGINS=True
-      - SQLITE_DB_PATH=/app/data/db.sqlite3
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-davai}
+      - POSTGRES_USER=${POSTGRES_USER:-davai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-davai_dev_secret_password_6477}
     restart: unless-stopped
 
   frontend:
@@ -67,13 +89,20 @@ services:
   backend-test:
     build: ./backend
     profiles: ["test"]
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - test_backend_data:/app/data
     environment:
       - DEBUG=1
       - SECRET_KEY=django-insecure-test-key-davai
-      - SQLITE_DB_PATH=/app/data/test_db.sqlite3
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-davai}
+      - POSTGRES_USER=${POSTGRES_USER:-davai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-davai_dev_secret_password_6477}
     command: ["pytest"]
 
   frontend-service:
@@ -96,3 +125,4 @@ volumes:
   backend_data:
   frontend_node_modules:
   test_backend_data:
+  postgres_data:

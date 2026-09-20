@@ -6,6 +6,7 @@ class TestDatabaseSafetyGuard:
         # Valid test database names should not exit
         _check_db_safety("test_db.sqlite3", origin="UnitTest")
         _check_db_safety("/app/data/test_davai.sqlite3", origin="UnitTest")
+        _check_db_safety("test_davai", origin="UnitTest")
         _check_db_safety(":memory:", origin="UnitTest")
 
     def test_unsafe_database_names_aborted(self):
@@ -13,6 +14,10 @@ class TestDatabaseSafetyGuard:
         with pytest.raises(pytest.exit.Exception) as exc_info:
             _check_db_safety("db.sqlite3", origin="UnitTest")
         assert "CRITICAL SAFETY VIOLATION" in str(exc_info.value)
+
+        with pytest.raises(pytest.exit.Exception) as exc_info_pg:
+            _check_db_safety("davai", origin="UnitTest")
+        assert "CRITICAL SAFETY VIOLATION" in str(exc_info_pg.value)
 
         with pytest.raises(pytest.exit.Exception) as exc_info2:
             _check_db_safety("/var/data/production.sqlite3", origin="UnitTest")

@@ -55,20 +55,37 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 ASGI_APPLICATION = 'core.asgi.application'
 
-# Database: SQLite in persistent data volume
-db_path_env = os.getenv('SQLITE_DB_PATH', '/app/data/db.sqlite3')
-db_path = Path(db_path_env)
-db_path.parent.mkdir(parents=True, exist_ok=True)
+# Database: PostgreSQL 18 (default) with optional SQLite fallback
+use_sqlite = os.getenv('USE_SQLITE', '0') == '1' or not os.getenv('POSTGRES_HOST')
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': db_path,
-        'TEST': {
-            'NAME': db_path.parent / (f"test_{db_path.name}" if not db_path.name.startswith("test_") else db_path.name),
-        },
+if use_sqlite:
+    db_path_env = os.getenv('SQLITE_DB_PATH', '/app/data/db.sqlite3')
+    db_path = Path(db_path_env)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': db_path,
+            'TEST': {
+                'NAME': db_path.parent / (f"test_{db_path.name}" if not db_path.name.startswith("test_") else db_path.name),
+            },
+        }
     }
-}
+else:
+    postgres_db = os.getenv('POSTGRES_DB', 'davai')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': postgres_db,
+            'USER': os.getenv('POSTGRES_USER', 'davai'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'davai_dev_secret_password_6477'),
+            'HOST': os.getenv('POSTGRES_HOST', 'postgres'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            'TEST': {
+                'NAME': f'test_{postgres_db}',
+            },
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
