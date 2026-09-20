@@ -175,7 +175,8 @@ export function ReleaseList({
                 Target Start
               </label>
               <input
-                type="datetime-local"
+                type="date"
+                aria-label="Target Start"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
                 className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
@@ -186,7 +187,8 @@ export function ReleaseList({
                 Target Release Date
               </label>
               <input
-                type="datetime-local"
+                type="date"
+                aria-label="Target Release Date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
                 className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"

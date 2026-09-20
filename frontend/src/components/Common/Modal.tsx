@@ -9,6 +9,7 @@ interface ModalProps {
   children: ReactNode
   maxWidth?: string
   closeOnOverlayClick?: boolean
+  headerActions?: ReactNode
 }
 
 export function Modal({
@@ -17,7 +18,8 @@ export function Modal({
   title,
   children,
   maxWidth = 'max-w-2xl',
-  closeOnOverlayClick = true
+  closeOnOverlayClick = true,
+  headerActions
 }: ModalProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -56,17 +58,20 @@ export function Modal({
           className={`relative bg-zinc-900 border border-zinc-800 rounded-xl w-full ${maxWidth} p-5 sm:p-6 space-y-4 shadow-2xl text-left my-8 transition-all z-10`}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3.5">
-            <div className="text-base sm:text-lg font-bold text-zinc-100 flex items-center gap-2">
+          <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3.5 gap-2">
+            <div className="text-base sm:text-lg font-bold text-zinc-100 flex items-center gap-2 min-w-0">
               {title}
             </div>
-            <button
-              onClick={onClose}
-              aria-label="Close modal"
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {headerActions}
+              <button
+                onClick={onClose}
+                aria-label="Close modal"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           <div>{children}</div>

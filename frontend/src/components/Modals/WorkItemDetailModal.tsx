@@ -1,4 +1,4 @@
-import { useState, ChangeEvent, FormEvent } from 'react'
+import { useState, useEffect, ChangeEvent, FormEvent } from 'react'
 import {
   ListTodo,
   User as UserIcon,
@@ -9,7 +9,9 @@ import {
   Edit3,
   CornerDownRight,
   Zap,
-  Rocket
+  Rocket,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus } from '../../types'
 import { PriorityBadge, StatusBadge } from '../Common/Badge'
@@ -27,6 +29,7 @@ interface WorkItemDetailModalProps {
     key: string,
     entry: { t: string; proof: string; status: string }
   ) => Promise<void>
+  onDelete?: () => Promise<void>
 }
 
 export function WorkItemDetailModal({
@@ -37,23 +40,34 @@ export function WorkItemDetailModal({
   onClose,
   onUpdateStatus,
   onUpdateContext,
-  onAddProgress
+  onAddProgress,
+  onDelete
 }: WorkItemDetailModalProps) {
-  if (!item) return null
-
-  const sprint = sprints.find(s => s.id === item.sprint_id)
-  const release = releases.find(r => r.id === item.release_id)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Edit context state
   const [isEditingContext, setIsEditingContext] = useState(false)
-  const [contextInput, setContextInput] = useState(item.context?.t || '')
+  const [contextInput, setContextInput] = useState(item?.context?.t || '')
   const [savingContext, setSavingContext] = useState(false)
 
   // Add progress state
   const [progressText, setProgressText] = useState('')
   const [progressProof, setProgressProof] = useState('')
-  const [progressStatus, setProgressStatus] = useState(item.status || 'COMPLETED')
+  const [progressStatus, setProgressStatus] = useState(item?.status || 'COMPLETED')
   const [submittingProgress, setSubmittingProgress] = useState(false)
+
+  useEffect(() => {
+    if (item) {
+      setContextInput(item.context?.t || '')
+      setProgressStatus(item.status || 'COMPLETED')
+    }
+  }, [item?.key, item?.context?.t, item?.status])
+
+  if (!item) return null
+
+  const sprint = sprints.find(s => s.id === item.sprint_id)
+  const release = releases.find(r => r.id === item.release_id)
 
   const handleStatusChange = async (e: ChangeEvent<HTMLSelectElement>) => {
     const newStatus = e.target.value
@@ -96,6 +110,19 @@ export function WorkItemDetailModal({
       isOpen={true}
       onClose={onClose}
       maxWidth="max-w-2xl"
+      headerActions={
+        onDelete ? (
+          <button
+            onClick={() => setShowDeleteConfirm(prev => !prev)}
+            title="Delete Work Item"
+            aria-label="Delete Work Item"
+            data-testid="delete-work-item-button"
+            className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        ) : undefined
+      }
       title={
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
@@ -119,6 +146,41 @@ export function WorkItemDetailModal({
       }
     >
       <div className="space-y-4">
+        {showDeleteConfirm && (
+          <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2 text-rose-300 text-xs font-medium">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>Are you sure you want to delete this work item? This cannot be undone.</span>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                data-testid="confirm-delete-work-item-button"
+                onClick={async () => {
+                  if (!onDelete) return
+                  setIsDeleting(true)
+                  try {
+                    await onDelete()
+                  } catch {
+                    setIsDeleting(false)
+                  }
+                }}
+                className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition disabled:opacity-50 flex items-center gap-1"
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        )}
         {/* Meta Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 bg-zinc-950/70 border border-zinc-800 rounded-lg">
           <div className="flex items-center gap-2.5 flex-wrap">

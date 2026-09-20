@@ -9,9 +9,14 @@ import { WorkItemDetailModal } from '../components/Modals/WorkItemDetailModal'
 export function SprintModalRoute() {
   const { projectKey, sprintId } = useParams<{ projectKey: string; sprintId: string }>()
   const navigate = useNavigate()
-  const { sprints, releases, workItems } = useOutletContext<ProjectDetailOutletContext>()
+  const { sprints, releases, workItems, handleDeleteSprint } = useOutletContext<ProjectDetailOutletContext>()
 
   const sprint = sprints.find(s => String(s.id) === sprintId) || null
+
+  const handleDelete = sprint ? async () => {
+    await handleDeleteSprint(sprint.id)
+    navigate(`/projects/${projectKey}`)
+  } : undefined
 
   return (
     <SprintDetailModal
@@ -20,6 +25,7 @@ export function SprintModalRoute() {
       workItems={workItems}
       onClose={() => navigate(`/projects/${projectKey}`)}
       onSelectWorkItem={item => navigate(`/projects/${projectKey}/items/${item.key}`)}
+      onDelete={handleDelete}
     />
   )
 }
@@ -27,9 +33,14 @@ export function SprintModalRoute() {
 export function ReleaseModalRoute() {
   const { projectKey, releaseId } = useParams<{ projectKey: string; releaseId: string }>()
   const navigate = useNavigate()
-  const { releases, sprints, workItems } = useOutletContext<ProjectDetailOutletContext>()
+  const { releases, sprints, workItems, handleDeleteRelease } = useOutletContext<ProjectDetailOutletContext>()
 
   const release = releases.find(r => String(r.id) === releaseId) || null
+
+  const handleDelete = release ? async () => {
+    await handleDeleteRelease(release.id)
+    navigate(`/projects/${projectKey}`)
+  } : undefined
 
   return (
     <ReleaseDetailModal
@@ -39,6 +50,7 @@ export function ReleaseModalRoute() {
       onClose={() => navigate(`/projects/${projectKey}`)}
       onSelectWorkItem={item => navigate(`/projects/${projectKey}/items/${item.key}`)}
       onSelectSprint={sprint => navigate(`/projects/${projectKey}/sprints/${sprint.id}`)}
+      onDelete={handleDelete}
     />
   )
 }
@@ -53,7 +65,8 @@ export function WorkItemModalRoute() {
     releases,
     handleUpdateStatus,
     handleUpdateContext,
-    handleAddProgress
+    handleAddProgress,
+    handleDeleteWorkItem
   } = useOutletContext<ProjectDetailOutletContext>()
 
   const [standaloneItem, setStandaloneItem] = useState<WorkItem | null>(null)
@@ -73,6 +86,12 @@ export function WorkItemModalRoute() {
     }
   }, [foundItem, itemKey])
 
+  const handleDelete = (foundItem || itemKey) ? async () => {
+    const keyToDelete = foundItem?.key || itemKey!
+    await handleDeleteWorkItem(keyToDelete)
+    navigate(`/projects/${projectKey}`)
+  } : undefined
+
   return (
     <WorkItemDetailModal
       item={foundItem}
@@ -83,6 +102,7 @@ export function WorkItemModalRoute() {
       onUpdateStatus={handleUpdateStatus}
       onUpdateContext={handleUpdateContext}
       onAddProgress={handleAddProgress}
+      onDelete={handleDelete}
     />
   )
 }

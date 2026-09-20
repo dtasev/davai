@@ -216,3 +216,71 @@ class TestNinjaAPI:
         assert prog_list_res.status_code == 200
         assert len(prog_list_res.json()) == 1
         assert prog_list_res.json()[0]["proof"] == "git:8f3a9e2"
+
+    def test_delete_sprint_release_and_work_item(self, ninja_client, test_user, test_api_key):
+        _, raw_key = test_api_key
+        # 1. Create project
+        p_res = ninja_client.post("/projects", json={"key": "DEL", "name": "Deletion Test"}, headers={"X-API-Key": raw_key})
+        assert p_res.status_code == 200
+
+        # 2. Create release and delete it
+        rel_res = ninja_client.post("/projects/DEL/releases", json={"name": "v0.1"}, headers={"X-API-Key": raw_key})
+        assert rel_res.status_code == 200
+        rel_id = rel_res.json()["id"]
+
+        del_rel = ninja_client.delete(f"/projects/DEL/releases/{rel_id}", headers={"X-API-Key": raw_key})
+        assert del_rel.status_code == 200
+        assert del_rel.json()["success"] is True
+
+        # 3. Create sprint and delete it
+        sp_res = ninja_client.post("/projects/DEL/sprints", json={"name": "Sprint Del"}, headers={"X-API-Key": raw_key})
+        assert sp_res.status_code == 200
+        sp_id = sp_res.json()["id"]
+
+        del_sp = ninja_client.delete(f"/projects/DEL/sprints/{sp_id}", headers={"X-API-Key": raw_key})
+        assert del_sp.status_code == 200
+        assert del_sp.json()["success"] is True
+
+        # 4. Create work item and delete it
+        wi_res = ninja_client.post("/work-items", json={"project_key": "DEL", "title": "Temporary item", "status": "todo"}, headers={"X-API-Key": raw_key})
+        assert wi_res.status_code == 200
+        wi_key = wi_res.json()["key"]
+
+        del_wi = ninja_client.delete(f"/work-items/{wi_key}", headers={"X-API-Key": raw_key})
+        assert del_wi.status_code == 200
+        assert del_wi.json()["success"] is True
+
+        # Verify 404 after deletion
+        assert ninja_client.get(f"/work-items/{wi_key}").status_code == 404
+
+    def test_update_sprint_and_release(self, ninja_client, test_user, test_api_key):
+        _, raw_key = test_api_key
+        p_res = ninja_client.post("/projects", json={"key": "UPD", "name": "Update Test"}, headers={"X-API-Key": raw_key})
+        assert p_res.status_code == 200
+
+        # Create and patch release
+        rel_res = ninja_client.post("/projects/UPD/releases", json={"name": "v1.0-alpha"}, headers={"X-API-Key": raw_key})
+        rel_id = rel_res.json()["id"]
+
+        patch_rel = ninja_client.patch(
+            f"/projects/UPD/releases/{rel_id}",
+            json={"name": "v1.0-beta", "description": "Beta release notes"},
+            headers={"X-API-Key": raw_key}
+        )
+        assert patch_rel.status_code == 200
+        assert patch_rel.json()["name"] == "v1.0-beta"
+        assert patch_rel.json()["description"] == "Beta release notes"
+
+        # Create and patch sprint
+        sp_res = ninja_client.post("/projects/UPD/sprints", json={"name": "Sprint 1"}, headers={"X-API-Key": raw_key})
+        sp_id = sp_res.json()["id"]
+
+        patch_sp = ninja_client.patch(
+            f"/projects/UPD/sprints/{sp_id}",
+            json={"name": "Sprint 1 Renamed", "description": "New sprint objective"},
+            headers={"X-API-Key": raw_key}
+        )
+        assert patch_sp.status_code == 200
+        assert patch_sp.json()["name"] == "Sprint 1 Renamed"
+        assert patch_sp.json()["description"] == "New sprint objective"
+

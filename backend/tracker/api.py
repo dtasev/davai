@@ -98,6 +98,13 @@ class CreateReleaseIn(Schema):
     end_date: Optional[datetime] = None
 
 
+class UpdateReleaseIn(Schema):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+
 class SprintOut(Schema):
     id: int
     project_key: str
@@ -132,6 +139,14 @@ class SprintOut(Schema):
 class CreateSprintIn(Schema):
     name: str
     description: str = ""
+    release_id: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+
+class UpdateSprintIn(Schema):
+    name: Optional[str] = None
+    description: Optional[str] = None
     release_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
@@ -449,6 +464,30 @@ def create_release(request, project_key: str, payload: CreateReleaseIn):
     )
 
 
+@api.patch("/projects/{project_key}/releases/{release_id}", response=ReleaseOut, auth=api_key_auth, summary="Update Release")
+def update_release(request, project_key: str, release_id: int, payload: UpdateReleaseIn):
+    project = get_object_or_404(Project, key=project_key.upper())
+    release = get_object_or_404(Release, id=release_id, project=project)
+    if payload.name is not None:
+        release.name = payload.name
+    if payload.description is not None:
+        release.description = payload.description
+    if payload.start_date is not None:
+        release.start_date = payload.start_date
+    if payload.end_date is not None:
+        release.end_date = payload.end_date
+    release.save()
+    return release
+
+
+@api.delete("/projects/{project_key}/releases/{release_id}", auth=api_key_auth, summary="Delete Release")
+def delete_release(request, project_key: str, release_id: int):
+    project = get_object_or_404(Project, key=project_key.upper())
+    release = get_object_or_404(Release, id=release_id, project=project)
+    release.delete()
+    return {"success": True, "message": f"Release {release_id} deleted"}
+
+
 @api.get("/projects/{project_key}/sprints", response=List[SprintOut], summary="List Sprints")
 def list_sprints(request, project_key: str):
     project = get_object_or_404(Project, key=project_key.upper())
@@ -470,6 +509,35 @@ def create_sprint(request, project_key: str, payload: CreateSprintIn):
         start_date=payload.start_date,
         end_date=payload.end_date
     )
+
+
+@api.patch("/projects/{project_key}/sprints/{sprint_id}", response=SprintOut, auth=api_key_auth, summary="Update Sprint")
+def update_sprint(request, project_key: str, sprint_id: int, payload: UpdateSprintIn):
+    project = get_object_or_404(Project, key=project_key.upper())
+    sprint = get_object_or_404(Sprint, id=sprint_id, project=project)
+    if payload.name is not None:
+        sprint.name = payload.name
+    if payload.description is not None:
+        sprint.description = payload.description
+    if payload.release_id is not None:
+        if payload.release_id == 0:
+            sprint.release = None
+        else:
+            sprint.release = get_object_or_404(Release, id=payload.release_id, project=project)
+    if payload.start_date is not None:
+        sprint.start_date = payload.start_date
+    if payload.end_date is not None:
+        sprint.end_date = payload.end_date
+    sprint.save()
+    return sprint
+
+
+@api.delete("/projects/{project_key}/sprints/{sprint_id}", auth=api_key_auth, summary="Delete Sprint")
+def delete_sprint(request, project_key: str, sprint_id: int):
+    project = get_object_or_404(Project, key=project_key.upper())
+    sprint = get_object_or_404(Sprint, id=sprint_id, project=project)
+    sprint.delete()
+    return {"success": True, "message": f"Sprint {sprint_id} deleted"}
 
 
 # ---------------------------------------------------------------------------
@@ -601,6 +669,13 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
     item.updated_by = user
     item.save()
     return item
+
+
+@api.delete("/work-items/{key}", auth=api_key_auth, summary="Delete Work Item")
+def delete_work_item(request, key: str):
+    item = get_object_or_404(WorkItem, key=key.upper())
+    item.delete()
+    return {"success": True, "message": f"Work item {key.upper()} deleted"}
 
 
 # ---------------------------------------------------------------------------

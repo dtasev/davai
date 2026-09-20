@@ -382,4 +382,159 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.queryByText('Sprint Details & Scope')).not.toBeInTheDocument()
     })
   })
+
+  it('renders date pickers without time component for target start and target release dates in creation forms', async () => {
+    const { router: _router } = await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // Open Release creation modal
+    const createRelBtn = screen.getByTestId('create-release-button')
+    await act(async () => {
+      fireEvent.click(createRelBtn)
+    })
+
+    const targetStartInput = screen.getByLabelText(/Target Start/i)
+    const targetReleaseDateInput = screen.getByLabelText(/Target Release Date/i)
+
+    expect(targetStartInput).toHaveAttribute('type', 'date')
+    expect(targetReleaseDateInput).toHaveAttribute('type', 'date')
+
+    // Close modal
+    const closeBtn = screen.getByRole('button', { name: /Cancel/i })
+    await act(async () => {
+      fireEvent.click(closeBtn)
+    })
+
+    // Open Sprint creation modal
+    const createSprintBtn = screen.getByTestId('create-sprint-button')
+    await act(async () => {
+      fireEvent.click(createSprintBtn)
+    })
+
+    const sprintStartInput = screen.getByLabelText(/^Start Date$/i)
+    const sprintEndInput = screen.getByLabelText(/^End Date$/i)
+
+    expect(sprintStartInput).toHaveAttribute('type', 'date')
+    expect(sprintEndInput).toHaveAttribute('type', 'date')
+  })
+
+  it('supports delete with confirmation in SprintDetailModal, ReleaseDetailModal, and WorkItemDetailModal', async () => {
+    const { router } = await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // 1. Sprint Deletion Flow
+    const sprintCard = screen.getByTestId('sprint-card-1')
+    await act(async () => {
+      fireEvent.click(sprintCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint Details & Scope')).toBeInTheDocument()
+    })
+
+    // Bin icon is visible
+    const deleteSprintBtn = screen.getByTestId('delete-sprint-button')
+    expect(deleteSprintBtn).toBeInTheDocument()
+    expect(deleteSprintBtn.className).toContain('text-rose-400')
+
+    // Clicking bin button shows confirmation
+    await act(async () => {
+      fireEvent.click(deleteSprintBtn)
+    })
+    expect(
+      screen.getByText(/Are you sure you want to delete this sprint\? This cannot be undone\./i)
+    ).toBeInTheDocument()
+
+    // Clicking Cancel hides confirmation
+    const cancelSprintDelBtn = screen.getByRole('button', { name: /Cancel/i })
+    await act(async () => {
+      fireEvent.click(cancelSprintDelBtn)
+    })
+    expect(
+      screen.queryByText(/Are you sure you want to delete this sprint\? This cannot be undone\./i)
+    ).not.toBeInTheDocument()
+
+    // Click bin again and confirm deletion
+    await act(async () => {
+      fireEvent.click(deleteSprintBtn)
+    })
+    const confirmSprintDelBtn = screen.getByTestId('confirm-delete-sprint-button')
+    await act(async () => {
+      fireEvent.click(confirmSprintDelBtn)
+    })
+
+    // Navigates back to /projects/DAV and closes modal
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+      expect(screen.queryByText('Sprint Details & Scope')).not.toBeInTheDocument()
+    })
+
+    // 2. Release Deletion Flow
+    const releaseCard = screen.getByTestId('release-card-1')
+    await act(async () => {
+      fireEvent.click(releaseCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Release Milestone Details')).toBeInTheDocument()
+    })
+
+    const deleteReleaseBtn = screen.getByTestId('delete-release-button')
+    expect(deleteReleaseBtn).toBeInTheDocument()
+    expect(deleteReleaseBtn.className).toContain('text-rose-400')
+
+    await act(async () => {
+      fireEvent.click(deleteReleaseBtn)
+    })
+    expect(
+      screen.getByText(/Are you sure you want to delete this release\? This cannot be undone\./i)
+    ).toBeInTheDocument()
+
+    const confirmReleaseDelBtn = screen.getByTestId('confirm-delete-release-button')
+    await act(async () => {
+      fireEvent.click(confirmReleaseDelBtn)
+    })
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+      expect(screen.queryByText('Release Milestone Details')).not.toBeInTheDocument()
+    })
+
+    // 3. Work Item Deletion Flow
+    const workItemCard = screen.getByTestId('work-item-DAV-1')
+    await act(async () => {
+      fireEvent.click(workItemCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('LLM Agent Context (SKILL.md)')).toBeInTheDocument()
+    })
+
+    const deleteWorkItemBtn = screen.getByTestId('delete-work-item-button')
+    expect(deleteWorkItemBtn).toBeInTheDocument()
+    expect(deleteWorkItemBtn.className).toContain('text-rose-400')
+
+    await act(async () => {
+      fireEvent.click(deleteWorkItemBtn)
+    })
+    expect(
+      screen.getByText(/Are you sure you want to delete this work item\? This cannot be undone\./i)
+    ).toBeInTheDocument()
+
+    const confirmWorkItemDelBtn = screen.getByTestId('confirm-delete-work-item-button')
+    await act(async () => {
+      fireEvent.click(confirmWorkItemDelBtn)
+    })
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+      expect(screen.queryByText('LLM Agent Context (SKILL.md)')).not.toBeInTheDocument()
+    })
+  })
 })

@@ -16,6 +16,12 @@ export interface ProjectDetailOutletContext {
     key: string,
     entry: { t: string; proof: string; status: string }
   ) => Promise<void>
+  handleDeleteSprint: (sprintId: number) => Promise<void>
+  handleDeleteRelease: (releaseId: number) => Promise<void>
+  handleDeleteWorkItem: (key: string) => Promise<void>
+  handleUpdateSprint: (sprintId: number, data: { name?: string; description?: string }) => Promise<Sprint>
+  handleUpdateRelease: (releaseId: number, data: { name?: string; description?: string }) => Promise<Release>
+  handleUpdateWorkItemDetails: (key: string, data: { title?: string; descr?: string }) => Promise<WorkItem>
 }
 
 export function ProjectDetailRoute() {
@@ -203,6 +209,122 @@ export function ProjectDetailRoute() {
     }
   }
 
+  const handleDeleteSprint = async (sprintId: number) => {
+    if (!projectKey) return
+    const res = await fetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-Key': apiKey
+      }
+    })
+    if (res.ok) {
+      await fetchDetails()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to delete sprint')
+    }
+  }
+
+  const handleDeleteRelease = async (releaseId: number) => {
+    if (!projectKey) return
+    const res = await fetch(`/api/projects/${projectKey}/releases/${releaseId}`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-Key': apiKey
+      }
+    })
+    if (res.ok) {
+      await fetchDetails()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to delete release')
+    }
+  }
+
+  const handleDeleteWorkItem = async (key: string) => {
+    const res = await fetch(`/api/work-items/${key}`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-Key': apiKey
+      }
+    })
+    if (res.ok) {
+      await fetchDetails()
+      await fetchProjects()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to delete work item')
+    }
+  }
+
+  const handleUpdateSprint = async (
+    sprintId: number,
+    data: { name?: string; description?: string }
+  ) => {
+    if (!projectKey) throw new Error('No project selected')
+    const res = await fetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify(data)
+    })
+    if (res.ok) {
+      const updated: Sprint = await res.json()
+      setSprints(prev => prev.map(s => (s.id === sprintId ? updated : s)))
+      return updated
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to update sprint')
+    }
+  }
+
+  const handleUpdateRelease = async (
+    releaseId: number,
+    data: { name?: string; description?: string }
+  ) => {
+    if (!projectKey) throw new Error('No project selected')
+    const res = await fetch(`/api/projects/${projectKey}/releases/${releaseId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify(data)
+    })
+    if (res.ok) {
+      const updated: Release = await res.json()
+      setReleases(prev => prev.map(r => (r.id === releaseId ? updated : r)))
+      return updated
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to update release')
+    }
+  }
+
+  const handleUpdateWorkItemDetails = async (
+    key: string,
+    data: { title?: string; descr?: string }
+  ) => {
+    const res = await fetch(`/api/work-items/${key}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify(data)
+    })
+    if (res.ok) {
+      const updated: WorkItem = await res.json()
+      setWorkItems(prev => prev.map(item => (item.key === key ? updated : item)))
+      return updated
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to update work item')
+    }
+  }
+
   // Fallback project object if projects list is still loading
   const effectiveProject: Project = currentProject || {
     id: 0,
@@ -250,7 +372,13 @@ export function ProjectDetailRoute() {
           setWorkItems,
           handleUpdateStatus,
           handleUpdateContext,
-          handleAddProgress
+          handleAddProgress,
+          handleDeleteSprint,
+          handleDeleteRelease,
+          handleDeleteWorkItem,
+          handleUpdateSprint,
+          handleUpdateRelease,
+          handleUpdateWorkItemDetails
         }}
       />
     </>
