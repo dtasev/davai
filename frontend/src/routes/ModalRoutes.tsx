@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import { WorkItem } from '../types'
 import { ProjectDetailOutletContext } from './ProjectDetailRoute'

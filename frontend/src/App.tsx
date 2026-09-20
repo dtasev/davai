@@ -1,4 +1,3 @@
-import React from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { AppProvider } from './context/AppContext'
 import { router as defaultRouter } from './routes/router'

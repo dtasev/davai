@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router-dom'
 import App from './App'
 import { routes } from './routes/router'
@@ -186,7 +186,6 @@ describe('Davai Frontend App with React Router', () => {
     const memoryRouter = createMemoryRouter(routes, {
       initialEntries,
       future: {
-        v7_startTransition: true,
         v7_relativeSplatPath: true
       }
     })

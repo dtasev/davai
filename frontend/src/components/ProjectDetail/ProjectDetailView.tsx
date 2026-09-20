@@ -1,5 +1,4 @@
-import React from 'react'
-import { ArrowLeft, RefreshCw, Layers, FolderGit2 } from 'lucide-react'
+import { ArrowLeft, RefreshCw } from 'lucide-react'
 import { Project, Sprint, Release, WorkItem } from '../../types'
 import { SprintList } from './SprintList'
 import { ReleaseList } from './ReleaseList'
@@ -56,38 +55,38 @@ export function ProjectDetailView({
   onCreateWorkItem
 }: ProjectDetailViewProps) {
   return (
-    <div className="space-y-8" data-testid="project-detail-view">
+    <div className="space-y-6" data-testid="project-detail-view">
       {/* Top Project Navigation & Metadata */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-800/80">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-zinc-800/80">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onBack}
-            className="p-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition shadow-sm"
+            className="p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100 transition shadow-sm shrink-0"
             title="Back to Projects"
             data-testid="back-to-projects-button"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs font-bold text-indigo-400">
                 [{project.key}]
               </span>
-              <h2 className="text-xl font-bold tracking-tight text-zinc-100">
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-100 truncate">
                 {project.name}
               </h2>
             </div>
             {project.description && (
-              <p className="text-xs text-zinc-400 mt-0.5 max-w-2xl">
+              <p className="text-xs text-zinc-400 mt-0.5 max-w-2xl truncate">
                 {project.description}
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-zinc-400">
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-1.5 text-xs text-zinc-400">
             <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
               <strong className="text-zinc-200">{sprints.length}</strong> Sprints
             </span>
@@ -95,22 +94,22 @@ export function ProjectDetailView({
               <strong className="text-zinc-200">{releases.length}</strong> Releases
             </span>
             <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
-              <strong className="text-zinc-200">{workItems.length}</strong> Work Items
+              <strong className="text-zinc-200">{workItems.length}</strong> Items
             </span>
           </div>
 
           <button
             onClick={onRefresh}
-            className="p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition"
             title="Refresh Project Data"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Strictly Top-to-Bottom Layout */}
-      <div className="space-y-8">
+      <div className="space-y-5">
         {/* 1. TOP: List of Sprints */}
         <section data-testid="sprint-list-section">
           <SprintList

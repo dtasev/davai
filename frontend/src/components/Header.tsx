@@ -1,4 +1,3 @@
-import React from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Layers,
@@ -32,32 +31,29 @@ export function Header({
 
   return (
     <header className="border-b border-zinc-800/80 bg-zinc-900/60 backdrop-blur-md sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Left: Brand & Breadcrumbs */}
-        <div className="flex items-center gap-4 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        {/* Left: Brand & Navigation */}
+        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
           <Link
             to="/"
-            className="flex items-center gap-3 group"
+            className="flex items-center gap-2.5 group shrink-0"
           >
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition">
-              <Layers className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-400 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition">
+              <Layers className="w-4 h-4 text-white" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
-                  Davai
-                </span>
-                <span className="text-[10px] uppercase font-semibold tracking-wider px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                  Tracker
-                </span>
-              </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
+                Davai
+              </span>
+              <span className="text-[9px] uppercase font-semibold tracking-wider px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 leading-none">
+                Tracker
+              </span>
             </div>
           </Link>
 
           {/* Breadcrumb if in project route */}
           {selectedProject && isProjectView && (
-            <div className="hidden md:flex items-center gap-2 text-xs text-zinc-400">
-              <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+            <div className="hidden lg:flex items-center gap-1.5 text-xs text-zinc-400 border-l border-zinc-800 pl-3.5 shrink-0">
               <Link
                 to="/"
                 className="hover:text-zinc-200 transition"
@@ -67,19 +63,19 @@ export function Header({
               <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
               <Link
                 to={`/projects/${selectedProject.key}`}
-                className="font-semibold text-zinc-200 hover:text-white flex items-center gap-1.5 transition"
+                className="font-semibold text-zinc-200 hover:text-white flex items-center gap-1 transition max-w-[200px] truncate"
               >
                 <span className="font-mono text-indigo-400">[{selectedProject.key}]</span>
-                <span>{selectedProject.name}</span>
+                <span className="truncate">{selectedProject.name}</span>
               </Link>
             </div>
           )}
 
           {/* Navigation Tabs */}
-          <nav className="flex items-center gap-1 bg-zinc-900/80 p-1 rounded-lg border border-zinc-800">
+          <nav className="flex items-center gap-1 bg-zinc-900/80 p-1 rounded-lg border border-zinc-800 shrink-0">
             <Link
               to="/"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${
                 isDashboard
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
@@ -91,7 +87,7 @@ export function Header({
 
             <Link
               to="/settings"
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${
                 isSettings
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
@@ -104,17 +100,17 @@ export function Header({
         </div>
 
         {/* Right: Actions, User, and External Links */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* User Status Pill */}
           {userProfile ? (
             <div
               onClick={() => navigate('/settings')}
-              className="cursor-pointer flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition text-xs"
+              className="cursor-pointer flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition text-xs"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span className="font-medium text-zinc-200">{userProfile.username}</span>
               {userProfile.is_staff && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 font-semibold">
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold leading-none">
                   Admin
                 </span>
               )}
@@ -122,7 +118,7 @@ export function Header({
           ) : (
             <button
               onClick={() => navigate('/settings')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium hover:bg-amber-500/20 transition"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium hover:bg-amber-500/20 transition"
             >
               <AlertTriangle className="w-3.5 h-3.5" />
               <span>Connect Key</span>
@@ -134,7 +130,7 @@ export function Header({
             href={`/graphql/?api_key=${encodeURIComponent(apiKey)}`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"
             data-testid="graphql-link"
           >
             <Code2 className="w-3.5 h-3.5 text-pink-400" />
@@ -147,7 +143,7 @@ export function Header({
             href="/api/docs"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"
             data-testid="swagger-link"
           >
             <Terminal className="w-3.5 h-3.5" />

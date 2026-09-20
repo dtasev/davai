@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react'
+import { useEffect, ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 interface ModalProps {
   isOpen: boolean
   onClose: () => void
-  title: React.ReactNode
-  children: React.ReactNode
+  title: ReactNode
+  children: ReactNode
   maxWidth?: string
 }
 
@@ -29,19 +29,19 @@ export function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-2xl'
   return (
     <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
       <div
-        className={`bg-zinc-900 border border-zinc-800 rounded-2xl w-full ${maxWidth} p-6 space-y-6 shadow-2xl relative my-8 animate-in fade-in zoom-in-95 duration-150`}
+        className={`bg-zinc-900 border border-zinc-800 rounded-xl w-full ${maxWidth} p-5 sm:p-6 space-y-4 shadow-2xl relative my-8`}
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-4">
-          <div className="text-lg font-bold text-zinc-100 flex items-center gap-2">
+        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3.5">
+          <div className="text-base sm:text-lg font-bold text-zinc-100 flex items-center gap-2">
             {title}
           </div>
           <button
             onClick={onClose}
             aria-label="Close modal"
-            className="p-1 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 

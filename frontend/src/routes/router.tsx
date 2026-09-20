@@ -1,4 +1,3 @@
-import React from 'react'
 import { createBrowserRouter, Navigate, RouteObject } from 'react-router-dom'
 import { RootLayout } from './RootLayout'
 import { DashboardRoute } from './DashboardRoute'
@@ -55,7 +54,6 @@ export const routes: RouteObject[] = [
 
 export const router = createBrowserRouter(routes, {
   future: {
-    v7_startTransition: true,
     v7_relativeSplatPath: true
   }
 })

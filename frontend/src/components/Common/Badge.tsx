@@ -1,5 +1,3 @@
-import React from 'react'
-
 export function PriorityBadge({ priority }: { priority: string }) {
   const p = (priority || 'MEDIUM').toUpperCase()
   const styles =
@@ -10,7 +8,9 @@ export function PriorityBadge({ priority }: { priority: string }) {
       : 'text-zinc-400 bg-zinc-800/40 border-zinc-700/40'
 
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border uppercase tracking-wider ${styles}`}>
+    <span
+      className={`inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-semibold border uppercase tracking-wider leading-none ${styles}`}
+    >
       {p}
     </span>
   )
@@ -39,7 +39,9 @@ export function StatusBadge({ status }: { status: string }) {
   }
 
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize ${color}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize leading-none ${color}`}
+    >
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`}></span>
       <span>{s}</span>
     </span>

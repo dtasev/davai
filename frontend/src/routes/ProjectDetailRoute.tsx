@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react'
 import { useParams, useNavigate, Outlet } from 'react-router-dom'
-import { Project, Sprint, Release, WorkItem, ProjectStatus } from '../types'
+import { Project, Sprint, Release, WorkItem } from '../types'
 import { useApp } from '../context/AppContext'
 import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
 
@@ -9,7 +9,7 @@ export interface ProjectDetailOutletContext {
   sprints: Sprint[]
   releases: Release[]
   workItems: WorkItem[]
-  setWorkItems: React.Dispatch<React.SetStateAction<WorkItem[]>>
+  setWorkItems: Dispatch<SetStateAction<WorkItem[]>>
   handleUpdateStatus: (key: string, newStatus: string) => Promise<void>
   handleUpdateContext: (key: string, contextText: string) => Promise<void>
   handleAddProgress: (

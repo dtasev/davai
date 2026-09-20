@@ -1,5 +1,4 @@
-import React from 'react'
-import { Outlet, useParams, useLocation } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { Header } from '../components/Header'
 import { useApp } from '../context/AppContext'
 
@@ -19,7 +18,7 @@ export function RootLayout() {
         userProfile={userProfile}
         apiKey={apiKey}
       />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Outlet />
       </main>
     </div>
