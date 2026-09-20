@@ -52,7 +52,6 @@ jobs:
         docker build -t ghcr.io/dtasev/davai-backend:${IMAGE_TAG} -t ghcr.io/dtasev/davai-backend:latest ./backend
         docker build -t ghcr.io/dtasev/davai-frontend:${IMAGE_TAG} -t ghcr.io/dtasev/davai-frontend:latest ./frontend
         docker build -t ghcr.io/dtasev/davai-nginx:${IMAGE_TAG} -t ghcr.io/dtasev/davai-nginx:latest ./nginx
-        docker build -t ghcr.io/dtasev/davai-opencode:${IMAGE_TAG} -t ghcr.io/dtasev/davai-opencode:latest ./opencode
 
     - name: Push images
       if: github.event_name != 'pull_request'
@@ -63,5 +62,3 @@ jobs:
         docker push ghcr.io/dtasev/davai-frontend:latest
         docker push ghcr.io/dtasev/davai-nginx:${IMAGE_TAG}
         docker push ghcr.io/dtasev/davai-nginx:latest
-        docker push ghcr.io/dtasev/davai-opencode:${IMAGE_TAG}
-        docker push ghcr.io/dtasev/davai-opencode:latest
