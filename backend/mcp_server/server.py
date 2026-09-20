@@ -30,7 +30,7 @@ def list_work_items(status: Optional[str] = None, project_key: Optional[str] = N
     """
     List work items in Davai.
     Args:
-        status: Optional status filter ('TODO', 'IN_PROGRESS', 'DONE').
+        status: Optional status filter ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
         project_key: Optional project key filter (e.g. 'DAV').
     """
     return get_client().list_work_items(status=status, project_key=project_key)
@@ -38,7 +38,7 @@ def list_work_items(status: Optional[str] = None, project_key: Optional[str] = N
 @mcp_server.tool()
 def get_work_item(key: str) -> Dict[str, Any]:
     """
-    Retrieve details of a specific work item by key (e.g. 'DAV-1').
+    Retrieve details of a specific work item by key (e.g. 'DAV-1'), including subtasks, context, and progress entries.
     Args:
         key: The work item key or ID.
     """
@@ -47,52 +47,91 @@ def get_work_item(key: str) -> Dict[str, Any]:
 @mcp_server.tool()
 def create_work_item(
     title: str,
-    description: str = "",
+    descr: str = "",
     priority: str = "MEDIUM",
-    status: str = "TODO",
+    status: Optional[str] = None,
     project_key: str = "DAV",
-    assignee_username: Optional[str] = None
+    active_assignee_username: Optional[str] = None,
+    parent_key: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Create a new work item in Davai.
     Args:
-        title: Title/summary of the task.
-        description: Detailed task description.
+        title: Title of the task.
+        descr: Detailed task description.
         priority: Priority level ('LOW', 'MEDIUM', 'HIGH'). Defaults to 'MEDIUM'.
-        status: Status ('TODO', 'IN_PROGRESS', 'DONE'). Defaults to 'TODO'.
+        status: Status ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
         project_key: Target project key (defaults to 'DAV').
-        assignee_username: Optional username of assigned user.
+        active_assignee_username: Optional username of assigned user.
+        parent_key: Optional parent work item key for subtasks (e.g. 'DAV-1').
     """
     return get_client().create_work_item(
         title=title,
-        description=description,
+        descr=descr,
         priority=priority,
         status=status,
         project_key=project_key,
-        assignee_username=assignee_username
+        active_assignee_username=active_assignee_username,
+        parent_key=parent_key
     )
 
 @mcp_server.tool()
 def update_work_item(
     key: str,
+    title: Optional[str] = None,
+    descr: Optional[str] = None,
     status: Optional[str] = None,
     priority: Optional[str] = None,
-    assignee_username: Optional[str] = None
+    active_assignee_username: Optional[str] = None,
+    parent_key: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Update the status, priority, or assignee of an existing work item.
+    Update fields of an existing work item.
     Args:
         key: Work item key (e.g. 'DAV-1').
-        status: Optional new status ('TODO', 'IN_PROGRESS', 'DONE').
+        title: Optional new title.
+        descr: Optional new description.
+        status: Optional new status ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
         priority: Optional new priority ('LOW', 'MEDIUM', 'HIGH').
-        assignee_username: Optional username to assign to. Pass empty string to unassign.
+        active_assignee_username: Optional username to assign to. Pass empty string to unassign.
+        parent_key: Optional parent key to reparent or nest this work item.
     """
     return get_client().update_work_item(
         key=key,
+        title=title,
+        descr=descr,
         status=status,
         priority=priority,
-        assignee_username=assignee_username
+        active_assignee_username=active_assignee_username,
+        parent_key=parent_key
     )
+
+@mcp_server.tool()
+def set_work_item_context(key: str, t: str) -> Dict[str, Any]:
+    """
+    Set or update the SKILL.md-style markdown technical context for an LLM agent working on this item.
+    Args:
+        key: Work item key (e.g. 'DAV-1').
+        t: Detailed technical guidelines, architecture constraints, and relevant context in markdown.
+    """
+    return get_client().set_work_item_context(key=key, t=t)
+
+@mcp_server.tool()
+def log_work_item_progress(
+    key: str,
+    t: str,
+    proof: str = "",
+    status: str = "COMPLETED"
+) -> Dict[str, Any]:
+    """
+    Log a progress step, decision, or completed milestone for a work item.
+    Args:
+        key: Work item key (e.g. 'DAV-1').
+        t: Summary of the step completed, decision made, or current obstacle.
+        proof: If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact.
+        status: Step status ('COMPLETED', 'IN_PROGRESS', 'BLOCKED', 'FAILED').
+    """
+    return get_client().log_work_item_progress(key=key, t=t, proof=proof, status=status)
 
 @mcp_server.tool()
 def get_project_summary(project_key: str = "DAV") -> Dict[str, Any]:

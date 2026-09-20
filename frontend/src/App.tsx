@@ -25,10 +25,13 @@ interface BackendInfo {
 interface WorkItem {
   id: string | number
   key: string
+  parent_key?: string | null
   title: string
-  status: 'TODO' | 'IN_PROGRESS' | 'DONE'
+  descr?: string
+  status: string
   priority: 'LOW' | 'MEDIUM' | 'HIGH'
-  assignee: string
+  active_assignee?: string | null
+  created_by?: string
 }
 
 export default function App() {
@@ -308,12 +311,12 @@ export default function App() {
                   <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">To Do</span>
                 </div>
                 <span className="text-xs font-mono text-zinc-500">
-                  {workItems.filter(i => i.status === 'TODO').length}
+                  {workItems.filter(i => (i.status || '').toLowerCase() === 'todo').length}
                 </span>
               </div>
               <div className="space-y-2.5 flex-1">
                 {workItems
-                  .filter(item => item.status === 'TODO')
+                  .filter(item => (item.status || '').toLowerCase() === 'todo')
                   .map(item => (
                     <WorkCard key={item.id} item={item} />
                   ))}
@@ -328,12 +331,12 @@ export default function App() {
                   <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">In Progress</span>
                 </div>
                 <span className="text-xs font-mono text-zinc-500">
-                  {workItems.filter(i => i.status === 'IN_PROGRESS').length}
+                  {workItems.filter(i => ['in progress', 'in_progress'].includes((i.status || '').toLowerCase())).length}
                 </span>
               </div>
               <div className="space-y-2.5 flex-1">
                 {workItems
-                  .filter(item => item.status === 'IN_PROGRESS')
+                  .filter(item => ['in progress', 'in_progress'].includes((item.status || '').toLowerCase()))
                   .map(item => (
                     <WorkCard key={item.id} item={item} />
                   ))}
@@ -348,12 +351,12 @@ export default function App() {
                   <span className="text-xs font-bold uppercase tracking-wider text-zinc-300">Done</span>
                 </div>
                 <span className="text-xs font-mono text-zinc-500">
-                  {workItems.filter(i => i.status === 'DONE').length}
+                  {workItems.filter(i => (i.status || '').toLowerCase() === 'done').length}
                 </span>
               </div>
               <div className="space-y-2.5 flex-1">
                 {workItems
-                  .filter(item => item.status === 'DONE')
+                  .filter(item => (item.status || '').toLowerCase() === 'done')
                   .map(item => (
                     <WorkCard key={item.id} item={item} />
                   ))}
@@ -384,10 +387,18 @@ function WorkCard({ item }: { item: WorkItem }) {
       ? 'text-amber-400 bg-amber-950/40 border-amber-800/40'
       : 'text-zinc-400 bg-zinc-800/40 border-zinc-700/40'
 
+  const assigneeName = item.active_assignee || 'Unassigned'
+  const isDone = (item.status || '').toLowerCase() === 'done'
+
   return (
     <div className="group p-3 rounded-lg bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition cursor-pointer shadow-sm hover:shadow-md">
       <div className="flex items-center justify-between text-[11px] mb-1.5">
-        <span className="font-mono font-semibold text-indigo-400">{item.key}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="font-mono font-semibold text-indigo-400">{item.key}</span>
+          {item.parent_key && (
+            <span className="text-[9px] font-mono text-zinc-500">↳ {item.parent_key}</span>
+          )}
+        </div>
         <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border ${priorityColor}`}>
           {item.priority}
         </span>
@@ -395,14 +406,19 @@ function WorkCard({ item }: { item: WorkItem }) {
       <p className="text-xs text-zinc-200 font-medium leading-snug group-hover:text-white transition">
         {item.title}
       </p>
+      {item.descr && (
+        <p className="text-[11px] text-zinc-400 line-clamp-2 mt-1">
+          {item.descr}
+        </p>
+      )}
       <div className="flex items-center justify-between mt-3 pt-2 border-t border-zinc-800/50 text-[11px] text-zinc-500">
         <span className="flex items-center gap-1">
           <span className="w-4 h-4 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-[9px] font-bold text-zinc-300">
-            {item.assignee.slice(0, 1)}
+            {assigneeName.slice(0, 1).toUpperCase()}
           </span>
-          <span>{item.assignee}</span>
+          <span>{assigneeName}</span>
         </span>
-        {item.status === 'DONE' && (
+        {isDone && (
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
         )}
       </div>

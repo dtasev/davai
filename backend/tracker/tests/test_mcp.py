@@ -6,6 +6,8 @@ from mcp_server.server import (
     create_work_item,
     update_work_item,
     get_work_item,
+    set_work_item_context,
+    log_work_item_progress,
     get_project_summary,
     get_board_state,
     set_client
@@ -51,9 +53,9 @@ class TestMCPWithApiClient:
         # 2. Create work item via MCP tool
         created = create_work_item(
             title="MCP Tool Generated Ticket",
-            description="Created through MCP API Client",
+            descr="Created through MCP API Client",
             priority="HIGH",
-            status="TODO",
+            status="todo",
             project_key=test_project.key
         )
         assert created["title"] == "MCP Tool Generated Ticket"
@@ -64,21 +66,31 @@ class TestMCPWithApiClient:
         fetched = get_work_item(item_key)
         assert fetched["key"] == item_key
         assert fetched["priority"] == "HIGH"
+        assert fetched["descr"] == "Created through MCP API Client"
 
         # 4. Update item via MCP tool
-        updated = update_work_item(key=item_key, status="DONE")
-        assert updated["status"] == "DONE"
+        updated = update_work_item(key=item_key, status="done")
+        assert updated["status"] == "done"
 
-        # 5. List items via MCP tool
+        # 5. Set technical context via MCP tool
+        ctx = set_work_item_context(key=item_key, t="# Technical Context\nVerified by MCP.")
+        assert ctx["t"] == "# Technical Context\nVerified by MCP."
+
+        # 6. Log progress with proof via MCP tool
+        prog = log_work_item_progress(key=item_key, t="Shipped MCP integration", proof="git:sha-987abc", status="COMPLETED")
+        assert prog["proof"] == "git:sha-987abc"
+        assert prog["status"] == "COMPLETED"
+
+        # 7. List items via MCP tool
         items = list_work_items(project_key=test_project.key)
         assert any(i["key"] == item_key for i in items)
 
-        # 6. Project summary
+        # 8. Project summary
         summary = get_project_summary(project_key=test_project.key)
         assert summary["project"] == test_project.key
         assert summary["total_items"] >= 1
         assert summary["done"] >= 1
 
-        # 7. Board state resource
+        # 9. Board state resource
         board_state = get_board_state()
         assert "MCP Tool Generated Ticket" in board_state

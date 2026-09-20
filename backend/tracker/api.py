@@ -1,11 +1,21 @@
 import sys
 from typing import List, Optional
+from datetime import datetime
 import django
 import ninja
 from ninja import NinjaAPI, Schema, errors
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
-from tracker.models import WorkItem, Project, APIKey
+from tracker.models import (
+    WorkItem,
+    Project,
+    ProjectStatus,
+    Release,
+    Sprint,
+    Context,
+    Progress,
+    APIKey,
+)
 from tracker.auth import api_key_auth, generate_api_key
 
 api = NinjaAPI(
@@ -24,53 +34,13 @@ class UserOut(Schema):
     email: str
     is_staff: bool
 
-class WorkItemOut(Schema):
+
+class ProjectStatusOut(Schema):
     id: int
-    key: str
-    title: str
-    description: str
-    status: str
-    priority: str
-    project_key: str
-    assignee: str
-    reporter: str
-    created_at: str
-    updated_at: str
+    name: str
+    order: int
+    is_default: bool
 
-    @staticmethod
-    def resolve_project_key(obj: WorkItem) -> str:
-        return obj.project.key
-
-    @staticmethod
-    def resolve_assignee(obj: WorkItem) -> str:
-        return obj.assignee.username if obj.assignee else "Unassigned"
-
-    @staticmethod
-    def resolve_reporter(obj: WorkItem) -> str:
-        return obj.reporter.username if obj.reporter else "System"
-
-    @staticmethod
-    def resolve_created_at(obj: WorkItem) -> str:
-        return obj.created_at.isoformat()
-
-    @staticmethod
-    def resolve_updated_at(obj: WorkItem) -> str:
-        return obj.updated_at.isoformat()
-
-class CreateWorkItemIn(Schema):
-    title: str
-    description: str = ""
-    status: str = "TODO"
-    priority: str = "MEDIUM"
-    project_key: str = "DAV"
-    assignee_username: Optional[str] = None
-
-class UpdateWorkItemIn(Schema):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
-    assignee_username: Optional[str] = None
 
 class ProjectOut(Schema):
     id: int
@@ -78,15 +48,256 @@ class ProjectOut(Schema):
     name: str
     description: str
     item_count: int
+    statuses: List[ProjectStatusOut]
 
     @staticmethod
     def resolve_item_count(obj: Project) -> int:
-        return obj.items.count()
+        return obj.work_items.count()
+
+    @staticmethod
+    def resolve_statuses(obj: Project) -> List[ProjectStatusOut]:
+        return list(obj.statuses.all())
+
 
 class CreateProjectIn(Schema):
     key: str
     name: str
     description: str = ""
+
+
+class ReleaseOut(Schema):
+    id: int
+    project_key: str
+    name: str
+    description: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    created_at: str
+
+    @staticmethod
+    def resolve_project_key(obj: Release) -> str:
+        return obj.project.key
+
+    @staticmethod
+    def resolve_start_date(obj: Release) -> Optional[str]:
+        return obj.start_date.isoformat() if obj.start_date else None
+
+    @staticmethod
+    def resolve_end_date(obj: Release) -> Optional[str]:
+        return obj.end_date.isoformat() if obj.end_date else None
+
+    @staticmethod
+    def resolve_created_at(obj: Release) -> str:
+        return obj.created_at.isoformat()
+
+
+class CreateReleaseIn(Schema):
+    name: str
+    description: str = ""
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+
+class SprintOut(Schema):
+    id: int
+    project_key: str
+    release_id: Optional[int] = None
+    name: str
+    description: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    created_at: str
+
+    @staticmethod
+    def resolve_project_key(obj: Sprint) -> str:
+        return obj.project.key
+
+    @staticmethod
+    def resolve_release_id(obj: Sprint) -> Optional[int]:
+        return obj.release_id
+
+    @staticmethod
+    def resolve_start_date(obj: Sprint) -> Optional[str]:
+        return obj.start_date.isoformat() if obj.start_date else None
+
+    @staticmethod
+    def resolve_end_date(obj: Sprint) -> Optional[str]:
+        return obj.end_date.isoformat() if obj.end_date else None
+
+    @staticmethod
+    def resolve_created_at(obj: Sprint) -> str:
+        return obj.created_at.isoformat()
+
+
+class CreateSprintIn(Schema):
+    name: str
+    description: str = ""
+    release_id: Optional[int] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+
+class ContextOut(Schema):
+    id: int
+    work_item_key: str
+    user: Optional[str] = None
+    t: str
+    timestamp: str
+
+    @staticmethod
+    def resolve_work_item_key(obj: Context) -> str:
+        return obj.work_item.key
+
+    @staticmethod
+    def resolve_user(obj: Context) -> Optional[str]:
+        return obj.user.username if obj.user else None
+
+    @staticmethod
+    def resolve_timestamp(obj: Context) -> str:
+        return obj.timestamp.isoformat()
+
+
+class UpdateContextIn(Schema):
+    t: str
+
+
+class ProgressOut(Schema):
+    id: int
+    work_item_key: str
+    user: Optional[str] = None
+    t: str
+    proof: str
+    status: str
+    timestamp: str
+
+    @staticmethod
+    def resolve_work_item_key(obj: Progress) -> str:
+        return obj.work_item.key
+
+    @staticmethod
+    def resolve_user(obj: Progress) -> Optional[str]:
+        return obj.user.username if obj.user else None
+
+    @staticmethod
+    def resolve_timestamp(obj: Progress) -> str:
+        return obj.timestamp.isoformat()
+
+
+class CreateProgressIn(Schema):
+    t: str
+    proof: str = ""
+    status: str = "COMPLETED"
+
+
+class WorkItemOut(Schema):
+    id: int
+    key: str
+    parent_key: Optional[str] = None
+    title: str
+    descr: str
+    status: str
+    priority: str
+    project_key: str
+    active_assignee: Optional[str] = None
+    created_by: str
+    updated_by: Optional[str] = None
+    assigned: List[str]
+    watching: List[str]
+    source: str
+    start_date: Optional[str] = None
+    target_date: Optional[str] = None
+    sprint_id: Optional[int] = None
+    release_id: Optional[int] = None
+    created: str
+    updated: str
+    context: Optional[ContextOut] = None
+    progress: List[ProgressOut]
+
+    @staticmethod
+    def resolve_parent_key(obj: WorkItem) -> Optional[str]:
+        return obj.parent.key if obj.parent else None
+
+    @staticmethod
+    def resolve_status(obj: WorkItem) -> str:
+        return obj.status.name if obj.status else "None"
+
+    @staticmethod
+    def resolve_project_key(obj: WorkItem) -> str:
+        return obj.project.key
+
+    @staticmethod
+    def resolve_active_assignee(obj: WorkItem) -> Optional[str]:
+        return obj.active_assignee.username if obj.active_assignee else None
+
+    @staticmethod
+    def resolve_created_by(obj: WorkItem) -> str:
+        return obj.created_by.username if obj.created_by else "System"
+
+    @staticmethod
+    def resolve_updated_by(obj: WorkItem) -> Optional[str]:
+        return obj.updated_by.username if obj.updated_by else None
+
+    @staticmethod
+    def resolve_assigned(obj: WorkItem) -> List[str]:
+        return [u.username for u in obj.assigned.all()]
+
+    @staticmethod
+    def resolve_watching(obj: WorkItem) -> List[str]:
+        return [u.username for u in obj.watching.all()]
+
+    @staticmethod
+    def resolve_start_date(obj: WorkItem) -> Optional[str]:
+        return obj.start_date.isoformat() if obj.start_date else None
+
+    @staticmethod
+    def resolve_target_date(obj: WorkItem) -> Optional[str]:
+        return obj.target_date.isoformat() if obj.target_date else None
+
+    @staticmethod
+    def resolve_created(obj: WorkItem) -> str:
+        return obj.created.isoformat()
+
+    @staticmethod
+    def resolve_updated(obj: WorkItem) -> str:
+        return obj.updated.isoformat()
+
+    @staticmethod
+    def resolve_context(obj: WorkItem) -> Optional[Context]:
+        return getattr(obj, "context", None)
+
+    @staticmethod
+    def resolve_progress(obj: WorkItem) -> List[Progress]:
+        return list(obj.progress.all())
+
+
+class CreateWorkItemIn(Schema):
+    title: str
+    descr: str = ""
+    project_key: str = "DAV"
+    parent_key: Optional[str] = None
+    status: Optional[str] = None
+    priority: str = "MEDIUM"
+    active_assignee_username: Optional[str] = None
+    source: str = ""
+    start_date: Optional[datetime] = None
+    target_date: Optional[datetime] = None
+    sprint_id: Optional[int] = None
+    release_id: Optional[int] = None
+
+
+class UpdateWorkItemIn(Schema):
+    title: Optional[str] = None
+    descr: Optional[str] = None
+    parent_key: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    active_assignee_username: Optional[str] = None
+    source: Optional[str] = None
+    start_date: Optional[datetime] = None
+    target_date: Optional[datetime] = None
+    sprint_id: Optional[int] = None
+    release_id: Optional[int] = None
+
 
 class APIKeyOut(Schema):
     id: int
@@ -104,8 +315,10 @@ class APIKeyOut(Schema):
     def resolve_last_used_at(obj: APIKey) -> Optional[str]:
         return obj.last_used_at.isoformat() if obj.last_used_at else None
 
+
 class CreateAPIKeyIn(Schema):
     name: str = "New API Key"
+
 
 class CreateAPIKeyOut(Schema):
     id: int
@@ -113,6 +326,7 @@ class CreateAPIKeyOut(Schema):
     prefix: str
     raw_key: str
     message: str = "Store this API key safely. You will not be able to view it again."
+
 
 # ---------------------------------------------------------------------------
 # Public & System Endpoints
@@ -126,6 +340,7 @@ def hello(request):
         "service": "davai-backend"
     }
 
+
 @api.get("/health")
 def health(request):
     return {
@@ -134,6 +349,7 @@ def health(request):
         "orm": "django-6.1",
         "mcp": "ready"
     }
+
 
 @api.get("/info")
 def info(request):
@@ -146,24 +362,24 @@ def info(request):
         "mcp_enabled": True
     }
 
+
 # ---------------------------------------------------------------------------
 # Authentication & API Key Management
 # ---------------------------------------------------------------------------
 
 @api.get("/auth/me", response=UserOut, auth=api_key_auth, summary="Get Current Authenticated User")
 def get_current_user(request):
-    """Returns details about the user authenticated via the API Key."""
     return request.auth
+
 
 @api.get("/auth/keys", response=List[APIKeyOut], auth=api_key_auth, summary="List Active API Keys")
 def list_user_api_keys(request):
-    """List all active API keys belonging to the authenticated user."""
     user = request.auth
     return APIKey.objects.filter(user=user, is_active=True)
 
+
 @api.post("/auth/keys", response=CreateAPIKeyOut, auth=api_key_auth, summary="Generate New API Key")
 def create_user_api_key(request, payload: CreateAPIKeyIn):
-    """Generate a new secure API key for the authenticated user."""
     user = request.auth
     api_key_obj, raw_key = generate_api_key(user, name=payload.name)
     return {
@@ -174,14 +390,15 @@ def create_user_api_key(request, payload: CreateAPIKeyIn):
         "message": "Store this API key safely. You will not be able to view it again."
     }
 
+
 @api.delete("/auth/keys/{key_id}", auth=api_key_auth, summary="Revoke an API Key")
 def revoke_user_api_key(request, key_id: int):
-    """Revoke (deactivate) an API key."""
     user = request.auth
     key = get_object_or_404(APIKey, id=key_id, user=user)
     key.is_active = False
     key.save()
     return {"status": "revoked", "key_id": key_id}
+
 
 # ---------------------------------------------------------------------------
 # Project Endpoints
@@ -189,7 +406,8 @@ def revoke_user_api_key(request, key_id: int):
 
 @api.get("/projects", response=List[ProjectOut], summary="List Projects")
 def list_projects(request):
-    return Project.objects.all()
+    return Project.objects.prefetch_related("statuses", "work_items").all()
+
 
 @api.post("/projects", response=ProjectOut, auth=api_key_auth, summary="Create Project")
 def create_project(request, payload: CreateProjectIn):
@@ -202,69 +420,233 @@ def create_project(request, payload: CreateProjectIn):
     )
     return project
 
+
+@api.get("/projects/{project_key}/statuses", response=List[ProjectStatusOut], summary="List Project Statuses")
+def list_project_statuses(request, project_key: str):
+    project = get_object_or_404(Project, key=project_key.upper())
+    return project.statuses.all()
+
+
 # ---------------------------------------------------------------------------
-# Work Item Endpoints (Django ORM Powered)
+# Sprint & Release Endpoints
 # ---------------------------------------------------------------------------
+
+@api.get("/projects/{project_key}/releases", response=List[ReleaseOut], summary="List Releases")
+def list_releases(request, project_key: str):
+    project = get_object_or_404(Project, key=project_key.upper())
+    return project.releases.all()
+
+
+@api.post("/projects/{project_key}/releases", response=ReleaseOut, auth=api_key_auth, summary="Create Release")
+def create_release(request, project_key: str, payload: CreateReleaseIn):
+    project = get_object_or_404(Project, key=project_key.upper())
+    return Release.objects.create(
+        project=project,
+        name=payload.name,
+        description=payload.description,
+        start_date=payload.start_date,
+        end_date=payload.end_date
+    )
+
+
+@api.get("/projects/{project_key}/sprints", response=List[SprintOut], summary="List Sprints")
+def list_sprints(request, project_key: str):
+    project = get_object_or_404(Project, key=project_key.upper())
+    return project.sprints.all()
+
+
+@api.post("/projects/{project_key}/sprints", response=SprintOut, auth=api_key_auth, summary="Create Sprint")
+def create_sprint(request, project_key: str, payload: CreateSprintIn):
+    project = get_object_or_404(Project, key=project_key.upper())
+    release = None
+    if payload.release_id:
+        release = get_object_or_404(Release, id=payload.release_id, project=project)
+
+    return Sprint.objects.create(
+        project=project,
+        release=release,
+        name=payload.name,
+        description=payload.description,
+        start_date=payload.start_date,
+        end_date=payload.end_date
+    )
+
+
+# ---------------------------------------------------------------------------
+# Work Item Endpoints
+# ---------------------------------------------------------------------------
+
+def _resolve_status(project: Project, status_val: Optional[str]) -> Optional[ProjectStatus]:
+    if not status_val:
+        return project.get_default_status()
+    normalized = status_val.strip()
+    status_obj = project.statuses.filter(name__iexact=normalized.replace("_", " ")).first()
+    if not status_obj:
+        status_obj = project.statuses.filter(name__iexact=normalized).first()
+    if not status_obj:
+        status_obj = project.get_default_status()
+    return status_obj
+
 
 @api.get("/work-items", response=List[WorkItemOut], summary="List Work Items")
 @api.get("/work-items/preview", response=List[WorkItemOut], summary="Public Preview of Work Items")
 def list_work_items(request, status: Optional[str] = None, project_key: Optional[str] = None):
-    qs = WorkItem.objects.select_related("project", "assignee", "reporter").all()
+    qs = WorkItem.objects.select_related(
+        "project", "parent", "status", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
+    ).prefetch_related("assigned", "watching", "progress").all()
+
     if status:
-        qs = qs.filter(status=status.upper())
+        normalized = status.strip().replace("_", " ")
+        qs = qs.filter(status__name__iexact=normalized)
     if project_key:
         qs = qs.filter(project__key=project_key.upper())
     return qs
 
+
 @api.get("/work-items/{key}", response=WorkItemOut, summary="Get Single Work Item")
 def get_work_item(request, key: str):
-    return get_object_or_404(WorkItem.objects.select_related("project", "assignee", "reporter"), key=key.upper())
+    return get_object_or_404(
+        WorkItem.objects.select_related(
+            "project", "parent", "status", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
+        ).prefetch_related("assigned", "watching", "progress"),
+        key=key.upper()
+    )
+
 
 @api.post("/work-items", response=WorkItemOut, auth=api_key_auth, summary="Create Work Item")
 def create_work_item(request, payload: CreateWorkItemIn):
     user = request.auth
     project = get_object_or_404(Project, key=payload.project_key.upper())
 
-    # Auto-generate next key in sequence e.g. DAV-8
     last_item = WorkItem.objects.filter(project=project).order_by("-id").first()
     next_num = (last_item.id + 1) if last_item else 1
     item_key = f"{project.key}-{next_num}"
 
+    parent = None
+    if payload.parent_key:
+        parent = WorkItem.objects.filter(key=payload.parent_key.upper()).first()
+
     assignee = None
-    if payload.assignee_username:
-        assignee = User.objects.filter(username=payload.assignee_username).first()
+    if payload.active_assignee_username:
+        assignee = User.objects.filter(username=payload.active_assignee_username).first()
+
+    sprint = None
+    if payload.sprint_id:
+        sprint = Sprint.objects.filter(id=payload.sprint_id, project=project).first()
+
+    release = None
+    if payload.release_id:
+        release = Release.objects.filter(id=payload.release_id, project=project).first()
+
+    status_obj = _resolve_status(project, payload.status)
 
     item = WorkItem.objects.create(
         project=project,
+        parent=parent,
         key=item_key,
         title=payload.title,
-        description=payload.description,
-        status=payload.status.upper(),
+        descr=payload.descr,
+        status=status_obj,
         priority=payload.priority.upper(),
-        assignee=assignee,
-        reporter=user
+        active_assignee=assignee,
+        created_by=user,
+        source=payload.source,
+        start_date=payload.start_date,
+        target_date=payload.target_date,
+        sprint=sprint,
+        release=release
     )
     return item
 
+
 @api.patch("/work-items/{key}", response=WorkItemOut, auth=api_key_auth, summary="Update Work Item")
 def update_work_item(request, key: str, payload: UpdateWorkItemIn):
-    item = get_object_or_404(WorkItem.objects.select_related("project", "assignee", "reporter"), key=key.upper())
+    item = get_object_or_404(
+        WorkItem.objects.select_related("project", "status", "active_assignee", "created_by"),
+        key=key.upper()
+    )
+    user = request.auth
 
     if payload.title is not None:
         item.title = payload.title
-    if payload.description is not None:
-        item.description = payload.description
+    if payload.descr is not None:
+        item.descr = payload.descr
+    if payload.parent_key is not None:
+        if payload.parent_key == "":
+            item.parent = None
+        else:
+            item.parent = WorkItem.objects.filter(key=payload.parent_key.upper()).first()
     if payload.status is not None:
-        item.status = payload.status.upper()
+        item.status = _resolve_status(item.project, payload.status)
     if payload.priority is not None:
         item.priority = payload.priority.upper()
-    if payload.assignee_username is not None:
-        if payload.assignee_username == "":
-            item.assignee = None
+    if payload.active_assignee_username is not None:
+        if payload.active_assignee_username == "":
+            item.active_assignee = None
         else:
-            assignee = User.objects.filter(username=payload.assignee_username).first()
+            assignee = User.objects.filter(username=payload.active_assignee_username).first()
             if assignee:
-                item.assignee = assignee
+                item.active_assignee = assignee
+    if payload.source is not None:
+        item.source = payload.source
+    if payload.start_date is not None:
+        item.start_date = payload.start_date
+    if payload.target_date is not None:
+        item.target_date = payload.target_date
+    if payload.sprint_id is not None:
+        item.sprint = Sprint.objects.filter(id=payload.sprint_id, project=item.project).first()
+    if payload.release_id is not None:
+        item.release = Release.objects.filter(id=payload.release_id, project=item.project).first()
 
+    item.updated_by = user
     item.save()
     return item
+
+
+# ---------------------------------------------------------------------------
+# Context & Progress Endpoints (LLM Agent Assistance)
+# ---------------------------------------------------------------------------
+
+@api.get("/work-items/{key}/context", response=ContextOut, summary="Get Work Item Context")
+def get_work_item_context(request, key: str):
+    item = get_object_or_404(WorkItem, key=key.upper())
+    context = getattr(item, "context", None)
+    if not context:
+        raise errors.HttpError(404, f"No context documented yet for {item.key}")
+    return context
+
+
+@api.put("/work-items/{key}/context", response=ContextOut, auth=api_key_auth, summary="Update Work Item Context")
+def update_work_item_context(request, key: str, payload: UpdateContextIn):
+    """
+    Update or initialize the markdown SKILL.md-style context for the work item.
+    """
+    user = request.auth
+    item = get_object_or_404(WorkItem, key=key.upper())
+    context, _ = Context.objects.get_or_create(work_item=item)
+    context.t = payload.t
+    context.user = user
+    context.save()
+    return context
+
+
+@api.get("/work-items/{key}/progress", response=List[ProgressOut], summary="List Work Item Progress Entries")
+def list_work_item_progress(request, key: str):
+    item = get_object_or_404(WorkItem, key=key.upper())
+    return item.progress.all()
+
+
+@api.post("/work-items/{key}/progress", response=ProgressOut, auth=api_key_auth, summary="Log Progress Entry")
+def log_work_item_progress(request, key: str, payload: CreateProgressIn):
+    """
+    Log a milestone or progress entry. If work is version controlled, proof should be a git sha or branch name.
+    """
+    user = request.auth
+    item = get_object_or_404(WorkItem, key=key.upper())
+    return Progress.objects.create(
+        work_item=item,
+        user=user,
+        t=payload.t,
+        proof=payload.proof,
+        status=payload.status.upper()
+    )

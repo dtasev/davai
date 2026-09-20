@@ -5,6 +5,7 @@ import urllib.parse
 import urllib.error
 from typing import Optional, List, Dict, Any
 
+
 class DavaiClient:
     """
     Dependency-free HTTP client for the Davai REST API using Python's standard library.
@@ -82,46 +83,84 @@ class DavaiClient:
     def create_work_item(
         self,
         title: str,
-        description: str = "",
+        descr: str = "",
         priority: str = "MEDIUM",
-        status: str = "TODO",
+        status: Optional[str] = None,
         project_key: str = "DAV",
-        assignee_username: Optional[str] = None
+        active_assignee_username: Optional[str] = None,
+        parent_key: Optional[str] = None,
+        source: str = "",
+        sprint_id: Optional[int] = None,
+        release_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Create a new work item."""
         payload: Dict[str, Any] = {
             "title": title,
-            "description": description,
+            "descr": descr,
             "priority": priority,
-            "status": status,
             "project_key": project_key,
+            "source": source,
         }
-        if assignee_username:
-            payload["assignee_username"] = assignee_username
+        if status:
+            payload["status"] = status
+        if active_assignee_username:
+            payload["active_assignee_username"] = active_assignee_username
+        if parent_key:
+            payload["parent_key"] = parent_key
+        if sprint_id:
+            payload["sprint_id"] = sprint_id
+        if release_id:
+            payload["release_id"] = release_id
         return self._request("POST", "/work-items", data=payload)
 
     def update_work_item(
         self,
         key: str,
         title: Optional[str] = None,
-        description: Optional[str] = None,
+        descr: Optional[str] = None,
         status: Optional[str] = None,
         priority: Optional[str] = None,
-        assignee_username: Optional[str] = None
+        active_assignee_username: Optional[str] = None,
+        parent_key: Optional[str] = None
     ) -> Dict[str, Any]:
         """Update fields of an existing work item."""
         payload: Dict[str, Any] = {}
         if title is not None:
             payload["title"] = title
-        if description is not None:
-            payload["description"] = description
+        if descr is not None:
+            payload["descr"] = descr
         if status is not None:
             payload["status"] = status
         if priority is not None:
             payload["priority"] = priority
-        if assignee_username is not None:
-            payload["assignee_username"] = assignee_username
+        if active_assignee_username is not None:
+            payload["active_assignee_username"] = active_assignee_username
+        if parent_key is not None:
+            payload["parent_key"] = parent_key
         return self._request("PATCH", f"/work-items/{key}", data=payload)
+
+    def get_work_item_context(self, key: str) -> Dict[str, Any]:
+        """Fetch context documentation for a work item."""
+        return self._request("GET", f"/work-items/{key}/context")
+
+    def set_work_item_context(self, key: str, t: str) -> Dict[str, Any]:
+        """Set or update SKILL.md-style markdown context for a work item."""
+        return self._request("PUT", f"/work-items/{key}/context", data={"t": t})
+
+    def list_work_item_progress(self, key: str) -> List[Dict[str, Any]]:
+        """List progress entries for a work item."""
+        return self._request("GET", f"/work-items/{key}/progress")
+
+    def log_work_item_progress(
+        self,
+        key: str,
+        t: str,
+        proof: str = "",
+        status: str = "COMPLETED"
+    ) -> Dict[str, Any]:
+        """Log a progress step with optional git sha, feature branch, or artifact proof."""
+        payload = {"t": t, "proof": proof, "status": status}
+        return self._request("POST", f"/work-items/{key}/progress", data=payload)
 
     def list_projects(self) -> List[Dict[str, Any]]:
         """List all projects."""
@@ -131,9 +170,9 @@ class DavaiClient:
         """Calculate board statistics for a project."""
         items = self.list_work_items(project_key=project_key)
         total = len(items)
-        todo_count = len([i for i in items if i.get("status") == "TODO"])
-        in_prog_count = len([i for i in items if i.get("status") == "IN_PROGRESS"])
-        done_count = len([i for i in items if i.get("status") == "DONE"])
+        todo_count = len([i for i in items if (i.get("status") or "").lower() == "todo"])
+        in_prog_count = len([i for i in items if (i.get("status") or "").lower() in ["in progress", "in_progress"]])
+        done_count = len([i for i in items if (i.get("status") or "").lower() == "done"])
 
         return {
             "project": project_key.upper(),
