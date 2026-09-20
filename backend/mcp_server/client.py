@@ -107,9 +107,9 @@ class DavaiClient:
             payload["active_assignee_username"] = active_assignee_username
         if parent_key:
             payload["parent_key"] = parent_key
-        if sprint_id:
+        if sprint_id is not None:
             payload["sprint_id"] = sprint_id
-        if release_id:
+        if release_id is not None:
             payload["release_id"] = release_id
         return self._request("POST", "/work-items", data=payload)
 

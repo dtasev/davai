@@ -93,6 +93,16 @@ class TestMCPWithApiClient:
         sp = Sprint.objects.create(project=test_project, release=rel, name="Sprint 1", description="Initial sprint")
         update_work_item(key=item_key, sprint_id=sp.id, release_id=rel.id)
 
+        # Create work item directly with sprint_id and release_id
+        item_with_sprint = create_work_item(
+            title="Item in sprint",
+            project_key=test_project.key,
+            sprint_id=sp.id,
+            release_id=rel.id
+        )
+        assert item_with_sprint["sprint_id"] == sp.id
+        assert item_with_sprint["release_id"] == rel.id
+
         # 9. List sprints and releases via MCP tools
         sprints = list_sprints(project_key=test_project.key)
         assert len(sprints) >= 1
