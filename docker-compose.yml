@@ -48,6 +48,19 @@ services:
     depends_on:
       - nginx
 
+  backend-test:
+    build: ./backend
+    profiles: ["test"]
+    volumes:
+      - ./backend:/app
+      - test_backend_data:/app/data
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=django-insecure-test-key-davai
+      - SQLITE_DB_PATH=/app/data/test_db.sqlite3
+    command: ["pytest"]
+
 volumes:
   backend_data:
   frontend_node_modules:
+  test_backend_data:

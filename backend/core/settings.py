@@ -19,6 +19,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'ninja',
     'strawberry_django',
+    # Local apps
+    'tracker',
 ]
 
 MIDDLEWARE = [
@@ -62,6 +64,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': db_path,
+        'TEST': {
+            'NAME': db_path.parent / (f"test_{db_path.name}" if not db_path.name.startswith("test_") else db_path.name),
+        },
     }
 }
 

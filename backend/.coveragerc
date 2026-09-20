@@ -1,0 +1,15 @@
+[run]
+omit =
+    *test*
+    *__init__.py*
+    *__main__.py*
+    */tests/*
+    */migrations/*
+
+[report]
+omit =
+    *test*
+    *__init__.py*
+    *__main__.py*
+    */tests/*
+    */migrations/*

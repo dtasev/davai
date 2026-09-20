@@ -10,7 +10,6 @@ import {
   Activity,
   Kanban,
   Clock,
-  ArrowRight,
   Network,
   Bot
 } from 'lucide-react'
@@ -24,7 +23,7 @@ interface BackendInfo {
 }
 
 interface WorkItem {
-  id: string
+  id: string | number
   key: string
   title: string
   status: 'TODO' | 'IN_PROGRESS' | 'DONE'

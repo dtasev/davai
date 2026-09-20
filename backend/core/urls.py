@@ -1,9 +1,9 @@
 from django.contrib import admin
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
-from core.api import api
+from tracker.api import api
 from strawberry.django.views import AsyncGraphQLView
-from core.schema import schema
+from tracker.schema import schema
 
 urlpatterns = [
     path('admin/', admin.site.urls),
