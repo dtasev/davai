@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "davai": {
+      "type": "remote",
+      "url": "http://backend:8000/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer {env:DAVAI_API_KEY}",
+        "X-API-Key": "{env:DAVAI_API_KEY}"
+      },
+      "enabled": true
+    }
+  }
+}

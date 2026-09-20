@@ -49,3 +49,9 @@ authelia/config/notification.txt
 Thumbs.db
 .idea/
 .vscode/
+
+# OpenCode
+opencode/share/*
+!opencode/share/.gitkeep
+opencode/data/*
+!opencode/data/.gitkeep

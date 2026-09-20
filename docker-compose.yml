@@ -48,6 +48,22 @@ services:
     depends_on:
       - nginx
 
+  opencode:
+    profiles: ["opencode"]
+    build: ./opencode
+    depends_on:
+      - backend
+    volumes:
+      - ./:/workspace
+      - ./opencode/share:/root/.local/share/opencode
+      - ./opencode/config/opencode.json:/root/.config/opencode/opencode.json
+      - ./opencode/skills:/root/.config/opencode/skills
+    environment:
+      - OPENCODE_DATA_DIR=/workspace/opencode/data
+      - DAVAI_API_KEY=${DAVAI_API_KEY}
+    command:
+      - opencode
+
   backend-test:
     build: ./backend
     profiles: ["test"]
