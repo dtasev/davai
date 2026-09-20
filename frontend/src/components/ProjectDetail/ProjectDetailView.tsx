@@ -109,7 +109,7 @@ export function ProjectDetailView({
       </div>
 
       {/* Strictly Top-to-Bottom Layout */}
-      <div className="space-y-5">
+      <div className="space-y-8">
         {/* 1. TOP: List of Sprints */}
         <section data-testid="sprint-list-section">
           <SprintList

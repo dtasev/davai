@@ -5,7 +5,7 @@ export function PriorityBadge({ priority }: { priority: string }) {
       ? 'text-rose-400 bg-rose-950/40 border-rose-800/40'
       : p === 'MEDIUM'
       ? 'text-amber-400 bg-amber-950/40 border-amber-800/40'
-      : 'text-zinc-400 bg-zinc-800/40 border-zinc-700/40'
+      : 'text-zinc-400 bg-zinc-800/40 border-zinc-800'
 
   return (
     <span
@@ -18,7 +18,7 @@ export function PriorityBadge({ priority }: { priority: string }) {
 
 export function StatusBadge({ status }: { status: string }) {
   const s = (status || 'todo').toLowerCase().replace('_', ' ')
-  let color = 'bg-zinc-800 text-zinc-300 border-zinc-700'
+  let color = 'bg-zinc-800/60 text-zinc-300 border-zinc-800'
   let dot = 'bg-zinc-500'
 
   if (s === 'in progress') {

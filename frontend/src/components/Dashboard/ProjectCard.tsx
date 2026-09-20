@@ -29,7 +29,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800/60 border border-zinc-700/50 text-xs text-zinc-300 shrink-0">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800/60 border border-zinc-800 text-xs text-zinc-300 shrink-0">
             <ListTodo className="w-3.5 h-3.5 text-indigo-400" />
             <span>{project.item_count} items</span>
           </div>

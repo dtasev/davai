@@ -129,7 +129,7 @@ export function WorkItemDetailModal({
                 <select
                   value={item.status}
                   onChange={handleStatusChange}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-700 text-xs text-zinc-200 capitalize focus:outline-none focus:border-indigo-500"
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 capitalize focus:outline-none focus:border-indigo-500"
                 >
                   {statuses.map(st => (
                     <option key={st.id} value={st.name}>
