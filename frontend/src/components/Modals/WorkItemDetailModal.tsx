@@ -32,6 +32,12 @@ interface WorkItemDetailModalProps {
     key: string,
     entry: { summary: string; proof: string; status: string }
   ) => Promise<void>
+  onUpdateProgress?: (
+    key: string,
+    progressId: number,
+    entry: { summary?: string; proof?: string; status?: string }
+  ) => Promise<any>
+  onDeleteProgress?: (key: string, progressId: number) => Promise<void>
   onDelete?: () => Promise<void>
   onUpdateDetails?: (data: {
     title?: string
@@ -53,6 +59,8 @@ export function WorkItemDetailModal({
   onUpdateStatus,
   onUpdateContext,
   onAddProgress,
+  onUpdateProgress,
+  onDeleteProgress,
   onDelete,
   onUpdateDetails
 }: WorkItemDetailModalProps) {
@@ -86,6 +94,52 @@ export function WorkItemDetailModal({
   const [progressProof, setProgressProof] = useState('')
   const [progressStatus, setProgressStatus] = useState(item?.status || 'COMPLETED')
   const [submittingProgress, setSubmittingProgress] = useState(false)
+
+  // Edit / Delete progress state
+  const [editingProgressId, setEditingProgressId] = useState<number | null>(null)
+  const [editProgressSummary, setEditProgressSummary] = useState('')
+  const [editProgressProof, setEditProgressProof] = useState('')
+  const [editProgressStatus, setEditProgressStatus] = useState('COMPLETED')
+  const [savingProgressId, setSavingProgressId] = useState<number | null>(null)
+  const [deletingProgressId, setDeletingProgressId] = useState<number | null>(null)
+  const [isDeletingProgress, setIsDeletingProgress] = useState(false)
+
+  const startEditProgress = (p: { id: number; summary: string; proof?: string; status: string }) => {
+    setEditingProgressId(p.id)
+    setEditProgressSummary(p.summary)
+    setEditProgressProof(p.proof || '')
+    setEditProgressStatus(p.status || 'COMPLETED')
+  }
+
+  const cancelEditProgress = () => {
+    setEditingProgressId(null)
+  }
+
+  const handleSaveProgressEdit = async (progressId: number) => {
+    if (!onUpdateProgress || !editProgressSummary.trim() || !item) return
+    setSavingProgressId(progressId)
+    try {
+      await onUpdateProgress(item.key, progressId, {
+        summary: editProgressSummary.trim(),
+        proof: editProgressProof.trim(),
+        status: editProgressStatus
+      })
+      setEditingProgressId(null)
+    } finally {
+      setSavingProgressId(null)
+    }
+  }
+
+  const handleConfirmDeleteProgress = async (progressId: number) => {
+    if (!onDeleteProgress || !item) return
+    setIsDeletingProgress(true)
+    try {
+      await onDeleteProgress(item.key, progressId)
+      setDeletingProgressId(null)
+    } finally {
+      setIsDeletingProgress(false)
+    }
+  }
 
   // Copy details state
   const [hasCopied, setHasCopied] = useState(false)
@@ -720,29 +774,177 @@ export function WorkItemDetailModal({
           {/* Progress list */}
           {item.progress && item.progress.length > 0 ? (
             <div className="space-y-2 max-h-44 md:max-h-64 overflow-y-auto pr-1">
-              {item.progress.map((p, idx) => (
-                <div
-                  key={p.id || idx}
-                  className="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800/80 text-xs flex flex-col sm:flex-row sm:items-start justify-between gap-1.5"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <StatusBadge status={p.status} />
-                      {p.proof && (
-                        <span className="font-mono text-[10px] bg-zinc-800 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-900/40 leading-none">
-                          {p.proof}
+              {item.progress.map((p, idx) => {
+                if (editingProgressId === p.id) {
+                  return (
+                    <div
+                      key={p.id || idx}
+                      className="p-3 rounded-lg bg-zinc-950 border border-indigo-500/80 space-y-2.5"
+                      data-testid={`edit-progress-form-${p.id}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-semibold text-indigo-400 uppercase tracking-wider">
+                          Edit Progress Entry
                         </span>
+                        <select
+                          value={editProgressStatus}
+                          onChange={e => setEditProgressStatus(e.target.value)}
+                          data-testid={`edit-progress-status-${p.id}`}
+                          className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs text-zinc-300"
+                        >
+                          <option value="COMPLETED">COMPLETED</option>
+                          <option value="IN_PROGRESS">IN_PROGRESS</option>
+                          <option value="BLOCKED">BLOCKED</option>
+                          <option value="FAILED">FAILED</option>
+                        </select>
+                      </div>
+
+                      <input
+                        type="text"
+                        required
+                        placeholder="Progress summary..."
+                        value={editProgressSummary}
+                        onChange={e => setEditProgressSummary(e.target.value)}
+                        data-testid={`edit-progress-summary-${p.id}`}
+                        className="w-full px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500"
+                      />
+
+                      <input
+                        type="text"
+                        placeholder="Git SHA / Proof"
+                        value={editProgressProof}
+                        onChange={e => setEditProgressProof(e.target.value)}
+                        data-testid={`edit-progress-proof-${p.id}`}
+                        className="w-full px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                      />
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={savingProgressId === p.id}
+                          onClick={cancelEditProgress}
+                          data-testid={`cancel-edit-progress-${p.id}`}
+                          className="px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={savingProgressId === p.id || !editProgressSummary.trim()}
+                          onClick={() => handleSaveProgressEdit(p.id)}
+                          data-testid={`save-progress-${p.id}`}
+                          className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition disabled:opacity-50"
+                        >
+                          {savingProgressId === p.id ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (deletingProgressId === p.id) {
+                  return (
+                    <div
+                      key={p.id || idx}
+                      className="p-3 rounded-lg bg-rose-950/30 border border-rose-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
+                      data-testid={`delete-progress-confirm-${p.id}`}
+                    >
+                      <span className="text-xs text-rose-300 font-medium">
+                        Delete this progress entry? This cannot be undone.
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                        <button
+                          type="button"
+                          disabled={isDeletingProgress}
+                          onClick={() => setDeletingProgressId(null)}
+                          data-testid={`cancel-delete-progress-${p.id}`}
+                          className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isDeletingProgress}
+                          onClick={() => handleConfirmDeleteProgress(p.id)}
+                          data-testid={`confirm-delete-progress-${p.id}`}
+                          className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition disabled:opacity-50"
+                        >
+                          {isDeletingProgress ? 'Deleting...' : 'Confirm'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div
+                    key={p.id || idx}
+                    data-testid={`progress-entry-${p.id}`}
+                    className="group p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800/80 text-xs flex flex-col sm:flex-row sm:items-start justify-between gap-2 hover:border-zinc-700 transition"
+                  >
+                    <div className="space-y-0.5 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <StatusBadge status={p.status} />
+                        {p.proof && (
+                          <span
+                            data-testid={`progress-proof-${p.id}`}
+                            className="font-mono text-[10px] bg-zinc-800 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-900/40 leading-none"
+                          >
+                            {p.proof}
+                          </span>
+                        )}
+                      </div>
+                      <p data-testid={`progress-summary-${p.id}`} className="text-zinc-300 text-xs break-words">
+                        {p.summary}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2.5 text-[10px] text-zinc-500 shrink-0 self-start sm:self-center">
+                      <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        {p.created_by && <span>by {p.created_by}</span>}
+                        <span>{new Date(p.created_at).toLocaleDateString()}</span>
+                        {p.updated_by && (
+                          <span
+                            className="text-zinc-500 italic"
+                            title={`Edited ${p.updated_at ? new Date(p.updated_at).toLocaleString() : ''}${
+                              p.updated_by ? ` by ${p.updated_by}` : ''
+                            }`}
+                          >
+                            (edited)
+                          </span>
+                        )}
+                      </div>
+
+                      {(onUpdateProgress || onDeleteProgress) && (
+                        <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition">
+                          {onUpdateProgress && (
+                            <button
+                              type="button"
+                              onClick={() => startEditProgress(p)}
+                              title="Edit progress entry"
+                              data-testid={`edit-progress-button-${p.id}`}
+                              className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition cursor-pointer"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                          )}
+                          {onDeleteProgress && (
+                            <button
+                              type="button"
+                              onClick={() => setDeletingProgressId(p.id)}
+                              title="Delete progress entry"
+                              data-testid={`delete-progress-button-${p.id}`}
+                              className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <p className="text-zinc-300 text-xs">{p.summary}</p>
                   </div>
-
-                  <div className="text-[10px] text-zinc-500 whitespace-nowrap self-start sm:self-center">
-                    {p.user && <span className="mr-1.5">by {p.user}</span>}
-                    <span>{new Date(p.timestamp).toLocaleDateString()}</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           ) : (
             <div className="text-[11px] text-zinc-500 italic">

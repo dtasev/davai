@@ -174,6 +174,42 @@ def log_work_item_progress(
     return get_client().log_work_item_progress(key=key, summary=summary, proof=proof, status=status)
 
 @mcp_server.tool()
+def update_work_item_progress(
+    key: str,
+    progress_id: int,
+    summary: Optional[str] = None,
+    proof: Optional[str] = None,
+    status: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Update an existing progress entry for a work item (e.g. to fix a typo or update proof/status).
+    Args:
+        key: Work item key (e.g. 'DAV-1').
+        progress_id: ID of the progress entry to update.
+        summary: Optional new summary or description of the progress/step.
+        proof: Optional new proof (git sha, feature branch, or artifact link).
+        status: Optional new status ('COMPLETED', 'IN_PROGRESS', 'BLOCKED', 'FAILED').
+    """
+    kwargs: Dict[str, Any] = {}
+    if summary is not None:
+        kwargs["summary"] = summary
+    if proof is not None:
+        kwargs["proof"] = proof
+    if status is not None:
+        kwargs["status"] = status
+    return get_client().update_work_item_progress(key=key, progress_id=progress_id, **kwargs)
+
+@mcp_server.tool()
+def delete_work_item_progress(key: str, progress_id: int) -> Dict[str, Any]:
+    """
+    Delete an existing progress entry from a work item.
+    Args:
+        key: Work item key (e.g. 'DAV-1').
+        progress_id: ID of the progress entry to delete.
+    """
+    return get_client().delete_work_item_progress(key=key, progress_id=progress_id)
+
+@mcp_server.tool()
 def list_sprints(project_key: str = "DAV") -> List[Dict[str, Any]]:
     """
     List all sprints for a project.

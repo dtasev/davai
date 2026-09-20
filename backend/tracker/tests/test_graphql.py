@@ -49,7 +49,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
     )
     await sync_to_async(Progress.objects.create)(
         work_item=item,
-        user=test_user,
+        created_by=test_user,
         summary="GraphQL Progress Summary",
         proof="git:sha123",
         status="IN_PROGRESS"
@@ -81,6 +81,10 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
                 summary
                 proof
                 status
+                createdBy
+                createdAt
+                updatedBy
+                updatedAt
             }
         }
     }
@@ -101,3 +105,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
     assert res.data["workItem"]["progress"][0]["summary"] == "GraphQL Progress Summary"
     assert res.data["workItem"]["progress"][0]["proof"] == "git:sha123"
     assert res.data["workItem"]["progress"][0]["status"] == "IN_PROGRESS"
+    assert res.data["workItem"]["progress"][0]["createdBy"] == test_user.username
+    assert res.data["workItem"]["progress"][0]["createdAt"] is not None
+    assert res.data["workItem"]["progress"][0]["updatedBy"] is None
+    assert res.data["workItem"]["progress"][0]["updatedAt"] is not None

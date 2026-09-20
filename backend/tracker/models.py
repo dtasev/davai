@@ -169,7 +169,7 @@ class Progress(models.Model):
     ]
 
     work_item = models.ForeignKey(WorkItem, on_delete=models.CASCADE, related_name="progress")
-    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="progress_entries")
+    created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_progress_entries")
     summary = models.TextField(help_text="Progress log, completed step, decision, or blocker note")
     proof = models.CharField(
         max_length=500,
@@ -177,11 +177,13 @@ class Progress(models.Model):
         help_text="If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact."
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="COMPLETED")
-    timestamp = models.DateTimeField(default=timezone.now)
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="updated_progress_entries")
 
     class Meta:
-        ordering = ["timestamp"]
+        ordering = ["created_at"]
         verbose_name_plural = "Progress"
 
     def __str__(self):
-        return f"Progress for {self.work_item.key} at {self.timestamp.isoformat()}"
+        return f"Progress for {self.work_item.key} at {self.created_at.isoformat()}"

@@ -43,11 +43,13 @@ describe('Davai Frontend App with React Router', () => {
         {
           id: 1,
           work_item_key: 'DAV-1',
-          user: 'admin',
+          created_by: 'admin',
           summary: 'Completed models',
           proof: 'git:e93f18a',
           status: 'COMPLETED',
-          timestamp: '2026-09-20T00:00:00Z',
+          created_at: '2026-09-20T00:00:00Z',
+          updated_by: null,
+          updated_at: null,
         },
       ],
     }
@@ -57,8 +59,32 @@ describe('Davai Frontend App with React Router', () => {
       const urlStr = url.toString()
       const method = init?.method?.toUpperCase() || 'GET'
 
+      if (method === 'DELETE') {
+        if (urlStr.includes('/api/work-items/DAV-1/progress/1')) {
+          mockWorkItem.progress = mockWorkItem.progress.filter((p: any) => p.id !== 1)
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true }),
+          } as Response)
+        }
+      }
+
       if (method === 'PATCH') {
         const body = init?.body ? JSON.parse(init.body as string) : {}
+        if (urlStr.includes('/api/work-items/DAV-1/progress/1')) {
+          const prog = mockWorkItem.progress.find((p: any) => p.id === 1)
+          if (prog) {
+            if (body.summary !== undefined) prog.summary = body.summary
+            if (body.proof !== undefined) prog.proof = body.proof
+            if (body.status !== undefined) prog.status = body.status
+            prog.updated_by = 'admin'
+            prog.updated_at = '2026-09-20T01:00:00Z'
+          }
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(prog),
+          } as Response)
+        }
         if (urlStr.includes('/api/projects/DAV/sprints/1')) {
           return Promise.resolve({
             ok: true,
@@ -1121,6 +1147,86 @@ describe('Davai Frontend App with React Router', () => {
 
     await waitFor(() => {
       expect(todoColumn).toContainElement(screen.getByTestId('kanban-item-DAV-1'))
+    })
+  })
+
+  it('supports inline editing and deleting with confirmation for progress entries', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    const workItemCard = screen.getByTestId('work-item-DAV-1')
+    await act(async () => {
+      fireEvent.click(workItemCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-detail-modal')).toBeInTheDocument()
+    })
+
+    // Progress entry exists
+    expect(screen.getByTestId('progress-entry-1')).toBeInTheDocument()
+    expect(screen.getByTestId('progress-summary-1')).toHaveTextContent('Completed models')
+    expect(screen.getByTestId('progress-proof-1')).toHaveTextContent('git:e93f18a')
+
+    // 1. EDIT PROGRESS ENTRY
+    const editBtn = screen.getByTestId('edit-progress-button-1')
+    await act(async () => {
+      fireEvent.click(editBtn)
+    })
+
+    expect(screen.getByTestId('edit-progress-form-1')).toBeInTheDocument()
+    const summaryInput = screen.getByTestId('edit-progress-summary-1')
+    const proofInput = screen.getByTestId('edit-progress-proof-1')
+    const statusSelect = screen.getByTestId('edit-progress-status-1')
+
+    fireEvent.change(summaryInput, { target: { value: 'Completed models and updated API' } })
+    fireEvent.change(proofInput, { target: { value: 'git:e93f18b' } })
+    fireEvent.change(statusSelect, { target: { value: 'IN_PROGRESS' } })
+
+    const saveBtn = screen.getByTestId('save-progress-1')
+    await act(async () => {
+      fireEvent.click(saveBtn)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('edit-progress-form-1')).not.toBeInTheDocument()
+      expect(screen.getByTestId('progress-summary-1')).toHaveTextContent('Completed models and updated API')
+      expect(screen.getByTestId('progress-proof-1')).toHaveTextContent('git:e93f18b')
+    })
+
+    // (edited) indicator appears
+    expect(screen.getByText('(edited)')).toBeInTheDocument()
+
+    // 2. DELETE PROGRESS ENTRY (CANCEL FIRST)
+    const deleteBtn = screen.getByTestId('delete-progress-button-1')
+    await act(async () => {
+      fireEvent.click(deleteBtn)
+    })
+
+    expect(screen.getByTestId('delete-progress-confirm-1')).toBeInTheDocument()
+    const cancelDeleteBtn = screen.getByTestId('cancel-delete-progress-1')
+    await act(async () => {
+      fireEvent.click(cancelDeleteBtn)
+    })
+    expect(screen.queryByTestId('delete-progress-confirm-1')).not.toBeInTheDocument()
+    expect(screen.getByTestId('progress-entry-1')).toBeInTheDocument()
+
+    // 3. DELETE PROGRESS ENTRY (CONFIRM)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('delete-progress-button-1'))
+    })
+    expect(screen.getByTestId('delete-progress-confirm-1')).toBeInTheDocument()
+
+    const confirmDeleteBtn = screen.getByTestId('confirm-delete-progress-1')
+    await act(async () => {
+      fireEvent.click(confirmDeleteBtn)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('progress-entry-1')).not.toBeInTheDocument()
     })
   })
 })

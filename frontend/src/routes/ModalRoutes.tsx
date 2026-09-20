@@ -102,6 +102,8 @@ export function WorkItemModalRoute() {
     handleUpdateStatus,
     handleUpdateContext,
     handleAddProgress,
+    handleUpdateProgress,
+    handleDeleteProgress,
     handleDeleteWorkItem,
     handleUpdateWorkItemDetails
   } = useOutletContext<ProjectDetailOutletContext>()
@@ -153,6 +155,8 @@ export function WorkItemModalRoute() {
       onUpdateStatus={handleUpdateStatus}
       onUpdateContext={handleUpdateContext}
       onAddProgress={handleAddProgress}
+      onUpdateProgress={handleUpdateProgress}
+      onDeleteProgress={handleDeleteProgress}
       onDelete={handleDelete}
       onUpdateDetails={handleUpdateDetails}
     />

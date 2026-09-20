@@ -95,11 +95,13 @@ class ContextType:
 @strawberry.type
 class ProgressType:
     id: int
-    user: Optional[str]
+    created_by: Optional[str] = None
     summary: str
     proof: str
     status: str
-    timestamp: str
+    created_at: str
+    updated_at: Optional[str] = None
+    updated_by: Optional[str] = None
 
 
 @strawberry.type
@@ -135,11 +137,13 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
     progress_list = [
         ProgressType(
             id=p.id,
-            user=p.user.username if p.user else None,
+            created_by=p.created_by.username if p.created_by else None,
             summary=p.summary,
             proof=p.proof,
             status=p.status,
-            timestamp=p.timestamp.isoformat(),
+            created_at=p.created_at.isoformat(),
+            updated_at=p.updated_at.isoformat() if p.updated_at else None,
+            updated_by=p.updated_by.username if p.updated_by else None,
         )
         for p in item.progress.all()
     ]

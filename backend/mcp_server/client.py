@@ -189,6 +189,28 @@ class DavaiClient:
         payload = {"summary": summary, "proof": proof, "status": status}
         return self._request("POST", f"/work-items/{key}/progress", data=payload)
 
+    def update_work_item_progress(
+        self,
+        key: str,
+        progress_id: int,
+        summary: Optional[str] = None,
+        proof: Optional[str] = None,
+        status: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Update an existing progress entry (e.g. to fix a typo or update proof/status)."""
+        payload: Dict[str, Any] = {}
+        if summary is not None:
+            payload["summary"] = summary
+        if proof is not None:
+            payload["proof"] = proof
+        if status is not None:
+            payload["status"] = status
+        return self._request("PATCH", f"/work-items/{key}/progress/{progress_id}", data=payload)
+
+    def delete_work_item_progress(self, key: str, progress_id: int) -> Dict[str, Any]:
+        """Delete an existing progress entry from a work item."""
+        return self._request("DELETE", f"/work-items/{key}/progress/{progress_id}")
+
     def list_projects(self) -> List[Dict[str, Any]]:
         """List all projects."""
         return self._request("GET", "/projects")

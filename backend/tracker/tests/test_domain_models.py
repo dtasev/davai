@@ -117,14 +117,14 @@ class TestDomainModels:
         )
         p1 = Progress.objects.create(
             work_item=item,
-            user=test_user,
+            created_by=test_user,
             summary="Drafted data models",
             proof="git:feature-models-branch",
             status="COMPLETED"
         )
         p2 = Progress.objects.create(
             work_item=item,
-            user=test_user,
+            created_by=test_user,
             summary="Encountered blocker on migrations",
             proof="https://github.com/org/repo/issues/9",
             status="BLOCKED"
@@ -134,6 +134,7 @@ class TestDomainModels:
         assert len(entries) == 2
         assert entries[0] == p1
         assert entries[1] == p2
+        assert entries[0].created_by == test_user
         assert entries[0].proof == "git:feature-models-branch"
         assert entries[1].status == "BLOCKED"
         assert str(p1).startswith(f"Progress for {item.key}")

@@ -78,6 +78,6 @@ class ContextAdmin(admin.ModelAdmin):
 
 @admin.register(Progress)
 class ProgressAdmin(admin.ModelAdmin):
-    list_display = ("work_item", "user", "status", "proof", "timestamp")
-    list_filter = ("status", "timestamp")
+    list_display = ("work_item", "created_by", "status", "proof", "created_at", "updated_at")
+    list_filter = ("status", "created_at", "updated_at")
     search_fields = ("work_item__key", "summary", "proof")

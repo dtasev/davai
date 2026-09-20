@@ -47,11 +47,13 @@ export interface ContextData {
 export interface ProgressEntry {
   id: number
   work_item_key: string
-  user: string | null
+  created_by: string | null
   summary: string
   proof: string
   status: 'COMPLETED' | 'IN_PROGRESS' | 'BLOCKED' | 'FAILED' | string
-  timestamp: string
+  created_at: string
+  updated_at?: string | null
+  updated_by?: string | null
 }
 
 export interface WorkItem {

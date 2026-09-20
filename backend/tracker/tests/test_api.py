@@ -351,6 +351,10 @@ class TestNinjaAPI:
         assert prog_data["summary"] == "Implemented models and ran migrations"
         assert prog_data["proof"] == "git:8f3a9e2"
         assert prog_data["status"] == "COMPLETED"
+        assert prog_data["created_by"] == test_user.username
+        assert "created_at" in prog_data
+        assert prog_data["updated_by"] is None
+        assert "updated_at" in prog_data
 
         # 5. List progress
         prog_list_res = ninja_client.get(f"/work-items/{item_key}/progress")
@@ -358,6 +362,8 @@ class TestNinjaAPI:
         assert len(prog_list_res.json()) == 1
         assert prog_list_res.json()[0]["summary"] == "Implemented models and ran migrations"
         assert prog_list_res.json()[0]["proof"] == "git:8f3a9e2"
+        assert prog_list_res.json()[0]["created_by"] == test_user.username
+        assert "created_at" in prog_list_res.json()[0]
 
     def test_context_unversioned_overwrite_replaces_previous_value(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
@@ -471,4 +477,134 @@ class TestNinjaAPI:
         assert patch_sp.status_code == 200
         assert patch_sp.json()["name"] == "Sprint 1 Renamed"
         assert patch_sp.json()["description"] == "New sprint objective"
+
+    def test_update_and_delete_progress(self, ninja_client, test_user, test_project, test_api_key):
+        from django.contrib.auth.models import User
+        from tracker.auth import generate_api_key
+
+        _, raw_key = test_api_key
+
+        # Create a work item
+        wi_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Progress Test Item", "description": "Testing edit/delete progress", "project_key": test_project.key},
+            headers={"X-API-Key": raw_key}
+        )
+        assert wi_res.status_code == 200
+        item_key = wi_res.json()["key"]
+
+        # 1. Log initial progress
+        post_res = ninja_client.post(
+            f"/work-items/{item_key}/progress",
+            json={"summary": "Initial step", "proof": "git:abc1", "status": "IN_PROGRESS"},
+            headers={"X-API-Key": raw_key}
+        )
+        assert post_res.status_code == 200
+        prog_id = post_res.json()["id"]
+        assert post_res.json()["created_by"] == test_user.username
+        assert post_res.json()["updated_by"] is None
+        assert "updated_at" in post_res.json()
+
+        # 2. PATCH progress entry (happy path)
+        patch_res = ninja_client.patch(
+            f"/work-items/{item_key}/progress/{prog_id}",
+            json={"summary": "Updated step", "proof": "git:def2", "status": "COMPLETED"},
+            headers={"X-API-Key": raw_key}
+        )
+        assert patch_res.status_code == 200
+        updated = patch_res.json()
+        assert updated["id"] == prog_id
+        assert updated["summary"] == "Updated step"
+        assert updated["proof"] == "git:def2"
+        assert updated["status"] == "COMPLETED"
+        assert updated["created_by"] == test_user.username
+        assert updated["updated_by"] == test_user.username
+        assert updated["updated_at"] is not None
+
+        # 3. Permissions test: non-staff other user
+        other_user = User.objects.create(username="other_dev", is_staff=False)
+        _, other_key = generate_api_key(other_user, name="Other Dev Key")
+
+        # other_user tries to edit test_user's progress -> 403 Forbidden
+        forbidden_patch = ninja_client.patch(
+            f"/work-items/{item_key}/progress/{prog_id}",
+            json={"summary": "Malicious edit"},
+            headers={"X-API-Key": other_key}
+        )
+        assert forbidden_patch.status_code == 403
+        assert "permission" in forbidden_patch.json()["detail"].lower()
+
+        # other_user tries to delete test_user's progress -> 403 Forbidden
+        forbidden_del = ninja_client.delete(
+            f"/work-items/{item_key}/progress/{prog_id}",
+            headers={"X-API-Key": other_key}
+        )
+        assert forbidden_del.status_code == 403
+        assert "permission" in forbidden_del.json()["detail"].lower()
+
+        # other_user can create, edit, and delete their own progress entry
+        other_post = ninja_client.post(
+            f"/work-items/{item_key}/progress",
+            json={"summary": "Other user progress", "proof": "git:other1"},
+            headers={"X-API-Key": other_key}
+        )
+        assert other_post.status_code == 200
+        other_prog_id = other_post.json()["id"]
+
+        other_edit = ninja_client.patch(
+            f"/work-items/{item_key}/progress/{other_prog_id}",
+            json={"summary": "Other user updated progress"},
+            headers={"X-API-Key": other_key}
+        )
+        assert other_edit.status_code == 200
+        assert other_edit.json()["summary"] == "Other user updated progress"
+
+        other_del = ninja_client.delete(
+            f"/work-items/{item_key}/progress/{other_prog_id}",
+            headers={"X-API-Key": other_key}
+        )
+        assert other_del.status_code == 200
+        assert other_del.json()["success"] is True
+
+        # 4. 404 tests
+        assert ninja_client.patch(
+            f"/work-items/NON-EXISTENT/progress/{prog_id}",
+            json={"summary": "x"},
+            headers={"X-API-Key": raw_key}
+        ).status_code == 404
+
+        assert ninja_client.patch(
+            f"/work-items/{item_key}/progress/999999",
+            json={"summary": "x"},
+            headers={"X-API-Key": raw_key}
+        ).status_code == 404
+
+        assert ninja_client.delete(
+            f"/work-items/NON-EXISTENT/progress/{prog_id}",
+            headers={"X-API-Key": raw_key}
+        ).status_code == 404
+
+        assert ninja_client.delete(
+            f"/work-items/{item_key}/progress/999999",
+            headers={"X-API-Key": raw_key}
+        ).status_code == 404
+
+        # 5. DELETE progress (hard delete)
+        del_res = ninja_client.delete(
+            f"/work-items/{item_key}/progress/{prog_id}",
+            headers={"X-API-Key": raw_key}
+        )
+        assert del_res.status_code == 200
+        assert del_res.json()["success"] is True
+
+        # Verify entry is completely gone from list
+        list_res = ninja_client.get(f"/work-items/{item_key}/progress")
+        assert list_res.status_code == 200
+        assert len(list_res.json()) == 0
+
+        # Verify work item details has 0 progress entries
+        get_wi = ninja_client.get(f"/work-items/{item_key}")
+        assert get_wi.status_code == 200
+        assert len(get_wi.json()["progress"]) == 0
+
 

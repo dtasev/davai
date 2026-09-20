@@ -8,6 +8,8 @@ from mcp_server.server import (
     get_work_item,
     set_work_item_context,
     log_work_item_progress,
+    update_work_item_progress,
+    delete_work_item_progress,
     list_sprints,
     create_sprint,
     update_sprint,
@@ -106,6 +108,32 @@ class TestMCPWithApiClient:
         assert prog["summary"] == "Shipped MCP integration"
         assert prog["proof"] == "git:sha-987abc"
         assert prog["status"] == "COMPLETED"
+        assert prog["created_by"] == test_user.username
+        assert "created_at" in prog
+        prog_id = prog["id"]
+
+        # Update progress entry via MCP tool
+        updated_prog = update_work_item_progress(
+            key=item_key,
+            progress_id=prog_id,
+            summary="Shipped MCP integration with tests",
+            proof="git:sha-final",
+            status="DONE"
+        )
+        assert updated_prog["summary"] == "Shipped MCP integration with tests"
+        assert updated_prog["proof"] == "git:sha-final"
+        assert updated_prog["status"] == "DONE"
+        assert updated_prog["created_by"] == test_user.username
+        assert updated_prog["updated_by"] == test_user.username
+        assert updated_prog["updated_at"] is not None
+
+        # Delete progress entry via MCP tool
+        del_prog = delete_work_item_progress(key=item_key, progress_id=prog_id)
+        assert del_prog["success"] is True
+
+        # Verify get_work_item has 0 progress entries now
+        fetched_after_del = get_work_item(key=item_key)
+        assert len(fetched_after_del["progress"]) == 0
 
         # 7. List items via MCP tool
         items = list_work_items(project_key=test_project.key)

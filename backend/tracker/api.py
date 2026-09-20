@@ -185,29 +185,45 @@ class UpdateContextIn(Schema):
 class ProgressOut(Schema):
     id: int
     work_item_key: str
-    user: Optional[str] = None
+    created_by: Optional[str] = None
     summary: str
     proof: str
     status: str
-    timestamp: str
+    created_at: str
+    updated_at: Optional[str] = None
+    updated_by: Optional[str] = None
 
     @staticmethod
     def resolve_work_item_key(obj: Progress) -> str:
         return obj.work_item.key
 
     @staticmethod
-    def resolve_user(obj: Progress) -> Optional[str]:
-        return obj.user.username if obj.user else None
+    def resolve_created_by(obj: Progress) -> Optional[str]:
+        return obj.created_by.username if obj.created_by else None
 
     @staticmethod
-    def resolve_timestamp(obj: Progress) -> str:
-        return obj.timestamp.isoformat()
+    def resolve_created_at(obj: Progress) -> str:
+        return obj.created_at.isoformat()
+
+    @staticmethod
+    def resolve_updated_at(obj: Progress) -> Optional[str]:
+        return obj.updated_at.isoformat() if obj.updated_at else None
+
+    @staticmethod
+    def resolve_updated_by(obj: Progress) -> Optional[str]:
+        return obj.updated_by.username if obj.updated_by else None
 
 
 class CreateProgressIn(Schema):
     summary: str
     proof: str = ""
     status: str = "COMPLETED"
+
+
+class UpdateProgressIn(Schema):
+    summary: Optional[str] = None
+    proof: Optional[str] = None
+    status: Optional[str] = None
 
 
 class WorkItemOut(Schema):
@@ -567,7 +583,7 @@ def _resolve_status(project: Project, status_val: Optional[str]) -> Optional[Pro
 def list_work_items(request, status: Optional[str] = None, project_key: Optional[str] = None):
     qs = WorkItem.objects.select_related(
         "project", "parent", "status", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
-    ).prefetch_related("assigned", "watching", "progress").all()
+    ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by").all()
 
     if status:
         normalized = status.strip().replace("_", " ")
@@ -582,7 +598,7 @@ def get_work_item(request, key: str):
     return get_object_or_404(
         WorkItem.objects.select_related(
             "project", "parent", "status", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
-        ).prefetch_related("assigned", "watching", "progress"),
+        ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by"),
         key=key.upper()
     )
 
@@ -721,7 +737,7 @@ def update_work_item_context(request, key: str, payload: UpdateContextIn):
 @api.get("/work-items/{key}/progress", response=List[ProgressOut], summary="List Work Item Progress Entries")
 def list_work_item_progress(request, key: str):
     item = get_object_or_404(WorkItem, key=key.upper())
-    return item.progress.all()
+    return item.progress.select_related("created_by", "updated_by").all()
 
 
 @api.post("/work-items/{key}/progress", response=ProgressOut, auth=api_key_auth, summary="Log Progress Entry")
@@ -733,8 +749,54 @@ def log_work_item_progress(request, key: str, payload: CreateProgressIn):
     item = get_object_or_404(WorkItem, key=key.upper())
     return Progress.objects.create(
         work_item=item,
-        user=user,
+        created_by=user,
         summary=payload.summary,
         proof=payload.proof,
         status=payload.status.upper()
     )
+
+
+@api.patch("/work-items/{key}/progress/{progress_id}", response=ProgressOut, auth=api_key_auth, summary="Update Progress Entry")
+def update_work_item_progress(request, key: str, progress_id: int, payload: UpdateProgressIn):
+    """
+    Update an existing progress entry (e.g. to fix a typo or update proof/status).
+    Enforces ownership permissions: only staff or creator may edit.
+    """
+    user = request.auth
+    item = get_object_or_404(WorkItem, key=key.upper())
+    progress = get_object_or_404(
+        Progress.objects.select_related("created_by", "updated_by"),
+        id=progress_id,
+        work_item=item
+    )
+
+    if not user.is_staff and progress.created_by and progress.created_by != user:
+        raise errors.HttpError(403, "You do not have permission to edit this progress entry")
+
+    if payload.summary is not None:
+        progress.summary = payload.summary
+    if payload.proof is not None:
+        progress.proof = payload.proof
+    if payload.status is not None:
+        progress.status = payload.status.upper()
+
+    progress.updated_by = user
+    progress.save()
+    return progress
+
+
+@api.delete("/work-items/{key}/progress/{progress_id}", auth=api_key_auth, summary="Delete Progress Entry")
+def delete_work_item_progress(request, key: str, progress_id: int):
+    """
+    Delete an existing progress entry.
+    Enforces ownership permissions: only staff or creator may delete.
+    """
+    user = request.auth
+    item = get_object_or_404(WorkItem, key=key.upper())
+    progress = get_object_or_404(Progress, id=progress_id, work_item=item)
+
+    if not user.is_staff and progress.created_by and progress.created_by != user:
+        raise errors.HttpError(403, "You do not have permission to delete this progress entry")
+
+    progress.delete()
+    return {"success": True, "message": f"Progress entry {progress_id} deleted"}

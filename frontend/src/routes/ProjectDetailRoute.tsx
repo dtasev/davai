@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react'
 import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom'
-import { Project, Sprint, Release, WorkItem } from '../types'
+import { Project, Sprint, Release, WorkItem, ProgressEntry } from '../types'
 import { useApp } from '../context/AppContext'
 import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
 import { apiFetch } from '../utils/apiFetch'
@@ -17,6 +17,12 @@ export interface ProjectDetailOutletContext {
     key: string,
     entry: { summary: string; proof: string; status: string }
   ) => Promise<void>
+  handleUpdateProgress: (
+    key: string,
+    progressId: number,
+    entry: { summary?: string; proof?: string; status?: string }
+  ) => Promise<ProgressEntry>
+  handleDeleteProgress: (key: string, progressId: number) => Promise<void>
   handleDeleteSprint: (sprintId: number) => Promise<void>
   handleDeleteRelease: (releaseId: number) => Promise<void>
   handleDeleteWorkItem: (key: string) => Promise<void>
@@ -228,6 +234,66 @@ export function ProjectDetailRoute() {
     }
   }
 
+  const handleUpdateProgress = async (
+    key: string,
+    progressId: number,
+    entry: { summary?: string; proof?: string; status?: string }
+  ) => {
+    const res = await apiFetch(`/api/work-items/${key}/progress/${progressId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify(entry)
+    })
+
+    if (res.ok) {
+      const updatedProgress: ProgressEntry = await res.json()
+      setWorkItems(prev =>
+        prev.map(item =>
+          item.key === key
+            ? {
+                ...item,
+                progress: (item.progress || []).map(p =>
+                  p.id === progressId ? updatedProgress : p
+                )
+              }
+            : item
+        )
+      )
+      return updatedProgress
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to update progress entry')
+    }
+  }
+
+  const handleDeleteProgress = async (key: string, progressId: number) => {
+    const res = await apiFetch(`/api/work-items/${key}/progress/${progressId}`, {
+      method: 'DELETE',
+      headers: {
+        'X-API-Key': apiKey
+      }
+    })
+
+    if (res.ok) {
+      setWorkItems(prev =>
+        prev.map(item =>
+          item.key === key
+            ? {
+                ...item,
+                progress: (item.progress || []).filter(p => p.id !== progressId)
+              }
+            : item
+        )
+      )
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to delete progress entry')
+    }
+  }
+
   const handleDeleteSprint = async (sprintId: number) => {
     if (!projectKey) return
     const res = await apiFetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
@@ -401,6 +467,8 @@ export function ProjectDetailRoute() {
           handleUpdateStatus,
           handleUpdateContext,
           handleAddProgress,
+          handleUpdateProgress,
+          handleDeleteProgress,
           handleDeleteSprint,
           handleDeleteRelease,
           handleDeleteWorkItem,

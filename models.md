@@ -57,9 +57,10 @@ summary: str
 model Progress:
 # finished tasks, or the steps in development, or high level context of the work and decisions
 work_item: WorkItem
-user: User
-milestones: Milestone[]
-
-model Milestone:
-t: str
-timestamp: datetime
+created_by: User
+summary: str
+proof: str
+status: str (COMPLETED, IN_PROGRESS, BLOCKED, FAILED)
+created_at: datetime
+updated_by: User?
+updated_at: datetime?
