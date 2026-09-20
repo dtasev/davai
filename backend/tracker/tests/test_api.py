@@ -42,6 +42,48 @@ class TestNinjaAPI:
         assert response.status_code == 200
         assert response.json()["username"] == test_user.username
 
+    def test_auth_me_authorized_via_remote_user(self, ninja_client):
+        response = ninja_client.get(
+            "/auth/me",
+            headers={
+                "Remote-User": "authelia_admin",
+                "Remote-Email": "authelia@ecmwf.int",
+                "Remote-Name": "Authelia Admin",
+                "Remote-Groups": "admins,dev",
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["username"] == "authelia_admin"
+        assert data["email"] == "authelia@ecmwf.int"
+        assert data["is_staff"] is True
+
+    def test_auth_me_authorized_via_authelia_cookie(self, ninja_client, monkeypatch):
+        class MockResponse:
+            status = 200
+            headers = {
+                "Remote-User": "cookie_user",
+                "Remote-Email": "cookie_user@ecmwf.int",
+                "Remote-Name": "Cookie User",
+                "Remote-Groups": "dev",
+            }
+            def __enter__(self):
+                return self
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        import urllib.request
+        monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=2.0: MockResponse())
+
+        response = ninja_client.get(
+            "/auth/me",
+            COOKIES={"authelia_session": "test_session_token_123"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["username"] == "cookie_user"
+        assert data["email"] == "cookie_user@ecmwf.int"
+
     def test_api_key_management_flow(self, ninja_client, test_user, test_api_key):
         _, raw_key = test_api_key
 

@@ -3,7 +3,11 @@ import secrets
 from typing import Optional, Tuple
 from django.utils import timezone
 from django.contrib.auth.models import User
-from ninja.security import APIKeyHeader, APIKeyQuery
+import time
+import urllib.request
+import urllib.error
+from django.conf import settings
+from ninja.security import APIKeyHeader, APIKeyQuery, APIKeyCookie
 from tracker.models import APIKey
 
 def hash_key(raw_key: str) -> str:
@@ -56,6 +60,40 @@ def verify_api_key(raw_key: Optional[str]) -> Optional[User]:
 
     return None
 
+def get_or_create_remote_user(username: str, email: str = "", name: str = "", groups: str = "") -> User:
+    """Retrieve or provision a Django User based on Authelia/reverse-proxy remote headers."""
+    clean_username = username.strip()
+    clean_email = email.strip()
+    clean_name = name.strip()
+    clean_groups = groups.strip()
+
+    is_staff = "admins" in clean_groups or "dev" in clean_groups or clean_username in ("admin", "root")
+
+    user, created = User.objects.get_or_create(
+        username=clean_username,
+        defaults={
+            "email": clean_email or f"{clean_username}@ecmwf.int",
+            "first_name": clean_name or clean_username.capitalize(),
+            "is_staff": is_staff,
+        }
+    )
+
+    if not created:
+        updated = False
+        if clean_email and user.email != clean_email:
+            user.email = clean_email
+            updated = True
+        if clean_name and user.first_name != clean_name:
+            user.first_name = clean_name
+            updated = True
+        if is_staff and not user.is_staff:
+            user.is_staff = True
+            updated = True
+        if updated:
+            user.save(update_fields=["email", "first_name", "is_staff"])
+
+    return user
+
 class ApiKeyHeaderAuth(APIKeyHeader):
     """Authenticates API requests via 'X-API-Key: dav_live_...' header."""
     param_name = "X-API-Key"
@@ -70,5 +108,80 @@ class ApiKeyQueryAuth(APIKeyQuery):
     def authenticate(self, request, key: Optional[str]) -> Optional[User]:
         return verify_api_key(key)
 
-# Convenient composite authenticator allowing either Header or Query Param
-api_key_auth = [ApiKeyHeaderAuth(), ApiKeyQueryAuth()]
+class RemoteUserAuth(APIKeyHeader):
+    """
+    Authenticates requests forwarded by Authelia / reverse proxy via 'Remote-User' header.
+    When present, automatically provisions or retrieves the Django User.
+    """
+    param_name = "Remote-User"
+
+    def authenticate(self, request, key: Optional[str]) -> Optional[User]:
+        username = (key or request.META.get("HTTP_REMOTE_USER") or "").strip()
+        if not username:
+            return None
+
+        email = request.headers.get("Remote-Email") or request.META.get("HTTP_REMOTE_EMAIL") or ""
+        name = request.headers.get("Remote-Name") or request.META.get("HTTP_REMOTE_NAME") or ""
+        groups = request.headers.get("Remote-Groups") or request.META.get("HTTP_REMOTE_GROUPS") or ""
+
+        return get_or_create_remote_user(username, email=email, name=name, groups=groups)
+
+# In-memory cache for validated Authelia sessions: session_cookie -> (User, expires_at_timestamp)
+_AUTHELIA_SESSION_CACHE = {}
+
+def verify_authelia_session(session_cookie: str, request) -> Optional[User]:
+    """
+    Validate an authelia_session cookie directly against Authelia's /api/authz/auth-request endpoint.
+    Caches verified users for 60 seconds to minimize HTTP round-trips.
+    """
+    if not session_cookie:
+        return None
+
+    now = time.time()
+    cached = _AUTHELIA_SESSION_CACHE.get(session_cookie)
+    if cached:
+        user, expires_at = cached
+        if now < expires_at:
+            return user
+        else:
+            _AUTHELIA_SESSION_CACHE.pop(session_cookie, None)
+
+    authelia_url = getattr(settings, "AUTHELIA_AUTH_URL", "http://authelia:9091/api/authz/auth-request")
+    try:
+        req = urllib.request.Request(
+            authelia_url,
+            headers={
+                "Cookie": f"authelia_session={session_cookie}",
+                "X-Original-URL": request.build_absolute_uri(),
+                "X-Forwarded-Method": request.method,
+            }
+        )
+        with urllib.request.urlopen(req, timeout=2.0) as resp:
+            if resp.status == 200:
+                username = resp.headers.get("Remote-User", "").strip()
+                if not username:
+                    return None
+                email = resp.headers.get("Remote-Email", "")
+                name = resp.headers.get("Remote-Name", "")
+                groups = resp.headers.get("Remote-Groups", "")
+                user = get_or_create_remote_user(username, email=email, name=name, groups=groups)
+                _AUTHELIA_SESSION_CACHE[session_cookie] = (user, now + 60)
+                return user
+    except Exception:
+        return None
+
+    return None
+
+class AutheliaSessionAuth(APIKeyCookie):
+    """
+    Authenticates requests carrying an 'authelia_session' cookie.
+    Used when reverse-proxy / Ingress forward-auth is not active or as an internal fallback.
+    """
+    param_name = "authelia_session"
+
+    def authenticate(self, request, key: Optional[str]) -> Optional[User]:
+        return verify_authelia_session(key, request)
+
+# Composite authenticators: API key in header, query param, Remote-User header, or authelia_session cookie
+api_key_auth = [ApiKeyHeaderAuth(), ApiKeyQueryAuth(), RemoteUserAuth(), AutheliaSessionAuth()]
+

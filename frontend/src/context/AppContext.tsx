@@ -76,32 +76,56 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const loadUserData = async (keyToUse: string) => {
-    if (!keyToUse.trim()) {
-      setUserProfile(null)
-      setApiKeys([])
-      return
-    }
-
     setLoadingAuth(true)
     setAuthError(null)
     try {
-      const [meRes, keysRes] = await Promise.all([
-        fetch('/api/auth/me', { headers: { 'X-API-Key': keyToUse } }),
-        fetch('/api/auth/keys', { headers: { 'X-API-Key': keyToUse } })
-      ])
+      const headers: Record<string, string> = {}
+      if (keyToUse.trim()) {
+        headers['X-API-Key'] = keyToUse.trim()
+      }
+
+      // 1. Fetch /api/auth/me with key or cookie credentials
+      let meRes = await fetch('/api/auth/me', {
+        headers,
+        credentials: 'same-origin'
+      })
+
+      // 2. If key failed with 401, retry without the key to let Authelia session / Remote-User authenticate
+      if (meRes.status === 401 && headers['X-API-Key']) {
+        const sessionRes = await fetch('/api/auth/me', {
+          credentials: 'same-origin'
+        })
+        if (sessionRes.ok) {
+          meRes = sessionRes
+          localStorage.removeItem('davai_api_key')
+          setApiKey('')
+          setApiKeyInput('')
+        }
+      }
 
       if (meRes.ok) {
         const meData = await meRes.json()
         setUserProfile(meData)
-        localStorage.setItem('davai_api_key', keyToUse)
+        if (keyToUse.trim() && headers['X-API-Key']) {
+          localStorage.setItem('davai_api_key', keyToUse)
+        }
 
+        const keysHeaders: Record<string, string> = {}
+        const currentKey = localStorage.getItem('davai_api_key') || ''
+        if (currentKey) {
+          keysHeaders['X-API-Key'] = currentKey
+        }
+        const keysRes = await fetch('/api/auth/keys', {
+          headers: keysHeaders,
+          credentials: 'same-origin'
+        })
         if (keysRes.ok) {
           const keysData = await keysRes.json()
           setApiKeys(keysData)
         }
       } else {
         setUserProfile(null)
-        setAuthError('Authentication failed: Invalid API key')
+        setAuthError('Authentication required: please log in or provide a valid API key.')
       }
     } catch (err: any) {
       setAuthError(`Connection error: ${err.message}`)
@@ -119,19 +143,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const handleCreateKey = async (name: string): Promise<GeneratedKey | null> => {
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      }
+      if (apiKey) {
+        headers['X-API-Key'] = apiKey
+      }
       const res = await fetch('/api/auth/keys', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': apiKey
-        },
+        headers,
+        credentials: 'same-origin',
         body: JSON.stringify({ name })
       })
 
       if (res.ok) {
         const data: GeneratedKey = await res.json()
         const keysRes = await fetch('/api/auth/keys', {
-          headers: { 'X-API-Key': apiKey }
+          headers: apiKey ? { 'X-API-Key': apiKey } : {},
+          credentials: 'same-origin'
         })
         if (keysRes.ok) {
           setApiKeys(await keysRes.json())
@@ -154,9 +183,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      const headers: Record<string, string> = {}
+      if (apiKey) {
+        headers['X-API-Key'] = apiKey
+      }
       const res = await fetch(`/api/auth/keys/${keyId}`, {
         method: 'DELETE',
-        headers: { 'X-API-Key': apiKey }
+        headers,
+        credentials: 'same-origin'
       })
 
       if (res.ok) {
@@ -170,7 +204,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fetchProjects = async () => {
     setLoadingProjects(true)
     try {
-      const res = await fetch('/api/projects')
+      const res = await fetch('/api/projects', { credentials: 'same-origin' })
       if (res.ok) {
         const data: Project[] = await res.json()
         setProjects(data)
@@ -187,12 +221,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     name: string,
     description: string
   ) => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey
+    }
     const res = await fetch('/api/projects', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': apiKey
-      },
+      headers,
+      credentials: 'same-origin',
       body: JSON.stringify({ key, name, description })
     })
 

@@ -117,3 +117,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:6477',
     'http://localhost:6477',
 ]
+
+AUTHELIA_AUTH_URL = os.environ.get(
+    "AUTHELIA_AUTH_URL",
+    "http://authelia:9091/api/authz/auth-request"
+)
+
