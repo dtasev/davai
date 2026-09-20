@@ -10,7 +10,7 @@ import urllib.error
 import jwt
 from jwt import PyJWKClient
 from django.conf import settings
-from ninja.security import APIKeyHeader, APIKeyQuery, APIKeyCookie, HttpBearer
+from ninja.security import APIKeyHeader, APIKeyQuery, APIKeyCookie, HttpBearer, django_auth
 from tracker.models import APIKey
 
 def hash_key(raw_key: str) -> str:
@@ -323,11 +323,12 @@ class JWTAuth(HttpBearer):
 
         return None
 
-# Composite authenticators: OIDC JWT/Bearer, API key in header, query param, Remote-User, or authelia cookie
+# Composite authenticators: API key in header, query param, Django session cookie, OIDC JWT, Remote-User, or authelia cookie
 api_key_auth = [
-    JWTAuth(),
     ApiKeyHeaderAuth(),
     ApiKeyQueryAuth(),
+    django_auth,
+    JWTAuth(),
     RemoteUserAuth(),
     AutheliaSessionAuth()
 ]

@@ -133,4 +133,18 @@ OIDC_JWKS_URL = os.environ.get("OIDC_JWKS_URL", f"{OIDC_ISSUER_URL}/jwks.json")
 OIDC_USERINFO_URL = os.environ.get("OIDC_USERINFO_URL", f"{OIDC_ISSUER_URL}/api/oidc/userinfo")
 OIDC_FORWARDED_HOST = os.environ.get("OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
 
+# Session Cookie configuration
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_AGE = 86400 * 7  # 7 days
+
+# OIDC Client settings for Backend-driven flow
+OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "davai")
+OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "davai_oidc_client_secret_dev_key_40_chars_min")
+OIDC_TOKEN_URL = os.environ.get("OIDC_TOKEN_URL", f"{OIDC_ISSUER_URL}/api/oidc/token")
+OIDC_AUTHORIZATION_URL = os.environ.get("OIDC_AUTHORIZATION_URL", f"{OIDC_ISSUER_URL}/api/oidc/authorization")
+OIDC_REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "")
+
+
 

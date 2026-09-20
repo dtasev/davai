@@ -114,6 +114,71 @@ class TestNinjaAPI:
         )
         assert response.status_code == 401
 
+    def test_auth_me_authorized_via_django_session(self, client, test_user):
+        client.force_login(test_user)
+        response = client.get("/api/auth/me")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["username"] == test_user.username
+        assert data["email"] == test_user.email
+
+    def test_oidc_login_redirect(self, client):
+        response = client.get("/api/auth/login")
+        assert response.status_code == 302
+        assert "/api/oidc/authorization" in response.url
+        assert "client_id=davai" in response.url
+        assert client.session.get("oidc_state") is not None
+
+    def test_oidc_callback_flow(self, client, monkeypatch):
+        # 1. Initiate login to set session state
+        client.get("/api/auth/login")
+        saved_state = client.session["oidc_state"]
+
+        # 2. Mock token exchange response
+        class MockTokenResp:
+            status = 200
+            def read(self):
+                return b'{"id_token": "dummy_jwt", "access_token": "token_123"}'
+            def __enter__(self):
+                return self
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        import urllib.request
+        monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=5.0: MockTokenResp())
+
+        from tracker import views
+        monkeypatch.setattr(views, "verify_oidc_jwt", lambda token: {
+            "preferred_username": "oidc_session_user",
+            "email": "session_user@ecmwf.int",
+            "name": "Session User",
+            "groups": ["dev"],
+        })
+
+        # 3. Call callback with matching state
+        cb_res = client.get(f"/api/auth/oidc/callback?code=test_code_123&state={saved_state}")
+        assert cb_res.status_code == 302
+        assert cb_res.url == "/"
+
+        # 4. Request /api/auth/me using the newly established session cookie!
+        me_res = client.get("/api/auth/me")
+        assert me_res.status_code == 200
+        data = me_res.json()
+        assert data["username"] == "oidc_session_user"
+        assert data["email"] == "session_user@ecmwf.int"
+
+    def test_oidc_logout(self, client, test_user):
+        client.force_login(test_user)
+        me_res = client.get("/api/auth/me")
+        assert me_res.status_code == 200
+
+        logout_res = client.post("/api/auth/logout")
+        assert logout_res.status_code == 200
+        assert logout_res.json() == {"ok": True}
+
+        me_after = client.get("/api/auth/me")
+        assert me_after.status_code == 401
+
     def test_api_key_management_flow(self, ninja_client, test_user, test_api_key):
         _, raw_key = test_api_key
 

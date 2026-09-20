@@ -123,9 +123,14 @@ identity_providers:
     clients:
       - client_id: 'davai'
         client_name: 'Davai'
-        public: true
+        client_secret: '$pbkdf2-sha512$310000$YV8XTafpSVUc0jYk.aEJ6w$sT0WaGC8vo1nhhcc8LUxH2KjJozNTwJS12QLrbw5dbMQW7MHq2jNshDHchWxKQLFO5A8FeGzS5U7AUkQxzlwvQ'
+        public: false
         authorization_policy: 'one_factor'
         redirect_uris:
+          - 'http://localhost:6477/api/auth/oidc/callback'
+          - 'http://127.0.0.1:6477/api/auth/oidc/callback'
+          - 'https://davai-dev.ecmwf.int/api/auth/oidc/callback'
+          - 'https://davai.ecmwf.int/api/auth/oidc/callback'
           - 'http://localhost:6477/'
           - 'http://127.0.0.1:6477/'
           - 'https://davai-dev.ecmwf.int/'
@@ -141,9 +146,8 @@ identity_providers:
         grant_types:
           - 'authorization_code'
           - 'refresh_token'
-        token_endpoint_auth_method: 'none'
-        require_pkce: true
-        pkce_challenge_method: 'S256'
+        token_endpoint_auth_method: 'client_secret_post'
+        require_pkce: false
         access_token_signed_response_alg: 'RS256'
         access_token_signed_response_key_id: 'davai-oidc-key'
         audience:

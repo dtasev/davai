@@ -95,34 +95,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLoadingAuth(true)
     setAuthError(null)
     try {
-      const token = getStoredOidcToken()
       const headers: Record<string, string> = {}
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`
-      } else if (keyToUse && keyToUse.trim()) {
+      if (keyToUse && keyToUse.trim()) {
         headers['X-API-Key'] = keyToUse.trim()
-      } else if (apiKey && apiKey.trim()) {
+      } else if (apiKey && apiKey.trim() && apiKey !== DEFAULT_DEV_KEY) {
         headers['X-API-Key'] = apiKey.trim()
       }
 
-      // 1. Fetch /api/auth/me with Bearer token, API key, or cookie credentials
-      let meRes = await fetch('/api/auth/me', {
+      // 1. Fetch /api/auth/me with session cookie or explicit API key
+      const meRes = await fetch('/api/auth/me', {
         headers,
         credentials: 'same-origin'
       })
-
-      // 2. If key failed with 401 and we passed a key, retry without the key to let session authenticate
-      if (meRes.status === 401 && headers['X-API-Key']) {
-        const sessionRes = await fetch('/api/auth/me', {
-          credentials: 'same-origin'
-        })
-        if (sessionRes.ok) {
-          meRes = sessionRes
-          localStorage.removeItem('davai_api_key')
-          setApiKey('')
-          setApiKeyInput('')
-        }
-      }
 
       if (meRes.ok) {
         const meData = await meRes.json()
@@ -141,7 +125,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUserProfile(null)
-        setAuthError('Authentication required: please log in or provide a valid API key.')
       }
     } catch (err: any) {
       setAuthError(`Connection error: ${err.message}`)
@@ -208,11 +191,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   const loginWithOidc = async () => {
-    await startOidcLogin()
+    startOidcLogin()
   }
 
-  const logout = () => {
-    logoutOidc()
+  const logout = async () => {
+    await logoutOidc()
     setOidcToken(null)
     setUserProfile(null)
     setApiKeys([])
