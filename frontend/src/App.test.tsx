@@ -809,5 +809,43 @@ describe('Davai Frontend App with React Router', () => {
       screen.getByRole('button', { name: /Click here if not redirected automatically/i })
     ).toBeInTheDocument()
   })
+
+  it('supports copying work item details in WorkItemDetailModal to clipboard', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    })
+
+    await renderWithRouter(['/projects/DAV'])
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    const workItemCard = screen.getByTestId('work-item-DAV-1')
+    await act(async () => {
+      fireEvent.click(workItemCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('copy-work-item-button')).toBeInTheDocument()
+    })
+
+    const copyBtn = screen.getByTestId('copy-work-item-button')
+    await act(async () => {
+      fireEvent.click(copyBtn)
+    })
+
+    expect(writeTextMock).toHaveBeenCalledTimes(1)
+    const copiedText = writeTextMock.mock.calls[0][0]
+    expect(copiedText).toContain('ID: 1')
+    expect(copiedText).toContain('Key: DAV-1')
+    expect(copiedText).toContain('Title: Build AI-Native Data Models')
+    expect(copiedText).toContain('Description:\nDjango ORM schema and models')
+    expect(copiedText).toContain('Context:\nSpecifications for AI data models')
+
+    expect(copyBtn).toHaveAttribute('title', 'Copied to clipboard!')
+  })
 })
 

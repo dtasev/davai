@@ -12,7 +12,8 @@ import {
   Rocket,
   Trash2,
   AlertTriangle,
-  Check
+  Check,
+  Copy
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus } from '../../types'
 import { PriorityBadge, StatusBadge } from '../Common/Badge'
@@ -72,6 +73,28 @@ export function WorkItemDetailModal({
   const [progressProof, setProgressProof] = useState('')
   const [progressStatus, setProgressStatus] = useState(item?.status || 'COMPLETED')
   const [submittingProgress, setSubmittingProgress] = useState(false)
+
+  // Copy details state
+  const [hasCopied, setHasCopied] = useState(false)
+
+  const handleCopyDetails = () => {
+    if (!item) return
+    const title = isEditingDetails ? editTitle : item.title
+    const descr = isEditingDetails ? editDescr : (item.descr || '')
+    const context = isEditingContext ? contextInput : (item.context?.t || '')
+
+    const textToCopy = [
+      `ID: ${item.id}\nKey: ${item.key}\nTitle: ${title}`,
+      `Description:\n${descr}`,
+      `Context:\n${context}`
+    ].join('\n\n')
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(textToCopy).catch(() => {})
+    }
+    setHasCopied(true)
+    setTimeout(() => setHasCopied(false), 2000)
+  }
 
   useEffect(() => {
     if (item) {
@@ -190,6 +213,20 @@ export function WorkItemDetailModal({
               </button>
             </>
           )}
+          <button
+            type="button"
+            onClick={handleCopyDetails}
+            title={hasCopied ? 'Copied to clipboard!' : 'Copy work item details'}
+            aria-label="Copy work item details"
+            data-testid="copy-work-item-button"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition cursor-pointer"
+          >
+            {hasCopied ? (
+              <Check className="w-4 h-4 text-emerald-400" />
+            ) : (
+              <Copy className="w-4 h-4" />
+            )}
+          </button>
           {onDelete && (
             <button
               onClick={() => setShowDeleteConfirm(prev => !prev)}
