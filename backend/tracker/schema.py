@@ -1,6 +1,9 @@
 import strawberry
-from typing import List, Optional
+from typing import List, Optional, Any
 from asgiref.sync import sync_to_async
+from strawberry.permission import BasePermission
+from strawberry.types import Info
+from tracker.auth import verify_api_key
 from tracker.models import (
     WorkItem as WorkItemModel,
     Project as ProjectModel,
@@ -9,6 +12,39 @@ from tracker.models import (
     Context as ContextModel,
     Progress as ProgressModel,
 )
+
+
+class HasApiKey(BasePermission):
+    message = "Authentication required: A valid API key must be provided via 'X-API-Key' header or 'api_key' query parameter."
+
+    async def has_permission(self, source: Any, info: Info, **kwargs) -> bool:
+        request = getattr(info.context, "request", None)
+        if request is None and isinstance(info.context, dict):
+            request = info.context.get("request")
+
+        api_key = None
+        if request:
+            api_key = request.headers.get("X-API-Key") or request.GET.get("api_key")
+            if not api_key:
+                auth = request.headers.get("Authorization", "")
+                if auth.startswith("Bearer "):
+                    api_key = auth[7:].strip()
+                elif auth.startswith("ApiKey "):
+                    api_key = auth[7:].strip()
+        elif isinstance(info.context, dict):
+            api_key = info.context.get("api_key") or info.context.get("X-API-Key")
+
+        if not api_key:
+            return False
+
+        user = await sync_to_async(verify_api_key)(api_key)
+        if user:
+            if hasattr(info.context, "user"):
+                info.context.user = user
+            elif isinstance(info.context, dict):
+                info.context["user"] = user
+            return True
+        return False
 
 
 @strawberry.type
@@ -125,11 +161,11 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
 
 @strawberry.type
 class Query:
-    @strawberry.field
+    @strawberry.field(permission_classes=[HasApiKey])
     def hello(self) -> str:
         return "Hello from Strawberry GraphQL!"
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[HasApiKey])
     async def projects(self) -> List[ProjectType]:
         def _get():
             return [
@@ -138,7 +174,7 @@ class Query:
             ]
         return await sync_to_async(_get)()
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[HasApiKey])
     async def work_items(self, status: Optional[str] = None, project_key: Optional[str] = None) -> List[WorkItemType]:
         def _get():
             qs = WorkItemModel.objects.select_related(
@@ -152,7 +188,7 @@ class Query:
             return [_to_work_item_type(item) for item in qs]
         return await sync_to_async(_get)()
 
-    @strawberry.field
+    @strawberry.field(permission_classes=[HasApiKey])
     async def work_item(self, key: str) -> Optional[WorkItemType]:
         def _get():
             item = WorkItemModel.objects.select_related(

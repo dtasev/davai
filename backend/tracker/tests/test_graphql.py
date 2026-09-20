@@ -5,14 +5,35 @@ from tracker.models import WorkItem
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
-async def test_graphql_hello():
+async def test_graphql_unauthenticated():
+    # Attempt query with no API key
     res = await schema.execute("query { hello }")
+    assert res.errors is not None
+    assert any("Authentication required" in err.message for err in res.errors)
+
+    # Attempt query with invalid API key
+    res_fake = await schema.execute(
+        "query { hello }",
+        context_value={"api_key": "dav_live_invalid_token"}
+    )
+    assert res_fake.errors is not None
+    assert any("Authentication required" in err.message for err in res_fake.errors)
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
+async def test_graphql_hello_authorized(test_api_key):
+    _, raw_key = test_api_key
+    res = await schema.execute(
+        "query { hello }",
+        context_value={"api_key": raw_key}
+    )
     assert res.errors is None
     assert res.data["hello"] == "Hello from Strawberry GraphQL!"
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
-async def test_graphql_projects_and_items(test_project, test_user):
+async def test_graphql_projects_and_items(test_project, test_user, test_api_key):
+    _, raw_key = test_api_key
     await sync_to_async(WorkItem.objects.create)(
         project=test_project,
         key=f"{test_project.key}-100",
@@ -44,7 +65,10 @@ async def test_graphql_projects_and_items(test_project, test_user):
         }
     }
     """
-    res = await schema.execute(query)
+    res = await schema.execute(
+        query,
+        context_value={"api_key": raw_key}
+    )
     assert res.errors is None
     assert len(res.data["projects"]) >= 1
     assert any(p["key"] == test_project.key for p in res.data["projects"])
