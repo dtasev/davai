@@ -18,8 +18,18 @@ def get_redirect_uri(request: HttpRequest) -> str:
         return settings.OIDC_REDIRECT_URI
 
     proto = request.headers.get("X-Forwarded-Proto") or ("https" if request.is_secure() else "http")
-    host = getattr(settings, "OIDC_FORWARDED_HOST", None) or request.get_host()
+    host = request.get_host()
     return f"{proto}://{host}/api/auth/oidc/callback"
+
+def get_authorization_endpoint(request: HttpRequest) -> str:
+    """Determine the public authorization URL for browser redirection."""
+    auth_endpoint = getattr(settings, "OIDC_AUTHORIZATION_URL", "")
+    if auth_endpoint and "authelia:9091" not in auth_endpoint and "0.0.0.0" not in auth_endpoint:
+        return auth_endpoint
+
+    proto = request.headers.get("X-Forwarded-Proto") or ("https" if request.is_secure() else "http")
+    host = request.get_host()
+    return f"{proto}://{host}/authelia/api/oidc/authorization"
 
 def oidc_login(request: HttpRequest) -> HttpResponse:
     """Initiate OIDC authorization flow by redirecting the user to the IdP."""
@@ -34,11 +44,7 @@ def oidc_login(request: HttpRequest) -> HttpResponse:
     request.session["oidc_next"] = next_target
 
     redirect_uri = get_redirect_uri(request)
-    auth_endpoint = getattr(
-        settings,
-        "OIDC_AUTHORIZATION_URL",
-        f"{settings.OIDC_ISSUER_URL}/api/oidc/authorization"
-    )
+    auth_endpoint = get_authorization_endpoint(request)
 
     params = {
         "client_id": settings.OIDC_CLIENT_ID,
