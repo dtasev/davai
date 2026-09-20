@@ -26,6 +26,12 @@ wheels/
 venv/
 ENV/
 
+# Coverage and Pytest
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+
 # Django & SQLite
 backend/data/
 *.sqlite3
