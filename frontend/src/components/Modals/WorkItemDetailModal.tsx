@@ -13,7 +13,8 @@ import {
   Trash2,
   AlertTriangle,
   Check,
-  Copy
+  Copy,
+  Calendar
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus } from '../../types'
 import { PriorityBadge, StatusBadge } from '../Common/Badge'
@@ -38,6 +39,8 @@ interface WorkItemDetailModalProps {
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
     sprint_id?: number | null
     release_id?: number | null
+    start_date?: string | null
+    target_date?: string | null
   }) => Promise<void>
 }
 
@@ -56,7 +59,7 @@ export function WorkItemDetailModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Edit details (title, descr, priority, sprint & release) state
+  // Edit details (title, descr, priority, sprint, release, start_date & target_date) state
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [editTitle, setEditTitle] = useState(item?.title || '')
   const [editDescr, setEditDescr] = useState(item?.descr || '')
@@ -65,6 +68,12 @@ export function WorkItemDetailModal({
   )
   const [editSprintId, setEditSprintId] = useState<number | null>(item?.sprint_id || null)
   const [editReleaseId, setEditReleaseId] = useState<number | null>(item?.release_id || null)
+  const [editStartDate, setEditStartDate] = useState(
+    item?.start_date ? item.start_date.slice(0, 10) : ''
+  )
+  const [editTargetDate, setEditTargetDate] = useState(
+    item?.target_date ? item.target_date.slice(0, 10) : ''
+  )
   const [isSavingDetails, setIsSavingDetails] = useState(false)
 
   // Edit context state
@@ -109,8 +118,21 @@ export function WorkItemDetailModal({
       setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
       setEditSprintId(item.sprint_id ?? null)
       setEditReleaseId(item.release_id ?? null)
+      setEditStartDate(item.start_date ? item.start_date.slice(0, 10) : '')
+      setEditTargetDate(item.target_date ? item.target_date.slice(0, 10) : '')
     }
-  }, [item?.key, item?.context?.t, item?.status, item?.title, item?.descr, item?.priority, item?.sprint_id, item?.release_id])
+  }, [
+    item?.key,
+    item?.context?.t,
+    item?.status,
+    item?.title,
+    item?.descr,
+    item?.priority,
+    item?.sprint_id,
+    item?.release_id,
+    item?.start_date,
+    item?.target_date
+  ])
 
   if (!item) return null
 
@@ -123,7 +145,9 @@ export function WorkItemDetailModal({
         descr: editDescr.trim(),
         priority: editPriority,
         sprint_id: editSprintId === null ? 0 : editSprintId,
-        release_id: editReleaseId === null ? 0 : editReleaseId
+        release_id: editReleaseId === null ? 0 : editReleaseId,
+        start_date: editStartDate ? editStartDate : null,
+        target_date: editTargetDate ? editTargetDate : null
       })
       setIsEditingDetails(false)
     } finally {
@@ -138,6 +162,8 @@ export function WorkItemDetailModal({
       setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
       setEditSprintId(item.sprint_id ?? null)
       setEditReleaseId(item.release_id ?? null)
+      setEditStartDate(item.start_date ? item.start_date.slice(0, 10) : '')
+      setEditTargetDate(item.target_date ? item.target_date.slice(0, 10) : '')
     }
     setIsEditingDetails(false)
   }
@@ -168,6 +194,24 @@ export function WorkItemDetailModal({
       setEditReleaseId(val === '' ? null : Number(val))
     } else if (onUpdateDetails) {
       await onUpdateDetails({ release_id: newReleaseId })
+    }
+  }
+
+  const handleStartDateChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    if (isEditingDetails) {
+      setEditStartDate(val)
+    } else if (onUpdateDetails) {
+      await onUpdateDetails({ start_date: val ? val : null })
+    }
+  }
+
+  const handleTargetDateChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value
+    if (isEditingDetails) {
+      setEditTargetDate(val)
+    } else if (onUpdateDetails) {
+      await onUpdateDetails({ target_date: val ? val : null })
     }
   }
 
@@ -462,6 +506,62 @@ export function WorkItemDetailModal({
                   <Rocket className="w-2.5 h-2.5" />
                   <span>{release.name}</span>
                 </div>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">None</span>
+              )}
+            </div>
+
+            {/* Start Date */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-zinc-500" />
+                <span>Start:</span>
+              </span>
+              {onUpdateDetails ? (
+                <input
+                  type="date"
+                  value={isEditingDetails ? editStartDate : (item.start_date ? item.start_date.slice(0, 10) : '')}
+                  onChange={handleStartDateChange}
+                  data-testid={isEditingDetails ? 'edit-work-item-start-date-input' : 'work-item-start-date-input'}
+                  aria-label="Work Item Start Date"
+                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                    (isEditingDetails ? editStartDate : item.start_date)
+                      ? 'text-zinc-200 bg-zinc-900 border-zinc-700'
+                      : 'text-zinc-500 bg-zinc-900 border-zinc-800'
+                  } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
+                />
+              ) : item.start_date ? (
+                <span className="text-xs text-zinc-300">
+                  {new Date(item.start_date).toLocaleDateString()}
+                </span>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">None</span>
+              )}
+            </div>
+
+            {/* Target Date */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-zinc-500" />
+                <span>Target:</span>
+              </span>
+              {onUpdateDetails ? (
+                <input
+                  type="date"
+                  value={isEditingDetails ? editTargetDate : (item.target_date ? item.target_date.slice(0, 10) : '')}
+                  onChange={handleTargetDateChange}
+                  data-testid={isEditingDetails ? 'edit-work-item-target-date-input' : 'work-item-target-date-input'}
+                  aria-label="Work Item Target Date"
+                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                    (isEditingDetails ? editTargetDate : item.target_date)
+                      ? 'text-zinc-200 bg-zinc-900 border-zinc-700'
+                      : 'text-zinc-500 bg-zinc-900 border-zinc-800'
+                  } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
+                />
+              ) : item.target_date ? (
+                <span className="text-xs text-zinc-300">
+                  {new Date(item.target_date).toLocaleDateString()}
+                </span>
               ) : (
                 <span className="text-xs text-zinc-500 italic">None</span>
               )}

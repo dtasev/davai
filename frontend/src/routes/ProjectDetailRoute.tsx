@@ -20,8 +20,14 @@ export interface ProjectDetailOutletContext {
   handleDeleteSprint: (sprintId: number) => Promise<void>
   handleDeleteRelease: (releaseId: number) => Promise<void>
   handleDeleteWorkItem: (key: string) => Promise<void>
-  handleUpdateSprint: (sprintId: number, data: { name?: string; description?: string }) => Promise<Sprint>
-  handleUpdateRelease: (releaseId: number, data: { name?: string; description?: string }) => Promise<Release>
+  handleUpdateSprint: (
+    sprintId: number,
+    data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
+  ) => Promise<Sprint>
+  handleUpdateRelease: (
+    releaseId: number,
+    data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
+  ) => Promise<Release>
   handleUpdateWorkItemDetails: (
     key: string,
     data: {
@@ -30,6 +36,8 @@ export interface ProjectDetailOutletContext {
       priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
       sprint_id?: number | null
       release_id?: number | null
+      start_date?: string | null
+      target_date?: string | null
     }
   ) => Promise<WorkItem>
 }
@@ -269,7 +277,7 @@ export function ProjectDetailRoute() {
 
   const handleUpdateSprint = async (
     sprintId: number,
-    data: { name?: string; description?: string }
+    data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
   ) => {
     if (!projectKey) throw new Error('No project selected')
     const res = await apiFetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
@@ -292,7 +300,7 @@ export function ProjectDetailRoute() {
 
   const handleUpdateRelease = async (
     releaseId: number,
-    data: { name?: string; description?: string }
+    data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
   ) => {
     if (!projectKey) throw new Error('No project selected')
     const res = await apiFetch(`/api/projects/${projectKey}/releases/${releaseId}`, {
@@ -321,6 +329,8 @@ export function ProjectDetailRoute() {
       priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
       sprint_id?: number | null
       release_id?: number | null
+      start_date?: string | null
+      target_date?: string | null
     }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}`, {

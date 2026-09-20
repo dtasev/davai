@@ -25,7 +25,12 @@ export function SprintModalRoute() {
     navigate(`/projects/${projectKey}`)
   } : undefined
 
-  const handleUpdate = sprint ? async (data: { name?: string; description?: string }) => {
+  const handleUpdate = sprint ? async (data: {
+    name?: string
+    description?: string
+    start_date?: string | null
+    end_date?: string | null
+  }) => {
     await handleUpdateSprint(sprint.id, data)
   } : undefined
 
@@ -60,7 +65,12 @@ export function ReleaseModalRoute() {
     navigate(`/projects/${projectKey}`)
   } : undefined
 
-  const handleUpdate = release ? async (data: { name?: string; description?: string }) => {
+  const handleUpdate = release ? async (data: {
+    name?: string
+    description?: string
+    start_date?: string | null
+    end_date?: string | null
+  }) => {
     await handleUpdateRelease(release.id, data)
   } : undefined
 
@@ -122,6 +132,8 @@ export function WorkItemModalRoute() {
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
     sprint_id?: number | null
     release_id?: number | null
+    start_date?: string | null
+    target_date?: string | null
   }) => {
     const keyToUpdate = foundItem?.key || itemKey!
     const updated = await handleUpdateWorkItemDetails(keyToUpdate, data)

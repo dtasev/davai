@@ -72,8 +72,8 @@ describe('Davai Frontend App with React Router', () => {
                   body.description !== undefined
                     ? body.description
                     : 'Bootstrap MVP sprint',
-                start_date: '2026-09-20T00:00:00Z',
-                end_date: '2026-10-04T00:00:00Z',
+                start_date: body.start_date !== undefined ? body.start_date : '2026-09-20T00:00:00Z',
+                end_date: body.end_date !== undefined ? body.end_date : '2026-10-04T00:00:00Z',
                 created_at: '2026-09-20T00:00:00Z',
               }),
           } as Response)
@@ -90,8 +90,8 @@ describe('Davai Frontend App with React Router', () => {
                   body.description !== undefined
                     ? body.description
                     : 'Initial MVP release milestone',
-                start_date: '2026-09-20T00:00:00Z',
-                end_date: '2026-10-15T00:00:00Z',
+                start_date: body.start_date !== undefined ? body.start_date : '2026-09-20T00:00:00Z',
+                end_date: body.end_date !== undefined ? body.end_date : '2026-10-15T00:00:00Z',
                 created_at: '2026-09-20T00:00:00Z',
               }),
           } as Response)
@@ -102,6 +102,8 @@ describe('Davai Frontend App with React Router', () => {
           if (body.priority) mockWorkItem.priority = body.priority
           if (body.sprint_id !== undefined) mockWorkItem.sprint_id = body.sprint_id === 0 ? null : body.sprint_id
           if (body.release_id !== undefined) mockWorkItem.release_id = body.release_id === 0 ? null : body.release_id
+          if (body.start_date !== undefined) mockWorkItem.start_date = body.start_date
+          if (body.target_date !== undefined) mockWorkItem.target_date = body.target_date
           return Promise.resolve({
             ok: true,
             json: () =>
@@ -860,6 +862,148 @@ describe('Davai Frontend App with React Router', () => {
     expect(copiedText).toContain('Context:\nSpecifications for AI data models')
 
     expect(copyBtn).toHaveAttribute('title', 'Copied to clipboard!')
+  })
+
+  it('supports setting and updating start_date and end_date on sprint and release detail modals', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // 1. SPRINT DATE EDITING
+    const sprintCard = screen.getByTestId('sprint-card-1')
+    await act(async () => {
+      fireEvent.click(sprintCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sprint-date-display')).toBeInTheDocument()
+    })
+
+    // Clicking date display activates edit mode
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('sprint-date-display'))
+    })
+
+    const sprintStartInput = screen.getByTestId('edit-sprint-start-date-input')
+    const sprintEndInput = screen.getByTestId('edit-sprint-end-date-input')
+    expect(sprintStartInput).toBeInTheDocument()
+    expect(sprintEndInput).toBeInTheDocument()
+
+    fireEvent.change(sprintStartInput, { target: { value: '2026-10-01' } })
+    fireEvent.change(sprintEndInput, { target: { value: '2026-10-15' } })
+
+    const saveSprintBtn = screen.getByTestId('save-sprint-button')
+    await act(async () => {
+      fireEvent.click(saveSprintBtn)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('save-sprint-button')).not.toBeInTheDocument()
+      expect(screen.getByTestId('sprint-date-display')).toBeInTheDocument()
+    })
+
+    // Close sprint modal
+    const closeSprintBtn = screen.getByRole('button', { name: /Close/i })
+    await act(async () => {
+      fireEvent.click(closeSprintBtn)
+    })
+
+    // 2. RELEASE DATE EDITING
+    const releaseCard = screen.getByTestId('release-card-1')
+    await act(async () => {
+      fireEvent.click(releaseCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('release-date-display')).toBeInTheDocument()
+    })
+
+    // Clicking release date display activates edit mode
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('release-date-display'))
+    })
+
+    const relStartInput = screen.getByTestId('edit-release-start-date-input')
+    const relEndInput = screen.getByTestId('edit-release-end-date-input')
+    expect(relStartInput).toBeInTheDocument()
+    expect(relEndInput).toBeInTheDocument()
+
+    fireEvent.change(relStartInput, { target: { value: '2026-10-01' } })
+    fireEvent.change(relEndInput, { target: { value: '2026-11-01' } })
+
+    const saveReleaseBtn = screen.getByTestId('save-release-button')
+    await act(async () => {
+      fireEvent.click(saveReleaseBtn)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('save-release-button')).not.toBeInTheDocument()
+      expect(screen.getByTestId('release-date-display')).toBeInTheDocument()
+    })
+  })
+
+  it('supports setting and updating start_date and target_date on work item detail modal in view mode and edit mode', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    const workItemCard = screen.getByTestId('work-item-DAV-1')
+    await act(async () => {
+      fireEvent.click(workItemCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-start-date-input')).toBeInTheDocument()
+      expect(screen.getByTestId('work-item-target-date-input')).toBeInTheDocument()
+    })
+
+    // 1. Direct view-mode date selection
+    const viewStartInput = screen.getByTestId('work-item-start-date-input')
+    const viewTargetInput = screen.getByTestId('work-item-target-date-input')
+
+    await act(async () => {
+      fireEvent.change(viewStartInput, { target: { value: '2026-09-25' } })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-start-date-input')).toHaveValue('2026-09-25')
+    })
+
+    await act(async () => {
+      fireEvent.change(viewTargetInput, { target: { value: '2026-10-05' } })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-target-date-input')).toHaveValue('2026-10-05')
+    })
+
+    // 2. Edit-mode date setting
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('work-item-title'))
+    })
+
+    const editStartInput = screen.getByTestId('edit-work-item-start-date-input')
+    const editTargetInput = screen.getByTestId('edit-work-item-target-date-input')
+    expect(editStartInput).toBeInTheDocument()
+    expect(editTargetInput).toBeInTheDocument()
+
+    fireEvent.change(editStartInput, { target: { value: '2026-09-28' } })
+    fireEvent.change(editTargetInput, { target: { value: '2026-10-10' } })
+
+    const saveBtn = screen.getByTestId('save-work-item-button')
+    await act(async () => {
+      fireEvent.click(saveBtn)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('save-work-item-button')).not.toBeInTheDocument()
+      expect(screen.getByTestId('work-item-start-date-input')).toHaveValue('2026-09-28')
+      expect(screen.getByTestId('work-item-target-date-input')).toHaveValue('2026-10-10')
+    })
   })
 })
 

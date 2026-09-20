@@ -12,7 +12,12 @@ interface ReleaseDetailModalProps {
   onSelectWorkItem: (item: WorkItem) => void
   onSelectSprint: (sprint: Sprint) => void
   onDelete?: () => Promise<void>
-  onUpdate?: (data: { name?: string; description?: string }) => Promise<void>
+  onUpdate?: (data: {
+    name?: string
+    description?: string
+    start_date?: string | null
+    end_date?: string | null
+  }) => Promise<void>
 }
 
 export function ReleaseDetailModal({
@@ -30,14 +35,22 @@ export function ReleaseDetailModal({
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(release?.name || '')
   const [editDescription, setEditDescription] = useState(release?.description || '')
+  const [editStartDate, setEditStartDate] = useState(
+    release?.start_date ? release.start_date.slice(0, 10) : ''
+  )
+  const [editEndDate, setEditEndDate] = useState(
+    release?.end_date ? release.end_date.slice(0, 10) : ''
+  )
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (release) {
       setEditName(release.name)
       setEditDescription(release.description || '')
+      setEditStartDate(release.start_date ? release.start_date.slice(0, 10) : '')
+      setEditEndDate(release.end_date ? release.end_date.slice(0, 10) : '')
     }
-  }, [release?.id, release?.name, release?.description])
+  }, [release?.id, release?.name, release?.description, release?.start_date, release?.end_date])
 
   if (!release) return null
 
@@ -47,7 +60,9 @@ export function ReleaseDetailModal({
     try {
       await onUpdate({
         name: editName.trim(),
-        description: editDescription.trim()
+        description: editDescription.trim(),
+        start_date: editStartDate ? editStartDate : null,
+        end_date: editEndDate ? editEndDate : null
       })
       setIsEditing(false)
     } finally {
@@ -59,6 +74,8 @@ export function ReleaseDetailModal({
     if (release) {
       setEditName(release.name)
       setEditDescription(release.description || '')
+      setEditStartDate(release.start_date ? release.start_date.slice(0, 10) : '')
+      setEditEndDate(release.end_date ? release.end_date.slice(0, 10) : '')
     }
     setIsEditing(false)
   }
@@ -180,19 +197,53 @@ export function ReleaseDetailModal({
           </div>
         )}
         {/* Date Strip */}
-        <div className="flex items-center justify-between p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-lg text-xs">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-            <span>
-              {release.start_date
-                ? `${new Date(release.start_date).toLocaleDateString()} - ${
-                    release.end_date
-                      ? new Date(release.end_date).toLocaleDateString()
-                      : 'Ongoing'
-                  }`
-                : 'Unscheduled'}
-            </span>
-          </div>
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-lg text-xs">
+          {isEditing ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-zinc-400">Start:</span>
+                <input
+                  type="date"
+                  data-testid="edit-release-start-date-input"
+                  aria-label="Edit Release Start Date"
+                  value={editStartDate}
+                  onChange={e => setEditStartDate(e.target.value)}
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-xs text-zinc-200 focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-zinc-400">End:</span>
+                <input
+                  type="date"
+                  data-testid="edit-release-end-date-input"
+                  aria-label="Edit Release End Date"
+                  value={editEndDate}
+                  onChange={e => setEditEndDate(e.target.value)}
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-xs text-zinc-200 focus:outline-none"
+                />
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => onUpdate && setIsEditing(true)}
+              title={onUpdate ? 'Click to edit dates' : undefined}
+              data-testid="release-date-display"
+              className={`flex items-center gap-2 text-zinc-400 ${
+                onUpdate ? 'cursor-pointer hover:text-indigo-400 transition' : ''
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+              <span>
+                {release.start_date
+                  ? `${new Date(release.start_date).toLocaleDateString()} - ${
+                      release.end_date
+                        ? new Date(release.end_date).toLocaleDateString()
+                        : 'Ongoing'
+                    }`
+                  : 'Unscheduled'}
+              </span>
+            </div>
+          )}
 
           <span className="text-[10px] font-mono text-indigo-400 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/30 leading-none">
             Project: {release.project_key}

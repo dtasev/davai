@@ -11,7 +11,12 @@ interface SprintDetailModalProps {
   onClose: () => void
   onSelectWorkItem: (item: WorkItem) => void
   onDelete?: () => Promise<void>
-  onUpdate?: (data: { name?: string; description?: string }) => Promise<void>
+  onUpdate?: (data: {
+    name?: string
+    description?: string
+    start_date?: string | null
+    end_date?: string | null
+  }) => Promise<void>
 }
 
 export function SprintDetailModal({
@@ -28,14 +33,22 @@ export function SprintDetailModal({
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(sprint?.name || '')
   const [editDescription, setEditDescription] = useState(sprint?.description || '')
+  const [editStartDate, setEditStartDate] = useState(
+    sprint?.start_date ? sprint.start_date.slice(0, 10) : ''
+  )
+  const [editEndDate, setEditEndDate] = useState(
+    sprint?.end_date ? sprint.end_date.slice(0, 10) : ''
+  )
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
     if (sprint) {
       setEditName(sprint.name)
       setEditDescription(sprint.description || '')
+      setEditStartDate(sprint.start_date ? sprint.start_date.slice(0, 10) : '')
+      setEditEndDate(sprint.end_date ? sprint.end_date.slice(0, 10) : '')
     }
-  }, [sprint?.id, sprint?.name, sprint?.description])
+  }, [sprint?.id, sprint?.name, sprint?.description, sprint?.start_date, sprint?.end_date])
 
   if (!sprint) return null
 
@@ -45,7 +58,9 @@ export function SprintDetailModal({
     try {
       await onUpdate({
         name: editName.trim(),
-        description: editDescription.trim()
+        description: editDescription.trim(),
+        start_date: editStartDate ? editStartDate : null,
+        end_date: editEndDate ? editEndDate : null
       })
       setIsEditing(false)
     } finally {
@@ -57,6 +72,8 @@ export function SprintDetailModal({
     if (sprint) {
       setEditName(sprint.name)
       setEditDescription(sprint.description || '')
+      setEditStartDate(sprint.start_date ? sprint.start_date.slice(0, 10) : '')
+      setEditEndDate(sprint.end_date ? sprint.end_date.slice(0, 10) : '')
     }
     setIsEditing(false)
   }
@@ -179,18 +196,52 @@ export function SprintDetailModal({
         )}
         {/* Info Strip */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-lg text-xs">
-          <div className="flex items-center gap-2 text-zinc-400">
-            <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-            <span>
-              {sprint.start_date
-                ? `${new Date(sprint.start_date).toLocaleDateString()} - ${
-                    sprint.end_date
-                      ? new Date(sprint.end_date).toLocaleDateString()
-                      : 'Ongoing'
-                  }`
-                : 'Unscheduled'}
-            </span>
-          </div>
+          {isEditing ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-zinc-400">Start:</span>
+                <input
+                  type="date"
+                  data-testid="edit-sprint-start-date-input"
+                  aria-label="Edit Sprint Start Date"
+                  value={editStartDate}
+                  onChange={e => setEditStartDate(e.target.value)}
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-xs text-zinc-200 focus:outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-zinc-400">End:</span>
+                <input
+                  type="date"
+                  data-testid="edit-sprint-end-date-input"
+                  aria-label="Edit Sprint End Date"
+                  value={editEndDate}
+                  onChange={e => setEditEndDate(e.target.value)}
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-xs text-zinc-200 focus:outline-none"
+                />
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => onUpdate && setIsEditing(true)}
+              title={onUpdate ? 'Click to edit dates' : undefined}
+              data-testid="sprint-date-display"
+              className={`flex items-center gap-2 text-zinc-400 ${
+                onUpdate ? 'cursor-pointer hover:text-indigo-400 transition' : ''
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+              <span>
+                {sprint.start_date
+                  ? `${new Date(sprint.start_date).toLocaleDateString()} - ${
+                      sprint.end_date
+                        ? new Date(sprint.end_date).toLocaleDateString()
+                        : 'Ongoing'
+                    }`
+                  : 'Unscheduled'}
+              </span>
+            </div>
+          )}
 
           {linkedRelease && (
             <div className="flex items-center gap-1 text-[11px] text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/30 leading-none">

@@ -473,9 +473,9 @@ def update_release(request, project_key: str, release_id: int, payload: UpdateRe
         release.name = payload.name
     if payload.description is not None:
         release.description = payload.description
-    if payload.start_date is not None:
+    if "start_date" in payload.model_fields_set:
         release.start_date = payload.start_date
-    if payload.end_date is not None:
+    if "end_date" in payload.model_fields_set:
         release.end_date = payload.end_date
     release.save()
     return release
@@ -525,9 +525,9 @@ def update_sprint(request, project_key: str, sprint_id: int, payload: UpdateSpri
             sprint.release = None
         else:
             sprint.release = get_object_or_404(Release, id=payload.release_id, project=project)
-    if payload.start_date is not None:
+    if "start_date" in payload.model_fields_set:
         sprint.start_date = payload.start_date
-    if payload.end_date is not None:
+    if "end_date" in payload.model_fields_set:
         sprint.end_date = payload.end_date
     sprint.save()
     return sprint
@@ -658,9 +658,9 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
                 item.active_assignee = assignee
     if payload.source is not None:
         item.source = payload.source
-    if payload.start_date is not None:
+    if "start_date" in payload.model_fields_set:
         item.start_date = payload.start_date
-    if payload.target_date is not None:
+    if "target_date" in payload.model_fields_set:
         item.target_date = payload.target_date
     if payload.sprint_id is not None:
         if payload.sprint_id == 0:
