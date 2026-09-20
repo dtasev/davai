@@ -148,9 +148,4 @@ identity_providers:
           - 'refresh_token'
         token_endpoint_auth_method: 'client_secret_post'
         require_pkce: false
-        access_token_signed_response_alg: 'RS256'
-        access_token_signed_response_key_id: 'davai-oidc-key'
-        audience:
-          - 'davai'
-        requested_audience_mode: 'implicit'
 
