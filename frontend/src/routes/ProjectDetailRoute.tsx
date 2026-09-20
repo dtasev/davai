@@ -24,7 +24,13 @@ export interface ProjectDetailOutletContext {
   handleUpdateRelease: (releaseId: number, data: { name?: string; description?: string }) => Promise<Release>
   handleUpdateWorkItemDetails: (
     key: string,
-    data: { title?: string; descr?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string }
+    data: {
+      title?: string
+      descr?: string
+      priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
+      sprint_id?: number | null
+      release_id?: number | null
+    }
   ) => Promise<WorkItem>
 }
 
@@ -309,7 +315,13 @@ export function ProjectDetailRoute() {
 
   const handleUpdateWorkItemDetails = async (
     key: string,
-    data: { title?: string; descr?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string }
+    data: {
+      title?: string
+      descr?: string
+      priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
+      sprint_id?: number | null
+      release_id?: number | null
+    }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}`, {
       method: 'PATCH',

@@ -36,6 +36,8 @@ interface WorkItemDetailModalProps {
     title?: string
     descr?: string
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
+    sprint_id?: number | null
+    release_id?: number | null
   }) => Promise<void>
 }
 
@@ -54,13 +56,15 @@ export function WorkItemDetailModal({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Edit details (title, descr & priority) state
+  // Edit details (title, descr, priority, sprint & release) state
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [editTitle, setEditTitle] = useState(item?.title || '')
   const [editDescr, setEditDescr] = useState(item?.descr || '')
   const [editPriority, setEditPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>(
     (item?.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM'
   )
+  const [editSprintId, setEditSprintId] = useState<number | null>(item?.sprint_id || null)
+  const [editReleaseId, setEditReleaseId] = useState<number | null>(item?.release_id || null)
   const [isSavingDetails, setIsSavingDetails] = useState(false)
 
   // Edit context state
@@ -103,8 +107,10 @@ export function WorkItemDetailModal({
       setEditTitle(item.title)
       setEditDescr(item.descr || '')
       setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
+      setEditSprintId(item.sprint_id ?? null)
+      setEditReleaseId(item.release_id ?? null)
     }
-  }, [item?.key, item?.context?.t, item?.status, item?.title, item?.descr, item?.priority])
+  }, [item?.key, item?.context?.t, item?.status, item?.title, item?.descr, item?.priority, item?.sprint_id, item?.release_id])
 
   if (!item) return null
 
@@ -115,7 +121,9 @@ export function WorkItemDetailModal({
       await onUpdateDetails({
         title: editTitle.trim(),
         descr: editDescr.trim(),
-        priority: editPriority
+        priority: editPriority,
+        sprint_id: editSprintId === null ? 0 : editSprintId,
+        release_id: editReleaseId === null ? 0 : editReleaseId
       })
       setIsEditingDetails(false)
     } finally {
@@ -128,6 +136,8 @@ export function WorkItemDetailModal({
       setEditTitle(item.title)
       setEditDescr(item.descr || '')
       setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
+      setEditSprintId(item.sprint_id ?? null)
+      setEditReleaseId(item.release_id ?? null)
     }
     setIsEditingDetails(false)
   }
@@ -138,6 +148,26 @@ export function WorkItemDetailModal({
       setEditPriority(newPriority)
     } else if (onUpdateDetails) {
       await onUpdateDetails({ priority: newPriority })
+    }
+  }
+
+  const handleSprintChange = async (e: ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    const newSprintId = val === '' ? 0 : Number(val)
+    if (isEditingDetails) {
+      setEditSprintId(val === '' ? null : Number(val))
+    } else if (onUpdateDetails) {
+      await onUpdateDetails({ sprint_id: newSprintId })
+    }
+  }
+
+  const handleReleaseChange = async (e: ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value
+    const newReleaseId = val === '' ? 0 : Number(val)
+    if (isEditingDetails) {
+      setEditReleaseId(val === '' ? null : Number(val))
+    } else if (onUpdateDetails) {
+      await onUpdateDetails({ release_id: newReleaseId })
     }
   }
 
@@ -367,19 +397,75 @@ export function WorkItemDetailModal({
               )}
             </div>
 
-            {sprint && (
-              <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-950/30 px-2 py-0.5 rounded border border-amber-800/30 leading-none">
-                <Zap className="w-2.5 h-2.5" />
-                <span>{sprint.name}</span>
-              </div>
-            )}
+            {/* Sprint Selector */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+                <Zap className="w-3 h-3 text-amber-400" />
+                <span>Sprint:</span>
+              </span>
+              {onUpdateDetails ? (
+                <select
+                  value={isEditingDetails ? (editSprintId ?? '') : (item.sprint_id ?? '')}
+                  onChange={handleSprintChange}
+                  data-testid={isEditingDetails ? 'edit-work-item-sprint-select' : 'work-item-sprint-select'}
+                  aria-label="Work Item Sprint"
+                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                    (isEditingDetails ? editSprintId : item.sprint_id)
+                      ? 'text-amber-300 bg-amber-950/30 border-amber-800/40'
+                      : 'text-zinc-400 bg-zinc-900 border-zinc-800'
+                  } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
+                >
+                  <option value="" className="bg-zinc-900 text-zinc-400">No Sprint</option>
+                  {sprints.map(sp => (
+                    <option key={sp.id} value={sp.id} className="bg-zinc-900 text-zinc-200">
+                      {sp.name}
+                    </option>
+                  ))}
+                </select>
+              ) : sprint ? (
+                <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-950/30 px-2 py-0.5 rounded border border-amber-800/30 leading-none">
+                  <Zap className="w-2.5 h-2.5" />
+                  <span>{sprint.name}</span>
+                </div>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">None</span>
+              )}
+            </div>
 
-            {release && (
-              <div className="flex items-center gap-1 text-[10px] text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/30 leading-none">
-                <Rocket className="w-2.5 h-2.5" />
-                <span>{release.name}</span>
-              </div>
-            )}
+            {/* Release Selector */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+                <Rocket className="w-3 h-3 text-indigo-400" />
+                <span>Release:</span>
+              </span>
+              {onUpdateDetails ? (
+                <select
+                  value={isEditingDetails ? (editReleaseId ?? '') : (item.release_id ?? '')}
+                  onChange={handleReleaseChange}
+                  data-testid={isEditingDetails ? 'edit-work-item-release-select' : 'work-item-release-select'}
+                  aria-label="Work Item Release"
+                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                    (isEditingDetails ? editReleaseId : item.release_id)
+                      ? 'text-indigo-300 bg-indigo-950/30 border-indigo-800/40'
+                      : 'text-zinc-400 bg-zinc-900 border-zinc-800'
+                  } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
+                >
+                  <option value="" className="bg-zinc-900 text-zinc-400">No Release</option>
+                  {releases.map(rel => (
+                    <option key={rel.id} value={rel.id} className="bg-zinc-900 text-zinc-200">
+                      {rel.name}
+                    </option>
+                  ))}
+                </select>
+              ) : release ? (
+                <div className="flex items-center gap-1 text-[10px] text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/30 leading-none">
+                  <Rocket className="w-2.5 h-2.5" />
+                  <span>{release.name}</span>
+                </div>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">None</span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2.5 text-xs text-zinc-400">

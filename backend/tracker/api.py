@@ -663,9 +663,15 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
     if payload.target_date is not None:
         item.target_date = payload.target_date
     if payload.sprint_id is not None:
-        item.sprint = Sprint.objects.filter(id=payload.sprint_id, project=item.project).first()
+        if payload.sprint_id == 0:
+            item.sprint = None
+        else:
+            item.sprint = Sprint.objects.filter(id=payload.sprint_id, project=item.project).first()
     if payload.release_id is not None:
-        item.release = Release.objects.filter(id=payload.release_id, project=item.project).first()
+        if payload.release_id == 0:
+            item.release = None
+        else:
+            item.release = Release.objects.filter(id=payload.release_id, project=item.project).first()
 
     item.updated_by = user
     item.save()

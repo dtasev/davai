@@ -120,6 +120,8 @@ export function WorkItemModalRoute() {
     title?: string
     descr?: string
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
+    sprint_id?: number | null
+    release_id?: number | null
   }) => {
     const keyToUpdate = foundItem?.key || itemKey!
     const updated = await handleUpdateWorkItemDetails(keyToUpdate, data)

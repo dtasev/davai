@@ -5,50 +5,52 @@ import App from './App'
 import { routes } from './routes/router'
 
 describe('Davai Frontend App with React Router', () => {
-  const mockWorkItem = {
-    id: 1,
-    key: 'DAV-1',
-    parent_key: null,
-    title: 'Build AI-Native Data Models',
-    descr: 'Django ORM schema and models',
-    status: 'done',
-    priority: 'HIGH',
-    project_key: 'DAV',
-    active_assignee: 'admin',
-    created_by: 'admin',
-    updated_by: null,
-    assigned: ['admin'],
-    watching: [],
-    source: '',
-    start_date: null,
-    target_date: null,
-    sprint_id: 1,
-    release_id: 1,
-    created: '2026-09-20T00:00:00Z',
-    updated: '2026-09-20T00:00:00Z',
-    context: {
-      id: 1,
-      work_item_key: 'DAV-1',
-      user: 'admin',
-      t: 'Specifications for AI data models',
-      timestamp: '2026-09-20T00:00:00Z',
-    },
-    progress: [
-      {
-        id: 1,
-        work_item_key: 'DAV-1',
-        user: 'admin',
-        t: 'Completed models',
-        proof: 'git:e93f18a',
-        status: 'COMPLETED',
-        timestamp: '2026-09-20T00:00:00Z',
-      },
-    ],
-  }
+  let mockWorkItem: any
 
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+
+    mockWorkItem = {
+      id: 1,
+      key: 'DAV-1',
+      parent_key: null,
+      title: 'Build AI-Native Data Models',
+      descr: 'Django ORM schema and models',
+      status: 'done',
+      priority: 'HIGH',
+      project_key: 'DAV',
+      active_assignee: 'admin',
+      created_by: 'admin',
+      updated_by: null,
+      assigned: ['admin'],
+      watching: [],
+      source: '',
+      start_date: null,
+      target_date: null,
+      sprint_id: 1,
+      release_id: 1,
+      created: '2026-09-20T00:00:00Z',
+      updated: '2026-09-20T00:00:00Z',
+      context: {
+        id: 1,
+        work_item_key: 'DAV-1',
+        user: 'admin',
+        t: 'Specifications for AI data models',
+        timestamp: '2026-09-20T00:00:00Z',
+      },
+      progress: [
+        {
+          id: 1,
+          work_item_key: 'DAV-1',
+          user: 'admin',
+          t: 'Completed models',
+          proof: 'git:e93f18a',
+          status: 'COMPLETED',
+          timestamp: '2026-09-20T00:00:00Z',
+        },
+      ],
+    }
 
     // Mock global fetch for backend API calls
     globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
@@ -95,14 +97,16 @@ describe('Davai Frontend App with React Router', () => {
           } as Response)
         }
         if (urlStr.includes('/api/work-items/DAV-1')) {
+          if (body.title) mockWorkItem.title = body.title
+          if (body.descr !== undefined) mockWorkItem.descr = body.descr
+          if (body.priority) mockWorkItem.priority = body.priority
+          if (body.sprint_id !== undefined) mockWorkItem.sprint_id = body.sprint_id === 0 ? null : body.sprint_id
+          if (body.release_id !== undefined) mockWorkItem.release_id = body.release_id === 0 ? null : body.release_id
           return Promise.resolve({
             ok: true,
             json: () =>
               Promise.resolve({
                 ...mockWorkItem,
-                title: body.title || mockWorkItem.title,
-                descr: body.descr !== undefined ? body.descr : mockWorkItem.descr,
-                priority: body.priority || mockWorkItem.priority,
               }),
           } as Response)
         }
@@ -745,11 +749,17 @@ describe('Davai Frontend App with React Router', () => {
     const editWorkItemTitleInput = screen.getByTestId('edit-work-item-title-input')
     const editWorkItemDescInput = screen.getByTestId('edit-work-item-description-input')
     const editPrioritySelect = screen.getByTestId('edit-work-item-priority-select')
+    const editSprintSelect = screen.getByTestId('edit-work-item-sprint-select')
+    const editReleaseSelect = screen.getByTestId('edit-work-item-release-select')
     const saveWorkItemBtn = screen.getByTestId('save-work-item-button')
     expect(editWorkItemTitleInput).toBeInTheDocument()
     expect(editWorkItemDescInput).toBeInTheDocument()
     expect(editPrioritySelect).toBeInTheDocument()
     expect(editPrioritySelect).toHaveValue('HIGH')
+    expect(editSprintSelect).toBeInTheDocument()
+    expect(editSprintSelect).toHaveValue('1')
+    expect(editReleaseSelect).toBeInTheDocument()
+    expect(editReleaseSelect).toHaveValue('1')
     expect(saveWorkItemBtn).toBeInTheDocument()
 
     // Save button is to the left of the delete bin
@@ -777,13 +787,17 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('work-item-priority-select')).toHaveValue('LOW')
     })
 
-    // Changing priority directly in view mode
+    // Changing priority, sprint, and release directly in view mode
     await act(async () => {
       fireEvent.change(screen.getByTestId('work-item-priority-select'), { target: { value: 'MEDIUM' } })
+      fireEvent.change(screen.getByTestId('work-item-sprint-select'), { target: { value: '' } })
+      fireEvent.change(screen.getByTestId('work-item-release-select'), { target: { value: '' } })
     })
 
     await waitFor(() => {
       expect(screen.getByTestId('work-item-priority-select')).toHaveValue('MEDIUM')
+      expect(screen.getByTestId('work-item-sprint-select')).toHaveValue('')
+      expect(screen.getByTestId('work-item-release-select')).toHaveValue('')
     })
   })
 
