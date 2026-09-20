@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import { WorkItem } from '../types'
+import { apiFetch } from '../utils/apiFetch'
 import { ProjectDetailOutletContext } from './ProjectDetailRoute'
 import { SprintDetailModal } from '../components/Modals/SprintDetailModal'
 import { ReleaseDetailModal } from '../components/Modals/ReleaseDetailModal'

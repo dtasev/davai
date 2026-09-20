@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Project, UserProfile, APIKeyItem, BackendInfo } from '../types'
 import { GeneratedKey } from '../components/Settings/SettingsView'
 import { handleOidcCallback, getStoredOidcToken, startOidcLogin, logoutOidc } from '../auth/oidc'
+import { apiFetch } from '../utils/apiFetch'
 
 export const DEFAULT_DEV_KEY = 'dav_live_7186ea3e7362a9f418e5332be398dc7c6132bdfd'
 
@@ -58,10 +59,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const getAuthHeaders = (extraHeaders?: Record<string, string>): Record<string, string> => {
     const headers: Record<string, string> = { ...extraHeaders }
-    const token = getStoredOidcToken()
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    } else if (apiKey) {
+    if (apiKey) {
       headers['X-API-Key'] = apiKey
     }
     return headers
@@ -103,7 +101,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       // 1. Fetch /api/auth/me with session cookie or explicit API key
-      const meRes = await fetch('/api/auth/me', {
+      const meRes = await apiFetch('/api/auth/me', {
         headers,
         credentials: 'same-origin'
       })
@@ -115,7 +113,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('davai_api_key', keyToUse.trim())
         }
 
-        const keysRes = await fetch('/api/auth/keys', {
+        const keysRes = await apiFetch('/api/auth/keys', {
           headers: getAuthHeaders(),
           credentials: 'same-origin'
         })
@@ -142,7 +140,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const handleCreateKey = async (name: string): Promise<GeneratedKey | null> => {
     try {
-      const res = await fetch('/api/auth/keys', {
+      const res = await apiFetch('/api/auth/keys', {
         method: 'POST',
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'same-origin',
@@ -151,7 +149,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (res.ok) {
         const data: GeneratedKey = await res.json()
-        const keysRes = await fetch('/api/auth/keys', {
+        const keysRes = await apiFetch('/api/auth/keys', {
           headers: getAuthHeaders(),
           credentials: 'same-origin'
         })
@@ -176,7 +174,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const res = await fetch(`/api/auth/keys/${keyId}`, {
+      const res = await apiFetch(`/api/auth/keys/${keyId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
         credentials: 'same-origin'
@@ -204,7 +202,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const fetchProjects = async () => {
     setLoadingProjects(true)
     try {
-      const res = await fetch('/api/projects', {
+      const res = await apiFetch('/api/projects', {
         headers: getAuthHeaders(),
         credentials: 'same-origin'
       })
@@ -224,7 +222,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     name: string,
     description: string
   ) => {
-    const res = await fetch('/api/projects', {
+    const res = await apiFetch('/api/projects', {
       method: 'POST',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       credentials: 'same-origin',

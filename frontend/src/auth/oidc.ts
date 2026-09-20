@@ -1,3 +1,5 @@
+import { apiFetch } from '../utils/apiFetch'
+
 export function startOidcLogin(): void {
   if (typeof window !== 'undefined') {
     window.location.assign('/api/auth/login')
@@ -16,7 +18,7 @@ export function getStoredOidcToken(): string | null {
 export async function logoutOidc(): Promise<void> {
   if (typeof window !== 'undefined') {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' })
+      await apiFetch('/api/auth/logout', { method: 'POST' })
     } catch {
       // Ignored
     }

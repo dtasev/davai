@@ -3,6 +3,7 @@ import { useParams, useNavigate, Outlet } from 'react-router-dom'
 import { Project, Sprint, Release, WorkItem } from '../types'
 import { useApp } from '../context/AppContext'
 import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
+import { apiFetch } from '../utils/apiFetch'
 
 export interface ProjectDetailOutletContext {
   project: Project
@@ -44,9 +45,9 @@ export function ProjectDetailRoute() {
     setLoadingDetails(true)
     try {
       const [sprintsRes, releasesRes, itemsRes] = await Promise.all([
-        fetch(`/api/projects/${projectKey}/sprints`),
-        fetch(`/api/projects/${projectKey}/releases`),
-        fetch(`/api/work-items?project_key=${projectKey}`)
+        apiFetch(`/api/projects/${projectKey}/sprints`),
+        apiFetch(`/api/projects/${projectKey}/releases`),
+        apiFetch(`/api/work-items?project_key=${projectKey}`)
       ])
 
       if (sprintsRes.ok) {
@@ -77,7 +78,7 @@ export function ProjectDetailRoute() {
     endDate: string | null
   ) => {
     if (!projectKey) return
-    const res = await fetch(`/api/projects/${projectKey}/sprints`, {
+    const res = await apiFetch(`/api/projects/${projectKey}/sprints`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -104,7 +105,7 @@ export function ProjectDetailRoute() {
     endDate: string | null
   ) => {
     if (!projectKey) return
-    const res = await fetch(`/api/projects/${projectKey}/releases`, {
+    const res = await apiFetch(`/api/projects/${projectKey}/releases`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -133,7 +134,7 @@ export function ProjectDetailRoute() {
     release_id?: number | null
   }) => {
     if (!projectKey) return
-    const res = await fetch('/api/work-items', {
+    const res = await apiFetch('/api/work-items', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -152,7 +153,7 @@ export function ProjectDetailRoute() {
   }
 
   const handleUpdateStatus = async (key: string, newStatus: string) => {
-    const res = await fetch(`/api/work-items/${key}`, {
+    const res = await apiFetch(`/api/work-items/${key}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -168,7 +169,7 @@ export function ProjectDetailRoute() {
   }
 
   const handleUpdateContext = async (key: string, contextText: string) => {
-    const res = await fetch(`/api/work-items/${key}/context`, {
+    const res = await apiFetch(`/api/work-items/${key}/context`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -191,7 +192,7 @@ export function ProjectDetailRoute() {
     key: string,
     entry: { t: string; proof: string; status: string }
   ) => {
-    const res = await fetch(`/api/work-items/${key}/progress`, {
+    const res = await apiFetch(`/api/work-items/${key}/progress`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -214,7 +215,7 @@ export function ProjectDetailRoute() {
 
   const handleDeleteSprint = async (sprintId: number) => {
     if (!projectKey) return
-    const res = await fetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
+    const res = await apiFetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
       method: 'DELETE',
       headers: {
         'X-API-Key': apiKey
@@ -230,7 +231,7 @@ export function ProjectDetailRoute() {
 
   const handleDeleteRelease = async (releaseId: number) => {
     if (!projectKey) return
-    const res = await fetch(`/api/projects/${projectKey}/releases/${releaseId}`, {
+    const res = await apiFetch(`/api/projects/${projectKey}/releases/${releaseId}`, {
       method: 'DELETE',
       headers: {
         'X-API-Key': apiKey
@@ -245,7 +246,7 @@ export function ProjectDetailRoute() {
   }
 
   const handleDeleteWorkItem = async (key: string) => {
-    const res = await fetch(`/api/work-items/${key}`, {
+    const res = await apiFetch(`/api/work-items/${key}`, {
       method: 'DELETE',
       headers: {
         'X-API-Key': apiKey
@@ -265,7 +266,7 @@ export function ProjectDetailRoute() {
     data: { name?: string; description?: string }
   ) => {
     if (!projectKey) throw new Error('No project selected')
-    const res = await fetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
+    const res = await apiFetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -288,7 +289,7 @@ export function ProjectDetailRoute() {
     data: { name?: string; description?: string }
   ) => {
     if (!projectKey) throw new Error('No project selected')
-    const res = await fetch(`/api/projects/${projectKey}/releases/${releaseId}`, {
+    const res = await apiFetch(`/api/projects/${projectKey}/releases/${releaseId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -310,7 +311,7 @@ export function ProjectDetailRoute() {
     key: string,
     data: { title?: string; descr?: string; priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string }
   ) => {
-    const res = await fetch(`/api/work-items/${key}`, {
+    const res = await apiFetch(`/api/work-items/${key}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
