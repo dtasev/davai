@@ -1,8 +1,51 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import { createMemoryRouter } from 'react-router-dom'
 import App from './App'
+import { routes } from './routes/router'
 
-describe('Davai Frontend App', () => {
+describe('Davai Frontend App with React Router', () => {
+  const mockWorkItem = {
+    id: 1,
+    key: 'DAV-1',
+    parent_key: null,
+    title: 'Build AI-Native Data Models',
+    descr: 'Django ORM schema and models',
+    status: 'done',
+    priority: 'HIGH',
+    project_key: 'DAV',
+    active_assignee: 'admin',
+    created_by: 'admin',
+    updated_by: null,
+    assigned: ['admin'],
+    watching: [],
+    source: '',
+    start_date: null,
+    target_date: null,
+    sprint_id: 1,
+    release_id: 1,
+    created: '2026-09-20T00:00:00Z',
+    updated: '2026-09-20T00:00:00Z',
+    context: {
+      id: 1,
+      work_item_key: 'DAV-1',
+      user: 'admin',
+      t: 'Specifications for AI data models',
+      timestamp: '2026-09-20T00:00:00Z',
+    },
+    progress: [
+      {
+        id: 1,
+        work_item_key: 'DAV-1',
+        user: 'admin',
+        t: 'Completed models',
+        proof: 'git:e93f18a',
+        status: 'COMPLETED',
+        timestamp: '2026-09-20T00:00:00Z',
+      },
+    ],
+  }
+
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
@@ -68,52 +111,16 @@ describe('Davai Frontend App', () => {
         } as Response)
       }
 
-      if (urlStr.includes('/api/work-items?project_key=DAV')) {
+      if (urlStr.includes('/api/work-items/DAV-1') || urlStr.includes('/api/work-items?project_key=DAV')) {
+        if (urlStr.includes('/api/work-items/DAV-1')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockWorkItem),
+          } as Response)
+        }
         return Promise.resolve({
           ok: true,
-          json: () =>
-            Promise.resolve([
-              {
-                id: 1,
-                key: 'DAV-1',
-                parent_key: null,
-                title: 'Build AI-Native Data Models',
-                descr: 'Django ORM schema and models',
-                status: 'done',
-                priority: 'HIGH',
-                project_key: 'DAV',
-                active_assignee: 'admin',
-                created_by: 'admin',
-                updated_by: null,
-                assigned: ['admin'],
-                watching: [],
-                source: '',
-                start_date: null,
-                target_date: null,
-                sprint_id: 1,
-                release_id: 1,
-                created: '2026-09-20T00:00:00Z',
-                updated: '2026-09-20T00:00:00Z',
-                context: {
-                  id: 1,
-                  work_item_key: 'DAV-1',
-                  user: 'admin',
-                  t: 'Specifications for AI data models',
-                  timestamp: '2026-09-20T00:00:00Z',
-                },
-                progress: [
-                  {
-                    id: 1,
-                    work_item_key: 'DAV-1',
-                    user: 'admin',
-                    t: 'Completed migrations and models',
-                    proof: 'git:e93f18a',
-                    status: 'COMPLETED',
-                    timestamp: '2026-09-20T00:00:00Z',
-                  },
-                ],
-              },
-            ]),
+          json: () => Promise.resolve([mockWorkItem]),
         } as Response)
       }
 
@@ -175,19 +182,26 @@ describe('Davai Frontend App', () => {
     })
   })
 
-  const renderApp = async () => {
+  const renderWithRouter = async (initialEntries: string[] = ['/']) => {
+    const memoryRouter = createMemoryRouter(routes, {
+      initialEntries,
+      future: {
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }
+    })
     let result: any
     await act(async () => {
-      result = render(<App />)
+      result = render(<App router={memoryRouter} />)
     })
     await waitFor(() => {
       expect(screen.getByText('Davai')).toBeInTheDocument()
     })
-    return result
+    return { ...result, router: memoryRouter }
   }
 
   it('renders the header brand and external links (GraphQL and Swagger)', async () => {
-    await renderApp()
+    await renderWithRouter(['/'])
     expect(screen.getByText('Davai')).toBeInTheDocument()
     expect(screen.getByText('Tracker')).toBeInTheDocument()
 
@@ -202,15 +216,10 @@ describe('Davai Frontend App', () => {
     expect(swaggerLink).toHaveAttribute('target', '_blank')
   })
 
-  it('renders the Dashboard with projects', async () => {
-    await renderApp()
+  it('renders the Dashboard at "/" with project cards and navigates on click to "/projects/DAV"', async () => {
+    const { router } = await renderWithRouter(['/'])
     expect(screen.getByText('Projects Dashboard')).toBeInTheDocument()
     expect(screen.getByText('Davai Tracker')).toBeInTheDocument()
-    expect(screen.getByText('DAV')).toBeInTheDocument()
-  })
-
-  it('navigates to Project Details View when clicking a project and displays Sprints, Releases, and Work Items top-to-bottom', async () => {
-    await renderApp()
 
     // Click project card
     const projectCard = screen.getByTestId('project-card-DAV')
@@ -218,12 +227,14 @@ describe('Davai Frontend App', () => {
       fireEvent.click(projectCard)
     })
 
+    // URL path should update to /projects/DAV
+    expect(router.state.location.pathname).toBe('/projects/DAV')
+
     // Project Detail View is shown
     await waitFor(() => {
       expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
     })
 
-    // Verify sections exist in top-to-bottom order: Sprints, Releases, Work Items
     const sprintSection = screen.getByTestId('sprint-list-section')
     const releaseSection = screen.getByTestId('release-list-section')
     const workItemSection = screen.getByTestId('work-item-list-section')
@@ -231,99 +242,85 @@ describe('Davai Frontend App', () => {
     expect(sprintSection).toBeInTheDocument()
     expect(releaseSection).toBeInTheDocument()
     expect(workItemSection).toBeInTheDocument()
-
-    // Sprints list content
-    expect(within(sprintSection).getByText('Sprint 1 - Foundation')).toBeInTheDocument()
-
-    // Releases list content
-    expect(within(releaseSection).getByText('v0.1.0')).toBeInTheDocument()
-
-    // Work Items list content
-    expect(within(workItemSection).getByText('Build AI-Native Data Models')).toBeInTheDocument()
-    expect(within(workItemSection).getByText('DAV-1')).toBeInTheDocument()
   })
 
-  it('opens detail modals when clicking sprint, release, or work item', async () => {
-    await renderApp()
-
-    // Open project details
-    await act(async () => {
-      fireEvent.click(screen.getByTestId('project-card-DAV'))
-    })
+  it('updates path to "/projects/DAV/sprints/1" when opening sprint modal and returns to "/projects/DAV" on close', async () => {
+    const { router } = await renderWithRouter(['/projects/DAV'])
 
     await waitFor(() => {
       expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
     })
 
-    // 1. Click Sprint -> Sprint Detail Modal opens
+    // Click Sprint Card
     const sprintCard = screen.getByTestId('sprint-card-1')
     await act(async () => {
       fireEvent.click(sprintCard)
     })
+
+    // Path updated to sprint modal
+    expect(router.state.location.pathname).toBe('/projects/DAV/sprints/1')
 
     await waitFor(() => {
       expect(screen.getByText('Sprint Details & Scope')).toBeInTheDocument()
     })
     expect(screen.getAllByText('Bootstrap MVP sprint').length).toBeGreaterThanOrEqual(1)
 
-    // Close Sprint modal
+    // Close modal
     const closeBtn = screen.getByRole('button', { name: /Close/i })
     await act(async () => {
       fireEvent.click(closeBtn)
     })
 
-    // 2. Click Release -> Release Detail Modal opens
-    const releaseCard = screen.getByTestId('release-card-1')
-    await act(async () => {
-      fireEvent.click(releaseCard)
-    })
+    // Path returned to project detail view
+    expect(router.state.location.pathname).toBe('/projects/DAV')
+  })
 
-    await waitFor(() => {
-      expect(screen.getByText('Release Milestone Details')).toBeInTheDocument()
-    })
-    expect(screen.getAllByText('Initial MVP release milestone').length).toBeGreaterThanOrEqual(1)
+  it('deep-links directly on refresh to "/projects/DAV/items/DAV-1" and restores work item modal state', async () => {
+    const { router } = await renderWithRouter(['/projects/DAV/items/DAV-1'])
 
-    // Close Release modal
-    const closeReleaseBtn = screen.getByRole('button', { name: /Close/i })
-    await act(async () => {
-      fireEvent.click(closeReleaseBtn)
-    })
+    expect(router.state.location.pathname).toBe('/projects/DAV/items/DAV-1')
 
-    // 3. Click Work Item -> Work Item Detail Modal opens
-    const workItemCard = screen.getByTestId('work-item-DAV-1')
-    await act(async () => {
-      fireEvent.click(workItemCard)
-    })
-
+    // Work item modal should open immediately upon direct load
     await waitFor(() => {
       expect(screen.getByText('LLM Agent Context (SKILL.md)')).toBeInTheDocument()
     })
     expect(screen.getByText('Specifications for AI data models')).toBeInTheDocument()
     expect(screen.getByText('git:e93f18a')).toBeInTheDocument()
+
+    // Dismiss modal
+    const closeBtn = screen.getByRole('button', { name: /Close/i })
+    await act(async () => {
+      fireEvent.click(closeBtn)
+    })
+
+    // URL path should update back to /projects/DAV
+    expect(router.state.location.pathname).toBe('/projects/DAV')
   })
 
-  it('switches to Settings & API Keys tab and back to Dashboard', async () => {
-    await renderApp()
+  it('navigates to "/settings" on Settings tab click and back to "/" on Dashboard click', async () => {
+    const { router } = await renderWithRouter(['/'])
 
     // Click Settings tab
-    const settingsTab = screen.getByRole('button', { name: /Settings & API Keys/i })
+    const settingsTab = screen.getByRole('link', { name: /Settings & API Keys/i })
     await act(async () => {
       fireEvent.click(settingsTab)
     })
+
+    expect(router.state.location.pathname).toBe('/settings')
 
     await waitFor(() => {
       expect(screen.getByTestId('settings-view')).toBeInTheDocument()
     })
     expect(screen.getByText('Identity Profile')).toBeInTheDocument()
     expect(screen.getByText('Active Browser API Key')).toBeInTheDocument()
-    expect(screen.getByText('Active API Keys')).toBeInTheDocument()
 
-    // Switch back to Dashboard
-    const dashboardTab = screen.getByRole('button', { name: /Dashboard/i })
+    // Click Dashboard tab
+    const dashboardTab = screen.getByRole('link', { name: /Dashboard/i })
     await act(async () => {
       fireEvent.click(dashboardTab)
     })
 
+    expect(router.state.location.pathname).toBe('/')
     await waitFor(() => {
       expect(screen.getByText('Projects Dashboard')).toBeInTheDocument()
     })

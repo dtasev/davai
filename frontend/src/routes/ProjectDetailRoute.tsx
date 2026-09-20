@@ -1,0 +1,258 @@
+import React, { useState, useEffect, useCallback } from 'react'
+import { useParams, useNavigate, Outlet } from 'react-router-dom'
+import { Project, Sprint, Release, WorkItem, ProjectStatus } from '../types'
+import { useApp } from '../context/AppContext'
+import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
+
+export interface ProjectDetailOutletContext {
+  project: Project
+  sprints: Sprint[]
+  releases: Release[]
+  workItems: WorkItem[]
+  setWorkItems: React.Dispatch<React.SetStateAction<WorkItem[]>>
+  handleUpdateStatus: (key: string, newStatus: string) => Promise<void>
+  handleUpdateContext: (key: string, contextText: string) => Promise<void>
+  handleAddProgress: (
+    key: string,
+    entry: { t: string; proof: string; status: string }
+  ) => Promise<void>
+}
+
+export function ProjectDetailRoute() {
+  const { projectKey } = useParams<{ projectKey: string }>()
+  const navigate = useNavigate()
+  const { apiKey, projects, fetchProjects } = useApp()
+
+  const [sprints, setSprints] = useState<Sprint[]>([])
+  const [releases, setReleases] = useState<Release[]>([])
+  const [workItems, setWorkItems] = useState<WorkItem[]>([])
+  const [loadingDetails, setLoadingDetails] = useState(true)
+
+  const currentProject = projects.find(p => p.key === projectKey?.toUpperCase()) || null
+
+  const fetchDetails = useCallback(async () => {
+    if (!projectKey) return
+    setLoadingDetails(true)
+    try {
+      const [sprintsRes, releasesRes, itemsRes] = await Promise.all([
+        fetch(`/api/projects/${projectKey}/sprints`),
+        fetch(`/api/projects/${projectKey}/releases`),
+        fetch(`/api/work-items?project_key=${projectKey}`)
+      ])
+
+      if (sprintsRes.ok) {
+        setSprints(await sprintsRes.json())
+      }
+      if (releasesRes.ok) {
+        setReleases(await releasesRes.json())
+      }
+      if (itemsRes.ok) {
+        setWorkItems(await itemsRes.json())
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingDetails(false)
+    }
+  }, [projectKey])
+
+  useEffect(() => {
+    fetchDetails()
+  }, [fetchDetails])
+
+  const handleCreateSprint = async (
+    name: string,
+    description: string,
+    releaseId: number | null,
+    startDate: string | null,
+    endDate: string | null
+  ) => {
+    if (!projectKey) return
+    const res = await fetch(`/api/projects/${projectKey}/sprints`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify({
+        name,
+        description,
+        release_id: releaseId,
+        start_date: startDate,
+        end_date: endDate
+      })
+    })
+
+    if (res.ok) {
+      await fetchDetails()
+    }
+  }
+
+  const handleCreateRelease = async (
+    name: string,
+    description: string,
+    startDate: string | null,
+    endDate: string | null
+  ) => {
+    if (!projectKey) return
+    const res = await fetch(`/api/projects/${projectKey}/releases`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify({
+        name,
+        description,
+        start_date: startDate,
+        end_date: endDate
+      })
+    })
+
+    if (res.ok) {
+      await fetchDetails()
+    }
+  }
+
+  const handleCreateWorkItem = async (data: {
+    title: string
+    descr: string
+    status: string
+    priority: 'LOW' | 'MEDIUM' | 'HIGH'
+    parent_key?: string | null
+    sprint_id?: number | null
+    release_id?: number | null
+  }) => {
+    if (!projectKey) return
+    const res = await fetch('/api/work-items', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify({
+        ...data,
+        project_key: projectKey
+      })
+    })
+
+    if (res.ok) {
+      await fetchDetails()
+      await fetchProjects()
+    }
+  }
+
+  const handleUpdateStatus = async (key: string, newStatus: string) => {
+    const res = await fetch(`/api/work-items/${key}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify({ status: newStatus })
+    })
+
+    if (res.ok) {
+      const updated: WorkItem = await res.json()
+      setWorkItems(prev => prev.map(item => (item.key === key ? updated : item)))
+    }
+  }
+
+  const handleUpdateContext = async (key: string, contextText: string) => {
+    const res = await fetch(`/api/work-items/${key}/context`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify({ t: contextText })
+    })
+
+    if (res.ok) {
+      const contextData = await res.json()
+      setWorkItems(prev =>
+        prev.map(item =>
+          item.key === key ? { ...item, context: contextData } : item
+        )
+      )
+    }
+  }
+
+  const handleAddProgress = async (
+    key: string,
+    entry: { t: string; proof: string; status: string }
+  ) => {
+    const res = await fetch(`/api/work-items/${key}/progress`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body: JSON.stringify(entry)
+    })
+
+    if (res.ok) {
+      const newProgress = await res.json()
+      setWorkItems(prev =>
+        prev.map(item =>
+          item.key === key
+            ? { ...item, progress: [...(item.progress || []), newProgress] }
+            : item
+        )
+      )
+    }
+  }
+
+  // Fallback project object if projects list is still loading
+  const effectiveProject: Project = currentProject || {
+    id: 0,
+    key: (projectKey || '').toUpperCase(),
+    name: (projectKey || '').toUpperCase(),
+    description: '',
+    item_count: workItems.length,
+    statuses: [
+      { id: 1, name: 'todo', order: 1, is_default: true },
+      { id: 2, name: 'in progress', order: 2, is_default: false },
+      { id: 3, name: 'done', order: 3, is_default: false }
+    ]
+  }
+
+  return (
+    <>
+      <ProjectDetailView
+        project={effectiveProject}
+        sprints={sprints}
+        releases={releases}
+        workItems={workItems}
+        loading={loadingDetails}
+        onBack={() => navigate('/')}
+        onRefresh={fetchDetails}
+        onSelectSprint={sprint =>
+          navigate(`/projects/${projectKey}/sprints/${sprint.id}`)
+        }
+        onSelectRelease={release =>
+          navigate(`/projects/${projectKey}/releases/${release.id}`)
+        }
+        onSelectWorkItem={item =>
+          navigate(`/projects/${projectKey}/items/${item.key}`)
+        }
+        onCreateSprint={handleCreateSprint}
+        onCreateRelease={handleCreateRelease}
+        onCreateWorkItem={handleCreateWorkItem}
+      />
+
+      <Outlet
+        context={{
+          project: effectiveProject,
+          sprints,
+          releases,
+          workItems,
+          setWorkItems,
+          handleUpdateStatus,
+          handleUpdateContext,
+          handleAddProgress
+        }}
+      />
+    </>
+  )
+}
