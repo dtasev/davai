@@ -9,6 +9,9 @@ export function LoginRoute() {
   const navigate = useNavigate()
 
   useEffect(() => {
+    if (loadingAuth) {
+      return
+    }
     if (userProfile) {
       navigate('/', { replace: true })
       return
@@ -16,7 +19,7 @@ export function LoginRoute() {
 
     // Auto-initiate OIDC login if not already logged in
     startOidcLogin()
-  }, [userProfile, navigate])
+  }, [userProfile, loadingAuth, navigate])
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
