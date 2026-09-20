@@ -101,12 +101,12 @@ export function WorkItemModalRoute() {
   useEffect(() => {
     // If not found in loaded work items, fetch single work item directly
     if (!foundItem && itemKey) {
-      fetch(`/api/work-items/${itemKey}`)
+      apiFetch(`/api/work-items/${itemKey}`)
         .then(res => (res.ok ? res.json() : null))
         .then(data => {
           if (data) setStandaloneItem(data)
         })
-        .catch(() => {})
+        .catch(() => { })
     }
   }, [foundItem, itemKey])
 
