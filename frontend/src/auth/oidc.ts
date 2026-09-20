@@ -66,7 +66,13 @@ export async function startOidcLogin(): Promise<void> {
     state,
   })
 
-  window.location.href = `${config.authorizationEndpoint}?${params.toString()}`
+  if (typeof window !== 'undefined') {
+    try {
+      window.location.assign(`${config.authorizationEndpoint}?${params.toString()}`)
+    } catch {
+      // Ignored in test / headless environments
+    }
+  }
 }
 
 export async function handleOidcCallback(): Promise<string | null> {

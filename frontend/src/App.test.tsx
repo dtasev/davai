@@ -786,4 +786,28 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('work-item-priority-select')).toHaveValue('MEDIUM')
     })
   })
+
+  it('renders the LoginRoute at "/login" when unauthenticated', async () => {
+    const origFetch = globalThis.fetch
+    globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = url.toString()
+      if (urlStr.includes('/api/auth/me')) {
+        return Promise.resolve({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ detail: 'Unauthorized' }),
+        } as Response)
+      }
+      return origFetch(url, init)
+    })
+
+    const { router } = await renderWithRouter(['/login'])
+    expect(router.state.location.pathname).toBe('/login')
+    expect(screen.getByText('Redirecting to Login...')).toBeInTheDocument()
+    expect(screen.getByText(/ECMWF \/ Authelia Single Sign-On/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Click here if not redirected automatically/i })
+    ).toBeInTheDocument()
+  })
 })
+

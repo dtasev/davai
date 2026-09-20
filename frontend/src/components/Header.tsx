@@ -7,7 +7,8 @@ import {
   Terminal,
   ExternalLink,
   ChevronRight,
-  AlertTriangle
+  LogIn,
+  LogOut
 } from 'lucide-react'
 import { UserProfile, Project } from '../types'
 
@@ -15,12 +16,16 @@ interface HeaderProps {
   selectedProject?: Project | null
   userProfile: UserProfile | null
   apiKey: string
+  onLogin?: () => void
+  onLogout?: () => void
 }
 
 export function Header({
   selectedProject,
   userProfile,
-  apiKey
+  apiKey,
+  onLogin,
+  onLogout
 }: HeaderProps) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -101,27 +106,41 @@ export function Header({
 
         {/* Right: Actions, User, and External Links */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* User Status Pill */}
+          {/* User Status Pill & Auth Button */}
           {userProfile ? (
-            <div
-              onClick={() => navigate('/settings')}
-              className="cursor-pointer flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition text-xs"
-            >
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="font-medium text-zinc-200">{userProfile.username}</span>
-              {userProfile.is_staff && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold leading-none">
-                  Admin
-                </span>
+            <div className="flex items-center gap-1.5">
+              <div
+                onClick={() => navigate('/settings')}
+                className="cursor-pointer flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition text-xs"
+                title="Account Settings"
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="font-medium text-zinc-200">{userProfile.username}</span>
+                {userProfile.is_staff && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold leading-none">
+                    Admin
+                  </span>
+                )}
+              </div>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-rose-400 hover:bg-zinc-800/60 transition"
+                  title="Log out"
+                  data-testid="logout-button"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
               )}
             </div>
           ) : (
             <button
-              onClick={() => navigate('/settings')}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-medium hover:bg-amber-500/20 transition"
+              onClick={onLogin ? onLogin : () => navigate('/login')}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-sm transition"
+              data-testid="login-button"
             >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Connect Key</span>
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Log In</span>
             </button>
           )}
 

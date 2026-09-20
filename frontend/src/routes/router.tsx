@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, RouteObject } from 'react-router-dom'
 import { RootLayout } from './RootLayout'
 import { DashboardRoute } from './DashboardRoute'
 import { SettingsRoute } from './SettingsRoute'
+import { LoginRoute } from './LoginRoute'
 import { ProjectDetailRoute } from './ProjectDetailRoute'
 import {
   SprintModalRoute,
@@ -21,6 +22,10 @@ export const routes: RouteObject[] = [
       {
         path: 'dashboard',
         element: <Navigate to="/" replace />
+      },
+      {
+        path: 'login',
+        element: <LoginRoute />
       },
       {
         path: 'settings',
