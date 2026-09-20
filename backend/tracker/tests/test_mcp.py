@@ -8,10 +8,13 @@ from mcp_server.server import (
     get_work_item,
     set_work_item_context,
     log_work_item_progress,
+    list_sprints,
+    list_releases,
     get_project_summary,
     get_board_state,
     set_client
 )
+from tracker.models import Sprint, Release
 
 class InProcessDavaiClient(DavaiClient):
     """
@@ -85,12 +88,32 @@ class TestMCPWithApiClient:
         items = list_work_items(project_key=test_project.key)
         assert any(i["key"] == item_key for i in items)
 
-        # 8. Project summary
+        # 8. Create a Release and a Sprint, associate item
+        rel = Release.objects.create(project=test_project, name="v1.0.0", description="First stable release")
+        sp = Sprint.objects.create(project=test_project, release=rel, name="Sprint 1", description="Initial sprint")
+        update_work_item(key=item_key, sprint_id=sp.id, release_id=rel.id)
+
+        # 9. List sprints and releases via MCP tools
+        sprints = list_sprints(project_key=test_project.key)
+        assert len(sprints) >= 1
+        assert any(s["name"] == "Sprint 1" and s["release_id"] == rel.id for s in sprints)
+
+        releases = list_releases(project_key=test_project.key)
+        assert len(releases) >= 1
+        assert any(r["name"] == "v1.0.0" for r in releases)
+
+        # 10. Project summary with sprint and release integration
         summary = get_project_summary(project_key=test_project.key)
         assert summary["project"] == test_project.key
         assert summary["total_items"] >= 1
         assert summary["done"] >= 1
+        assert summary["sprints_count"] >= 1
+        assert summary["releases_count"] >= 1
+        assert "sprints" in summary
+        assert "releases" in summary
+        assert any(s["name"] == "Sprint 1" and s["done"] >= 1 for s in summary["sprints"])
+        assert any(r["name"] == "v1.0.0" and "Sprint 1" in r["linked_sprints"] for r in summary["releases"])
 
-        # 9. Board state resource
+        # 11. Board state resource
         board_state = get_board_state()
         assert "MCP Tool Generated Ticket" in board_state

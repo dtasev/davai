@@ -52,7 +52,9 @@ def create_work_item(
     status: Optional[str] = None,
     project_key: str = "DAV",
     active_assignee_username: Optional[str] = None,
-    parent_key: Optional[str] = None
+    parent_key: Optional[str] = None,
+    sprint_id: Optional[int] = None,
+    release_id: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Create a new work item in Davai.
@@ -64,6 +66,8 @@ def create_work_item(
         project_key: Target project key (defaults to 'DAV').
         active_assignee_username: Optional username of assigned user.
         parent_key: Optional parent work item key for subtasks (e.g. 'DAV-1').
+        sprint_id: Optional sprint ID to assign to.
+        release_id: Optional release ID to tag with.
     """
     return get_client().create_work_item(
         title=title,
@@ -72,7 +76,9 @@ def create_work_item(
         status=status,
         project_key=project_key,
         active_assignee_username=active_assignee_username,
-        parent_key=parent_key
+        parent_key=parent_key,
+        sprint_id=sprint_id,
+        release_id=release_id
     )
 
 @mcp_server.tool()
@@ -83,7 +89,9 @@ def update_work_item(
     status: Optional[str] = None,
     priority: Optional[str] = None,
     active_assignee_username: Optional[str] = None,
-    parent_key: Optional[str] = None
+    parent_key: Optional[str] = None,
+    sprint_id: Optional[int] = None,
+    release_id: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Update fields of an existing work item.
@@ -95,6 +103,8 @@ def update_work_item(
         priority: Optional new priority ('LOW', 'MEDIUM', 'HIGH').
         active_assignee_username: Optional username to assign to. Pass empty string to unassign.
         parent_key: Optional parent key to reparent or nest this work item.
+        sprint_id: Optional sprint ID to assign to.
+        release_id: Optional release ID to tag with.
     """
     return get_client().update_work_item(
         key=key,
@@ -103,7 +113,9 @@ def update_work_item(
         status=status,
         priority=priority,
         active_assignee_username=active_assignee_username,
-        parent_key=parent_key
+        parent_key=parent_key,
+        sprint_id=sprint_id,
+        release_id=release_id
     )
 
 @mcp_server.tool()
@@ -134,9 +146,27 @@ def log_work_item_progress(
     return get_client().log_work_item_progress(key=key, t=t, proof=proof, status=status)
 
 @mcp_server.tool()
+def list_sprints(project_key: str = "DAV") -> List[Dict[str, Any]]:
+    """
+    List all sprints for a project.
+    Args:
+        project_key: Project key (default 'DAV').
+    """
+    return get_client().list_sprints(project_key=project_key)
+
+@mcp_server.tool()
+def list_releases(project_key: str = "DAV") -> List[Dict[str, Any]]:
+    """
+    List all releases for a project.
+    Args:
+        project_key: Project key (default 'DAV').
+    """
+    return get_client().list_releases(project_key=project_key)
+
+@mcp_server.tool()
 def get_project_summary(project_key: str = "DAV") -> Dict[str, Any]:
     """
-    Get a statistical summary of the Davai project board.
+    Get a statistical summary of the Davai project board, including work item, sprint, and release breakdowns.
     Args:
         project_key: Project key (default 'DAV').
     """
