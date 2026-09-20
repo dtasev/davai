@@ -3,7 +3,7 @@
   "mcp": {
     "davai": {
       "type": "remote",
-      "url": "http://backend:8000/mcp/sse",
+      "url": "http://backend:8000/mcp/",
       "headers": {
         "Authorization": "Bearer {env:DAVAI_API_KEY}",
         "X-API-Key": "{env:DAVAI_API_KEY}"

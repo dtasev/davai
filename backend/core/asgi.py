@@ -1,4 +1,5 @@
 import os
+import contextlib
 from urllib.parse import parse_qs
 from asgiref.sync import sync_to_async
 from django.core.asgi import get_asgi_application
@@ -71,11 +72,32 @@ class MCPAuthMiddleware:
 
         await self.app(scope, receive, send)
 
-mcp_app = MCPAuthMiddleware(mcp_server.sse_app(transport_security=mcp_security))
+class StreamableHTTPApp:
+    """ASGI wrapper for Streamable HTTP endpoint under /mcp."""
+    def __init__(self):
+        self.app = mcp_server.streamable_http_app(streamable_http_path='/', transport_security=mcp_security)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        scope = dict(scope)
+        scope["path"] = "/"
+        await self.app(scope, receive, send)
+
+streamable_mcp = StreamableHTTPApp()
+mcp_app = MCPAuthMiddleware(streamable_mcp)
+
+@contextlib.asynccontextmanager
+async def lifespan(app: Starlette):
+    # Initialize a fresh Streamable HTTP session manager if previously started (e.g. across tests)
+    sm = getattr(mcp_server._lowlevel_server, '_session_manager', None)
+    if sm is None or getattr(sm, '_has_started', False):
+        streamable_mcp.app = mcp_server.streamable_http_app(streamable_http_path='/', transport_security=mcp_security)
+
+    async with mcp_server._lowlevel_server._session_manager.run():
+        yield
 
 routes = [
     Mount('/mcp', app=mcp_app),
     Mount('', app=django_app),
 ]
 
-application = Starlette(routes=routes)
+application = Starlette(routes=routes, lifespan=lifespan)
