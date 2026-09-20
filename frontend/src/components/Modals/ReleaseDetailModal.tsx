@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Rocket, Calendar, Zap, ListTodo, ChevronRight, Trash2, AlertTriangle } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Rocket, Calendar, Zap, ListTodo, ChevronRight, Trash2, AlertTriangle, Check } from 'lucide-react'
 import { Release, Sprint, WorkItem } from '../../types'
 import { PriorityBadge, StatusBadge } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
@@ -12,6 +12,7 @@ interface ReleaseDetailModalProps {
   onSelectWorkItem: (item: WorkItem) => void
   onSelectSprint: (sprint: Sprint) => void
   onDelete?: () => Promise<void>
+  onUpdate?: (data: { name?: string; description?: string }) => Promise<void>
 }
 
 export function ReleaseDetailModal({
@@ -21,12 +22,46 @@ export function ReleaseDetailModal({
   onClose,
   onSelectWorkItem,
   onSelectSprint,
-  onDelete
+  onDelete,
+  onUpdate
 }: ReleaseDetailModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(release?.name || '')
+  const [editDescription, setEditDescription] = useState(release?.description || '')
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (release) {
+      setEditName(release.name)
+      setEditDescription(release.description || '')
+    }
+  }, [release?.id, release?.name, release?.description])
 
   if (!release) return null
+
+  const handleSave = async () => {
+    if (!onUpdate || !editName.trim()) return
+    setIsSaving(true)
+    try {
+      await onUpdate({
+        name: editName.trim(),
+        description: editDescription.trim()
+      })
+      setIsEditing(false)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    if (release) {
+      setEditName(release.name)
+      setEditDescription(release.description || '')
+    }
+    setIsEditing(false)
+  }
 
   const linkedSprints = sprints.filter(s => s.release_id === release.id)
   const releaseItems = workItems.filter(item => item.release_id === release.id)
@@ -36,26 +71,73 @@ export function ReleaseDetailModal({
       isOpen={true}
       onClose={onClose}
       maxWidth="max-w-xl"
+      closeOnOverlayClick={!isEditing}
       headerActions={
-        onDelete ? (
-          <button
-            onClick={() => setShowDeleteConfirm(prev => !prev)}
-            title="Delete Release"
-            aria-label="Delete Release"
-            data-testid="delete-release-button"
-            className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        ) : undefined
+        <div className="flex items-center gap-1.5">
+          {isEditing && (
+            <>
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleCancelEdit}
+                data-testid="cancel-edit-release-button"
+                className="px-2 py-1 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSaving || !editName.trim()}
+                onClick={handleSave}
+                data-testid="save-release-button"
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1 disabled:opacity-50 cursor-pointer shadow-sm"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{isSaving ? 'Saving...' : 'Save'}</span>
+              </button>
+            </>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(prev => !prev)}
+              title="Delete Release"
+              aria-label="Delete Release"
+              data-testid="delete-release-button"
+              className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       }
       title={
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
             <Rocket className="w-3.5 h-3.5" />
           </div>
-          <div>
-            <h3 className="font-bold text-sm sm:text-base text-zinc-100">{release.name}</h3>
+          <div className="min-w-0 flex-1">
+            {isEditing ? (
+              <input
+                type="text"
+                data-testid="edit-release-name-input"
+                aria-label="Edit Release Name"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                className="w-full px-2 py-0.5 rounded bg-zinc-950 border border-indigo-500 text-sm font-bold text-zinc-100 focus:outline-none"
+                autoFocus
+              />
+            ) : (
+              <h3
+                onClick={() => onUpdate && setIsEditing(true)}
+                title={onUpdate ? 'Click to edit release name' : undefined}
+                data-testid="release-title"
+                className={`font-bold text-sm sm:text-base text-zinc-100 truncate ${
+                  onUpdate ? 'cursor-pointer hover:text-indigo-400 transition' : ''
+                }`}
+              >
+                {release.name}
+              </h3>
+            )}
             <p className="text-[11px] text-zinc-400">Release Milestone Details</p>
           </div>
         </div>
@@ -119,12 +201,36 @@ export function ReleaseDetailModal({
 
         {/* Description */}
         <div className="space-y-1">
-          <h4 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-            Scope / Release Notes
-          </h4>
-          <p className="p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 leading-relaxed">
-            {release.description || 'No description provided for this release milestone.'}
-          </p>
+          <div className="flex items-center justify-between">
+            <h4 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Scope / Release Notes
+            </h4>
+            {isEditing && (
+              <span className="text-[10px] text-indigo-400 font-mono">Editing</span>
+            )}
+          </div>
+          {isEditing ? (
+            <textarea
+              data-testid="edit-release-description-input"
+              aria-label="Edit Release Description"
+              value={editDescription}
+              onChange={e => setEditDescription(e.target.value)}
+              placeholder="Enter release notes / scope..."
+              rows={3}
+              className="w-full p-2.5 rounded-lg bg-zinc-950 border border-indigo-500 text-xs text-zinc-200 focus:outline-none resize-y leading-relaxed"
+            />
+          ) : (
+            <p
+              onClick={() => onUpdate && setIsEditing(true)}
+              title={onUpdate ? 'Click to edit release notes' : undefined}
+              data-testid="release-description"
+              className={`p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 leading-relaxed ${
+                onUpdate ? 'cursor-pointer hover:border-zinc-700 transition' : ''
+              }`}
+            >
+              {release.description || 'No description provided for this release milestone.'}
+            </p>
+          )}
         </div>
 
         {/* Linked Sprints */}

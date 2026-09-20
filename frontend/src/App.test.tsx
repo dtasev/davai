@@ -51,8 +51,61 @@ describe('Davai Frontend App with React Router', () => {
     localStorage.clear()
 
     // Mock global fetch for backend API calls
-    globalThis.fetch = vi.fn((url: string | URL | Request) => {
+    globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
       const urlStr = url.toString()
+      const method = init?.method?.toUpperCase() || 'GET'
+
+      if (method === 'PATCH') {
+        const body = init?.body ? JSON.parse(init.body as string) : {}
+        if (urlStr.includes('/api/projects/DAV/sprints/1')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                id: 1,
+                project_key: 'DAV',
+                release_id: 1,
+                name: body.name || 'Sprint 1 - Foundation',
+                description:
+                  body.description !== undefined
+                    ? body.description
+                    : 'Bootstrap MVP sprint',
+                start_date: '2026-09-20T00:00:00Z',
+                end_date: '2026-10-04T00:00:00Z',
+                created_at: '2026-09-20T00:00:00Z',
+              }),
+          } as Response)
+        }
+        if (urlStr.includes('/api/projects/DAV/releases/1')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                id: 1,
+                project_key: 'DAV',
+                name: body.name || 'v0.1.0',
+                description:
+                  body.description !== undefined
+                    ? body.description
+                    : 'Initial MVP release milestone',
+                start_date: '2026-09-20T00:00:00Z',
+                end_date: '2026-10-15T00:00:00Z',
+                created_at: '2026-09-20T00:00:00Z',
+              }),
+          } as Response)
+        }
+        if (urlStr.includes('/api/work-items/DAV-1')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                ...mockWorkItem,
+                title: body.title || mockWorkItem.title,
+                descr: body.descr !== undefined ? body.descr : mockWorkItem.descr,
+              }),
+          } as Response)
+        }
+      }
 
       if (urlStr.includes('/api/hello')) {
         return Promise.resolve({
@@ -535,6 +588,182 @@ describe('Davai Frontend App with React Router', () => {
     await waitFor(() => {
       expect(router.state.location.pathname).toBe('/projects/DAV')
       expect(screen.queryByText('LLM Agent Context (SKILL.md)')).not.toBeInTheDocument()
+    })
+  })
+
+  it('makes titles and descriptions editable on click, shows Save on the left of delete bin in edit mode, and stops overlay from closing modal', async () => {
+    const { router } = await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // --- 1. SPRINT DETAIL MODAL ---
+    const sprintCard = screen.getByTestId('sprint-card-1')
+    await act(async () => {
+      fireEvent.click(sprintCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('sprint-title')).toBeInTheDocument()
+    })
+
+    // Initially, Save button is NOT shown
+    expect(screen.queryByTestId('save-sprint-button')).not.toBeInTheDocument()
+
+    // Delete bin button is present
+    const deleteSprintBtn = screen.getByTestId('delete-sprint-button')
+    expect(deleteSprintBtn).toBeInTheDocument()
+
+    // Click title to enter edit mode
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('sprint-title'))
+    })
+
+    // In edit mode: input is rendered, Save button appears on the left of delete bin
+    const editNameInput = screen.getByTestId('edit-sprint-name-input')
+    const editDescInput = screen.getByTestId('edit-sprint-description-input')
+    const saveSprintBtn = screen.getByTestId('save-sprint-button')
+    expect(editNameInput).toBeInTheDocument()
+    expect(editDescInput).toBeInTheDocument()
+    expect(saveSprintBtn).toBeInTheDocument()
+
+    // Verify Save button is on the left of the delete bin in DOM order
+    expect(
+      Boolean(saveSprintBtn.compareDocumentPosition(deleteSprintBtn) & Node.DOCUMENT_POSITION_FOLLOWING)
+    ).toBe(true)
+
+    // Verify backdrop overlay does NOT close modal in edit mode
+    const backdrop = document.querySelector('.bg-black\\/80') as HTMLElement
+    expect(backdrop).toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(backdrop)
+    })
+    // Modal is still open with inputs
+    expect(screen.getByTestId('edit-sprint-name-input')).toBeInTheDocument()
+
+    // Test editing and saving
+    fireEvent.change(editNameInput, { target: { value: 'Sprint 1 - Updated' } })
+    fireEvent.change(editDescInput, { target: { value: 'Updated Objective' } })
+
+    await act(async () => {
+      fireEvent.click(saveSprintBtn)
+    })
+
+    // Exits edit mode and displays updated content
+    await waitFor(() => {
+      expect(screen.queryByTestId('save-sprint-button')).not.toBeInTheDocument()
+      expect(screen.getByTestId('sprint-title')).toHaveTextContent('Sprint 1 - Updated')
+    })
+
+    // Now that edit mode is off, clicking overlay closes the modal
+    await act(async () => {
+      fireEvent.click(backdrop)
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+    })
+
+    // --- 2. RELEASE DETAIL MODAL ---
+    const releaseCard = screen.getByTestId('release-card-1')
+    await act(async () => {
+      fireEvent.click(releaseCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('release-description')).toBeInTheDocument()
+    })
+
+    // Initially, Save button is NOT shown
+    expect(screen.queryByTestId('save-release-button')).not.toBeInTheDocument()
+    const deleteReleaseBtn = screen.getByTestId('delete-release-button')
+    expect(deleteReleaseBtn).toBeInTheDocument()
+
+    // Clicking description activates edit mode
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('release-description'))
+    })
+
+    const editRelNameInput = screen.getByTestId('edit-release-name-input')
+    const editRelDescInput = screen.getByTestId('edit-release-description-input')
+    const saveReleaseBtn = screen.getByTestId('save-release-button')
+    expect(editRelNameInput).toBeInTheDocument()
+    expect(editRelDescInput).toBeInTheDocument()
+    expect(saveReleaseBtn).toBeInTheDocument()
+
+    // Save button is to the left of the delete bin
+    expect(
+      Boolean(saveReleaseBtn.compareDocumentPosition(deleteReleaseBtn) & Node.DOCUMENT_POSITION_FOLLOWING)
+    ).toBe(true)
+
+    // Overlay click does NOT close modal in edit mode
+    const relBackdrop = document.querySelector('.bg-black\\/80') as HTMLElement
+    await act(async () => {
+      fireEvent.click(relBackdrop)
+    })
+    expect(screen.getByTestId('edit-release-name-input')).toBeInTheDocument()
+
+    // Cancel edit exits edit mode
+    const cancelRelBtn = screen.getByTestId('cancel-edit-release-button')
+    await act(async () => {
+      fireEvent.click(cancelRelBtn)
+    })
+    expect(screen.queryByTestId('save-release-button')).not.toBeInTheDocument()
+
+    // Close release modal
+    const closeRelBtn = screen.getByRole('button', { name: /Close/i })
+    await act(async () => {
+      fireEvent.click(closeRelBtn)
+    })
+
+    // --- 3. WORK ITEM DETAIL MODAL ---
+    const workItemCard = screen.getByTestId('work-item-DAV-1')
+    await act(async () => {
+      fireEvent.click(workItemCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-title')).toBeInTheDocument()
+    })
+
+    // Save button is NOT shown initially
+    expect(screen.queryByTestId('save-work-item-button')).not.toBeInTheDocument()
+    const deleteWorkItemBtn = screen.getByTestId('delete-work-item-button')
+    expect(deleteWorkItemBtn).toBeInTheDocument()
+
+    // Click work item title to activate edit mode
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('work-item-title'))
+    })
+
+    const editWorkItemTitleInput = screen.getByTestId('edit-work-item-title-input')
+    const editWorkItemDescInput = screen.getByTestId('edit-work-item-description-input')
+    const saveWorkItemBtn = screen.getByTestId('save-work-item-button')
+    expect(editWorkItemTitleInput).toBeInTheDocument()
+    expect(editWorkItemDescInput).toBeInTheDocument()
+    expect(saveWorkItemBtn).toBeInTheDocument()
+
+    // Save button is to the left of the delete bin
+    expect(
+      Boolean(saveWorkItemBtn.compareDocumentPosition(deleteWorkItemBtn) & Node.DOCUMENT_POSITION_FOLLOWING)
+    ).toBe(true)
+
+    // Overlay does NOT close modal in edit mode
+    const wiBackdrop = document.querySelector('.bg-black\\/80') as HTMLElement
+    await act(async () => {
+      fireEvent.click(wiBackdrop)
+    })
+    expect(screen.getByTestId('edit-work-item-title-input')).toBeInTheDocument()
+
+    // Save changes
+    fireEvent.change(editWorkItemTitleInput, { target: { value: 'Updated Work Item Title' } })
+    await act(async () => {
+      fireEvent.click(saveWorkItemBtn)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('save-work-item-button')).not.toBeInTheDocument()
+      expect(screen.getByTestId('work-item-title')).toHaveTextContent('Updated Work Item Title')
     })
   })
 })

@@ -11,7 +11,8 @@ import {
   Zap,
   Rocket,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Check
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus } from '../../types'
 import { PriorityBadge, StatusBadge } from '../Common/Badge'
@@ -30,6 +31,7 @@ interface WorkItemDetailModalProps {
     entry: { t: string; proof: string; status: string }
   ) => Promise<void>
   onDelete?: () => Promise<void>
+  onUpdateDetails?: (data: { title?: string; descr?: string }) => Promise<void>
 }
 
 export function WorkItemDetailModal({
@@ -41,10 +43,17 @@ export function WorkItemDetailModal({
   onUpdateStatus,
   onUpdateContext,
   onAddProgress,
-  onDelete
+  onDelete,
+  onUpdateDetails
 }: WorkItemDetailModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Edit details (title & descr) state
+  const [isEditingDetails, setIsEditingDetails] = useState(false)
+  const [editTitle, setEditTitle] = useState(item?.title || '')
+  const [editDescr, setEditDescr] = useState(item?.descr || '')
+  const [isSavingDetails, setIsSavingDetails] = useState(false)
 
   // Edit context state
   const [isEditingContext, setIsEditingContext] = useState(false)
@@ -61,8 +70,34 @@ export function WorkItemDetailModal({
     if (item) {
       setContextInput(item.context?.t || '')
       setProgressStatus(item.status || 'COMPLETED')
+      setEditTitle(item.title)
+      setEditDescr(item.descr || '')
     }
-  }, [item?.key, item?.context?.t, item?.status])
+  }, [item?.key, item?.context?.t, item?.status, item?.title, item?.descr])
+
+  if (!item) return null
+
+  const handleSaveDetails = async () => {
+    if (!onUpdateDetails || !editTitle.trim()) return
+    setIsSavingDetails(true)
+    try {
+      await onUpdateDetails({
+        title: editTitle.trim(),
+        descr: editDescr.trim()
+      })
+      setIsEditingDetails(false)
+    } finally {
+      setIsSavingDetails(false)
+    }
+  }
+
+  const handleCancelEditDetails = () => {
+    if (item) {
+      setEditTitle(item.title)
+      setEditDescr(item.descr || '')
+    }
+    setIsEditingDetails(false)
+  }
 
   if (!item) return null
 
@@ -110,25 +145,51 @@ export function WorkItemDetailModal({
       isOpen={true}
       onClose={onClose}
       maxWidth="max-w-2xl"
+      closeOnOverlayClick={!isEditingDetails}
       headerActions={
-        onDelete ? (
-          <button
-            onClick={() => setShowDeleteConfirm(prev => !prev)}
-            title="Delete Work Item"
-            aria-label="Delete Work Item"
-            data-testid="delete-work-item-button"
-            className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition cursor-pointer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        ) : undefined
+        <div className="flex items-center gap-1.5">
+          {isEditingDetails && (
+            <>
+              <button
+                type="button"
+                disabled={isSavingDetails}
+                onClick={handleCancelEditDetails}
+                data-testid="cancel-edit-work-item-button"
+                className="px-2 py-1 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingDetails || !editTitle.trim()}
+                onClick={handleSaveDetails}
+                data-testid="save-work-item-button"
+                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1 disabled:opacity-50 cursor-pointer shadow-sm"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>{isSavingDetails ? 'Saving...' : 'Save'}</span>
+              </button>
+            </>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => setShowDeleteConfirm(prev => !prev)}
+              title="Delete Work Item"
+              aria-label="Delete Work Item"
+              data-testid="delete-work-item-button"
+              className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       }
       title={
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
             <ListTodo className="w-3.5 h-3.5" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs font-bold text-indigo-400">
                 {item.key}
@@ -140,7 +201,28 @@ export function WorkItemDetailModal({
                 </span>
               )}
             </div>
-            <h3 className="font-bold text-sm sm:text-base text-zinc-100 truncate">{item.title}</h3>
+            {isEditingDetails ? (
+              <input
+                type="text"
+                data-testid="edit-work-item-title-input"
+                aria-label="Edit Work Item Title"
+                value={editTitle}
+                onChange={e => setEditTitle(e.target.value)}
+                className="w-full px-2 py-0.5 rounded bg-zinc-950 border border-indigo-500 text-sm font-bold text-zinc-100 focus:outline-none"
+                autoFocus
+              />
+            ) : (
+              <h3
+                onClick={() => onUpdateDetails && setIsEditingDetails(true)}
+                title={onUpdateDetails ? 'Click to edit title' : undefined}
+                data-testid="work-item-title"
+                className={`font-bold text-sm sm:text-base text-zinc-100 truncate ${
+                  onUpdateDetails ? 'cursor-pointer hover:text-indigo-400 transition' : ''
+                }`}
+              >
+                {item.title}
+              </h3>
+            )}
           </div>
         </div>
       }
@@ -240,12 +322,36 @@ export function WorkItemDetailModal({
 
         {/* Description */}
         <div className="space-y-1">
-          <h4 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-            Description
-          </h4>
-          <div className="p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed">
-            {item.descr || 'No description provided for this work item.'}
+          <div className="flex items-center justify-between">
+            <h4 className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Description
+            </h4>
+            {isEditingDetails && (
+              <span className="text-[10px] text-indigo-400 font-mono">Editing</span>
+            )}
           </div>
+          {isEditingDetails ? (
+            <textarea
+              data-testid="edit-work-item-description-input"
+              aria-label="Edit Work Item Description"
+              value={editDescr}
+              onChange={e => setEditDescr(e.target.value)}
+              placeholder="Enter work item description..."
+              rows={3}
+              className="w-full p-2.5 rounded-lg bg-zinc-950 border border-indigo-500 text-xs text-zinc-200 focus:outline-none resize-y leading-relaxed"
+            />
+          ) : (
+            <div
+              onClick={() => onUpdateDetails && setIsEditingDetails(true)}
+              title={onUpdateDetails ? 'Click to edit description' : undefined}
+              data-testid="work-item-description"
+              className={`p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed ${
+                onUpdateDetails ? 'cursor-pointer hover:border-zinc-700 transition' : ''
+              }`}
+            >
+              {item.descr || 'No description provided for this work item.'}
+            </div>
+          )}
         </div>
 
         {/* LLM / Agent Context Section */}
