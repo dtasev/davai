@@ -39,6 +39,7 @@ export interface ContextData {
   id: number
   work_item_key: string
   user: string | null
+  updated_by?: string | null
   summary: string
   timestamp: string
 }

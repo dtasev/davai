@@ -344,6 +344,8 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByText('LLM Agent Context (SKILL.md)')).toBeInTheDocument()
     })
     expect(screen.getByText('Specifications for AI data models')).toBeInTheDocument()
+    expect(screen.getByText(/Unversioned, latest facts only/i)).toBeInTheDocument()
+    expect(screen.getByTestId('context-staleness')).toBeInTheDocument()
     expect(screen.getByText('git:e93f18a')).toBeInTheDocument()
 
     // Dismiss modal

@@ -142,10 +142,17 @@ def update_work_item(
 @mcp_server.tool()
 def set_work_item_context(key: str, summary: str) -> Dict[str, Any]:
     """
-    Set or update the SKILL.md-style markdown technical context for an LLM agent working on this item.
+    Set or overwrite the unversioned, SKILL.md-style technical context for a work item.
+
+    Contract & Semantics:
+    - NO VERSIONING: Overwrites the previous context completely. A re-set replaces the existing value (does not append), and the previous value is gone.
+    - LATEST FACTS ONLY: Represents the single, always-current technical specifications and facts written for an LLM agent or developer to read before working on the task.
+    - STATE vs TIMELINE: Place architecture, constraints, interfaces, and current decisions here — NOT a changelog or chronological progress log (use log_work_item_progress for timeline/milestones). Edit or delete stale statements rather than appending.
+    - STALENESS: Returns updated_by and timestamp so readers can evaluate freshness and staleness.
+
     Args:
         key: Work item key (e.g. 'DAV-1').
-        summary: Detailed technical guidelines, architecture constraints, and relevant context in markdown.
+        summary: Complete, current markdown context and technical specifications (replaces any existing context).
     """
     return get_client().set_work_item_context(key=key, summary=summary)
 

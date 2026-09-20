@@ -79,9 +79,26 @@ class TestMCPWithApiClient:
         updated = update_work_item(key=item_key, status="done")
         assert updated["status"] == "done"
 
-        # 5. Set technical context via MCP tool
-        ctx = set_work_item_context(key=item_key, summary="# Technical Context\nVerified by MCP.")
-        assert ctx["summary"] == "# Technical Context\nVerified by MCP."
+        # 5. Set technical context via MCP tool (contract verification)
+        assert "NO VERSIONING" in set_work_item_context.__doc__
+        assert "LATEST FACTS ONLY" in set_work_item_context.__doc__
+        assert "overwrites" in set_work_item_context.__doc__.lower()
+
+        ctx1 = set_work_item_context(key=item_key, summary="# Technical Context\nInitial constraints.")
+        assert ctx1["summary"] == "# Technical Context\nInitial constraints."
+        assert ctx1["updated_by"] == test_user.username
+        assert "timestamp" in ctx1
+
+        # Re-set context to verify complete replacement, not append
+        ctx2 = set_work_item_context(key=item_key, summary="# Technical Context v2\nOverwritten facts.")
+        assert ctx2["summary"] == "# Technical Context v2\nOverwritten facts."
+        assert "Initial constraints" not in ctx2["summary"]
+
+        fetched_after_ctx = get_work_item(key=item_key)
+        assert fetched_after_ctx["context"]["summary"] == "# Technical Context v2\nOverwritten facts."
+        assert "Initial constraints" not in fetched_after_ctx["context"]["summary"]
+        assert fetched_after_ctx["context"]["updated_by"] == test_user.username
+        assert "timestamp" in fetched_after_ctx["context"]
 
         # 6. Log progress with proof via MCP tool
         prog = log_work_item_progress(key=item_key, summary="Shipped MCP integration", proof="git:sha-987abc", status="COMPLETED")

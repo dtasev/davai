@@ -87,6 +87,7 @@ class SprintType:
 class ContextType:
     id: int
     user: Optional[str]
+    updated_by: Optional[str] = None
     summary: str
     timestamp: str
 
@@ -122,9 +123,11 @@ class WorkItemType:
 def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
     ctx = None
     if hasattr(item, "context") and item.context:
+        username = item.context.user.username if item.context.user else None
         ctx = ContextType(
             id=item.context.id,
-            user=item.context.user.username if item.context.user else None,
+            user=username,
+            updated_by=username,
             summary=item.context.summary,
             timestamp=item.context.timestamp.isoformat(),
         )

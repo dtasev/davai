@@ -48,11 +48,11 @@ end_date: datetime
 work_items: WorkItem[]
 
 model Context:
-# the idea is this is updated by the LLM agent on implementing bigger milestones, and should propose a value and ask the user to confirm before updating. It should be treated like a SKILL.md where it gives context for the work that has been done by the developer. It's probably OK if this is environment specific. A breakdown of completed tasks can be logged in the Progress model
+# Treated like a SKILL.md: single, unversioned source of truth reflecting only the latest facts, technical specifications, and architecture constraints. It has NO version history — updating it replaces/overwrites the previous value entirely (not an append log). Chronological milestones and timeline belong in the Progress model. Surfaced with user/updated_by and timestamp so readers can evaluate staleness.
 work_item: WorkItem
 user: User
 timestamp: datetime
-t: str
+summary: str
 
 model Progress:
 # finished tasks, or the steps in development, or high level context of the work and decisions

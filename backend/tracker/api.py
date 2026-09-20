@@ -157,6 +157,7 @@ class ContextOut(Schema):
     id: int
     work_item_key: str
     user: Optional[str] = None
+    updated_by: Optional[str] = None
     summary: str
     timestamp: str
 
@@ -166,6 +167,10 @@ class ContextOut(Schema):
 
     @staticmethod
     def resolve_user(obj: Context) -> Optional[str]:
+        return obj.user.username if obj.user else None
+
+    @staticmethod
+    def resolve_updated_by(obj: Context) -> Optional[str]:
         return obj.user.username if obj.user else None
 
     @staticmethod
@@ -701,7 +706,8 @@ def get_work_item_context(request, key: str):
 @api.put("/work-items/{key}/context", response=ContextOut, auth=api_key_auth, summary="Update Work Item Context")
 def update_work_item_context(request, key: str, payload: UpdateContextIn):
     """
-    Update or initialize the markdown SKILL.md-style context for the work item.
+    Set or overwrite the unversioned, SKILL.md-style markdown technical context for the work item.
+    Replaces previous context completely (unversioned, latest facts only).
     """
     user = request.auth
     item = get_object_or_404(WorkItem, key=key.upper())

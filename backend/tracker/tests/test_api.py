@@ -332,6 +332,8 @@ class TestNinjaAPI:
         assert get_ctx.status_code == 200
         assert get_ctx.json()["summary"] == ctx_markdown
         assert get_ctx.json()["user"] == test_user.username
+        assert get_ctx.json()["updated_by"] == test_user.username
+        assert "timestamp" in get_ctx.json()
 
         # 4. Log Progress with Proof (git sha)
         prog_res = ninja_client.post(
@@ -355,6 +357,52 @@ class TestNinjaAPI:
         assert len(prog_list_res.json()) == 1
         assert prog_list_res.json()[0]["summary"] == "Implemented models and ran migrations"
         assert prog_list_res.json()[0]["proof"] == "git:8f3a9e2"
+
+    def test_context_unversioned_overwrite_replaces_previous_value(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+
+        item_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Unversioned Context Item", "descr": "Testing overwrite", "project_key": test_project.key},
+            headers={"X-API-Key": raw_key}
+        )
+        assert item_res.status_code == 200
+        item_key = item_res.json()["key"]
+
+        # Initial context setting
+        res1 = ninja_client.put(
+            f"/work-items/{item_key}/context",
+            json={"summary": "Fact 1: Initial architecture constraint"},
+            headers={"X-API-Key": raw_key}
+        )
+        assert res1.status_code == 200
+        assert res1.json()["summary"] == "Fact 1: Initial architecture constraint"
+        assert res1.json()["updated_by"] == test_user.username
+        assert res1.json()["user"] == test_user.username
+        assert "timestamp" in res1.json()
+
+        # Overwrite context with new latest facts
+        res2 = ninja_client.put(
+            f"/work-items/{item_key}/context",
+            json={"summary": "Fact 2: Replaced architecture constraint"},
+            headers={"X-API-Key": raw_key}
+        )
+        assert res2.status_code == 200
+        # Confirms replacement, not append: previous value is completely gone
+        assert res2.json()["summary"] == "Fact 2: Replaced architecture constraint"
+        assert "Fact 1" not in res2.json()["summary"]
+
+        # Confirm via GET that database stores only the latest state
+        get_res = ninja_client.get(f"/work-items/{item_key}/context")
+        assert get_res.status_code == 200
+        assert get_res.json()["summary"] == "Fact 2: Replaced architecture constraint"
+        assert "Fact 1" not in get_res.json()["summary"]
+        assert get_res.json()["updated_by"] == test_user.username
+
+        # Confirm single database record exists (no version history / rows accumulating)
+        from tracker.models import Context, WorkItem
+        item = WorkItem.objects.get(key=item_key)
+        assert Context.objects.filter(work_item=item).count() == 1
 
     def test_delete_sprint_release_and_work_item(self, ninja_client, test_user, test_api_key):
         _, raw_key = test_api_key
