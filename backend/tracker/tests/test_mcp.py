@@ -9,7 +9,11 @@ from mcp_server.server import (
     set_work_item_context,
     log_work_item_progress,
     list_sprints,
+    create_sprint,
+    update_sprint,
     list_releases,
+    create_release,
+    update_release,
     get_project_summary,
     get_board_state,
     set_client
@@ -127,3 +131,66 @@ class TestMCPWithApiClient:
         # 11. Board state resource
         board_state = get_board_state()
         assert "MCP Tool Generated Ticket" in board_state
+
+        # 12. Create and update sprint with dates via MCP tools
+        mcp_sprint = create_sprint(
+            name="Sprint 2 - MCP",
+            project_key=test_project.key,
+            description="Created via MCP tool",
+            start_date="2026-10-01",
+            end_date="2026-10-15"
+        )
+        assert mcp_sprint["name"] == "Sprint 2 - MCP"
+        assert mcp_sprint["start_date"].startswith("2026-10-01")
+        assert mcp_sprint["end_date"].startswith("2026-10-15")
+
+        # Update sprint dates and clear end_date
+        updated_sp = update_sprint(
+            sprint_id=mcp_sprint["id"],
+            project_key=test_project.key,
+            start_date="2026-10-05",
+            end_date="clear"
+        )
+        assert updated_sp["start_date"].startswith("2026-10-05")
+        assert updated_sp["end_date"] is None
+
+        # 13. Create and update release with dates via MCP tools
+        mcp_release = create_release(
+            name="v2.0.0",
+            project_key=test_project.key,
+            description="Major release via MCP",
+            start_date="2026-10-01",
+            end_date="2026-11-01"
+        )
+        assert mcp_release["name"] == "v2.0.0"
+        assert mcp_release["start_date"].startswith("2026-10-01")
+        assert mcp_release["end_date"].startswith("2026-11-01")
+
+        # Clear start_date and update end_date
+        updated_rel = update_release(
+            release_id=mcp_release["id"],
+            project_key=test_project.key,
+            start_date="",
+            end_date="2026-12-01"
+        )
+        assert updated_rel["start_date"] is None
+        assert updated_rel["end_date"].startswith("2026-12-01")
+
+        # 14. Create work item with dates and update/clear dates via MCP
+        dated_item = create_work_item(
+            title="Work item with dates",
+            project_key=test_project.key,
+            start_date="2026-10-02",
+            target_date="2026-10-10"
+        )
+        assert dated_item["start_date"].startswith("2026-10-02")
+        assert dated_item["target_date"].startswith("2026-10-10")
+
+        # Clear target date and update start date
+        updated_dated_item = update_work_item(
+            key=dated_item["key"],
+            start_date="2026-10-03",
+            target_date="null"
+        )
+        assert updated_dated_item["start_date"].startswith("2026-10-03")
+        assert updated_dated_item["target_date"] is None

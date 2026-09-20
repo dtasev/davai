@@ -54,7 +54,9 @@ def create_work_item(
     active_assignee_username: Optional[str] = None,
     parent_key: Optional[str] = None,
     sprint_id: Optional[int] = None,
-    release_id: Optional[int] = None
+    release_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    target_date: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Create a new work item in Davai.
@@ -68,6 +70,8 @@ def create_work_item(
         parent_key: Optional parent work item key for subtasks (e.g. 'DAV-1').
         sprint_id: Optional sprint ID to assign to.
         release_id: Optional release ID to tag with.
+        start_date: Optional start date (YYYY-MM-DD or ISO format).
+        target_date: Optional target completion date (YYYY-MM-DD or ISO format).
     """
     return get_client().create_work_item(
         title=title,
@@ -78,7 +82,9 @@ def create_work_item(
         active_assignee_username=active_assignee_username,
         parent_key=parent_key,
         sprint_id=sprint_id,
-        release_id=release_id
+        release_id=release_id,
+        start_date=start_date,
+        target_date=target_date
     )
 
 @mcp_server.tool()
@@ -91,10 +97,12 @@ def update_work_item(
     active_assignee_username: Optional[str] = None,
     parent_key: Optional[str] = None,
     sprint_id: Optional[int] = None,
-    release_id: Optional[int] = None
+    release_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    target_date: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Update fields of an existing work item.
+    Update fields of an existing work item, including setting or clearing dates.
     Args:
         key: Work item key (e.g. 'DAV-1').
         title: Optional new title.
@@ -103,20 +111,33 @@ def update_work_item(
         priority: Optional new priority ('LOW', 'MEDIUM', 'HIGH').
         active_assignee_username: Optional username to assign to. Pass empty string to unassign.
         parent_key: Optional parent key to reparent or nest this work item.
-        sprint_id: Optional sprint ID to assign to.
-        release_id: Optional release ID to tag with.
+        sprint_id: Optional sprint ID to assign to. Pass 0 to remove from sprint.
+        release_id: Optional release ID to tag with. Pass 0 to remove from release.
+        start_date: Optional start date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
+        target_date: Optional target date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
     """
-    return get_client().update_work_item(
-        key=key,
-        title=title,
-        descr=descr,
-        status=status,
-        priority=priority,
-        active_assignee_username=active_assignee_username,
-        parent_key=parent_key,
-        sprint_id=sprint_id,
-        release_id=release_id
-    )
+    kwargs: Dict[str, Any] = {}
+    if title is not None:
+        kwargs["title"] = title
+    if descr is not None:
+        kwargs["descr"] = descr
+    if status is not None:
+        kwargs["status"] = status
+    if priority is not None:
+        kwargs["priority"] = priority
+    if active_assignee_username is not None:
+        kwargs["active_assignee_username"] = active_assignee_username
+    if parent_key is not None:
+        kwargs["parent_key"] = parent_key
+    if sprint_id is not None:
+        kwargs["sprint_id"] = sprint_id
+    if release_id is not None:
+        kwargs["release_id"] = release_id
+    if start_date is not None:
+        kwargs["start_date"] = start_date
+    if target_date is not None:
+        kwargs["target_date"] = target_date
+    return get_client().update_work_item(key=key, **kwargs)
 
 @mcp_server.tool()
 def set_work_item_context(key: str, t: str) -> Dict[str, Any]:
@@ -162,6 +183,131 @@ def list_releases(project_key: str = "DAV") -> List[Dict[str, Any]]:
         project_key: Project key (default 'DAV').
     """
     return get_client().list_releases(project_key=project_key)
+
+@mcp_server.tool()
+def create_sprint(
+    name: str,
+    project_key: str = "DAV",
+    description: str = "",
+    release_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Create a new sprint for a project.
+    Args:
+        name: Sprint name.
+        project_key: Project key (default 'DAV').
+        description: Optional sprint objective / description.
+        release_id: Optional release ID to associate with.
+        start_date: Optional start date (YYYY-MM-DD or ISO format).
+        end_date: Optional end date (YYYY-MM-DD or ISO format).
+    """
+    return get_client().create_sprint(
+        name=name,
+        project_key=project_key,
+        description=description,
+        release_id=release_id,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+@mcp_server.tool()
+def update_sprint(
+    sprint_id: int,
+    project_key: str = "DAV",
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    release_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Update fields of an existing sprint, including setting or clearing dates.
+    Args:
+        sprint_id: Sprint ID to update.
+        project_key: Project key (default 'DAV').
+        name: Optional new name.
+        description: Optional new description.
+        release_id: Optional release ID to associate with (pass 0 to dissociate).
+        start_date: Optional start date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
+        end_date: Optional end date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
+    """
+    kwargs: Dict[str, Any] = {}
+    if name is not None:
+        kwargs["name"] = name
+    if description is not None:
+        kwargs["description"] = description
+    if release_id is not None:
+        kwargs["release_id"] = release_id
+    if start_date is not None:
+        kwargs["start_date"] = start_date
+    if end_date is not None:
+        kwargs["end_date"] = end_date
+    return get_client().update_sprint(
+        sprint_id=sprint_id,
+        project_key=project_key,
+        **kwargs
+    )
+
+@mcp_server.tool()
+def create_release(
+    name: str,
+    project_key: str = "DAV",
+    description: str = "",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Create a new release milestone.
+    Args:
+        name: Release name/version (e.g. 'v1.0.0').
+        project_key: Project key (default 'DAV').
+        description: Optional release scope / notes.
+        start_date: Optional start date (YYYY-MM-DD or ISO format).
+        end_date: Optional end date (YYYY-MM-DD or ISO format).
+    """
+    return get_client().create_release(
+        name=name,
+        project_key=project_key,
+        description=description,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+@mcp_server.tool()
+def update_release(
+    release_id: int,
+    project_key: str = "DAV",
+    name: Optional[str] = None,
+    description: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Update fields of an existing release milestone, including setting or clearing dates.
+    Args:
+        release_id: Release ID to update.
+        project_key: Project key (default 'DAV').
+        name: Optional new name.
+        description: Optional new description.
+        start_date: Optional start date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
+        end_date: Optional end date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
+    """
+    kwargs: Dict[str, Any] = {}
+    if name is not None:
+        kwargs["name"] = name
+    if description is not None:
+        kwargs["description"] = description
+    if start_date is not None:
+        kwargs["start_date"] = start_date
+    if end_date is not None:
+        kwargs["end_date"] = end_date
+    return get_client().update_release(
+        release_id=release_id,
+        project_key=project_key,
+        **kwargs
+    )
 
 @mcp_server.tool()
 def get_project_summary(project_key: str = "DAV") -> Dict[str, Any]:

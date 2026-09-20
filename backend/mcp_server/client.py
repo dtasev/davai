@@ -6,6 +6,9 @@ import urllib.error
 from typing import Optional, List, Dict, Any
 
 
+_UNSET = object()
+
+
 class DavaiClient:
     """
     Dependency-free HTTP client for the Davai REST API using Python's standard library.
@@ -91,7 +94,9 @@ class DavaiClient:
         parent_key: Optional[str] = None,
         source: str = "",
         sprint_id: Optional[int] = None,
-        release_id: Optional[int] = None
+        release_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        target_date: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create a new work item."""
         payload: Dict[str, Any] = {
@@ -111,6 +116,10 @@ class DavaiClient:
             payload["sprint_id"] = sprint_id
         if release_id is not None:
             payload["release_id"] = release_id
+        if start_date is not None:
+            payload["start_date"] = start_date
+        if target_date is not None:
+            payload["target_date"] = target_date
         return self._request("POST", "/work-items", data=payload)
 
     def update_work_item(
@@ -123,7 +132,9 @@ class DavaiClient:
         active_assignee_username: Optional[str] = None,
         parent_key: Optional[str] = None,
         sprint_id: Optional[int] = None,
-        release_id: Optional[int] = None
+        release_id: Optional[int] = None,
+        start_date: Any = _UNSET,
+        target_date: Any = _UNSET
     ) -> Dict[str, Any]:
         """Update fields of an existing work item."""
         payload: Dict[str, Any] = {}
@@ -143,6 +154,16 @@ class DavaiClient:
             payload["sprint_id"] = sprint_id
         if release_id is not None:
             payload["release_id"] = release_id
+        if start_date is not _UNSET:
+            if start_date in (None, "", "null", "none", "clear"):
+                payload["start_date"] = None
+            else:
+                payload["start_date"] = start_date
+        if target_date is not _UNSET:
+            if target_date in (None, "", "null", "none", "clear"):
+                payload["target_date"] = None
+            else:
+                payload["target_date"] = target_date
         return self._request("PATCH", f"/work-items/{key}", data=payload)
 
     def get_work_item_context(self, key: str) -> Dict[str, Any]:
@@ -179,6 +200,104 @@ class DavaiClient:
     def list_releases(self, project_key: str = "DAV") -> List[Dict[str, Any]]:
         """List all releases for a project."""
         return self._request("GET", f"/projects/{project_key.upper()}/releases")
+
+    def create_sprint(
+        self,
+        name: str,
+        project_key: str = "DAV",
+        description: str = "",
+        release_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a new sprint."""
+        payload: Dict[str, Any] = {
+            "name": name,
+            "description": description,
+        }
+        if release_id is not None:
+            payload["release_id"] = release_id
+        if start_date is not None:
+            payload["start_date"] = start_date
+        if end_date is not None:
+            payload["end_date"] = end_date
+        return self._request("POST", f"/projects/{project_key.upper()}/sprints", data=payload)
+
+    def update_sprint(
+        self,
+        sprint_id: int,
+        project_key: str = "DAV",
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        release_id: Optional[int] = None,
+        start_date: Any = _UNSET,
+        end_date: Any = _UNSET,
+    ) -> Dict[str, Any]:
+        """Update an existing sprint, including setting or clearing dates."""
+        payload: Dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if release_id is not None:
+            payload["release_id"] = release_id
+        if start_date is not _UNSET:
+            if start_date in (None, "", "null", "none", "clear"):
+                payload["start_date"] = None
+            else:
+                payload["start_date"] = start_date
+        if end_date is not _UNSET:
+            if end_date in (None, "", "null", "none", "clear"):
+                payload["end_date"] = None
+            else:
+                payload["end_date"] = end_date
+        return self._request("PATCH", f"/projects/{project_key.upper()}/sprints/{sprint_id}", data=payload)
+
+    def create_release(
+        self,
+        name: str,
+        project_key: str = "DAV",
+        description: str = "",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a new release milestone."""
+        payload: Dict[str, Any] = {
+            "name": name,
+            "description": description,
+        }
+        if start_date is not None:
+            payload["start_date"] = start_date
+        if end_date is not None:
+            payload["end_date"] = end_date
+        return self._request("POST", f"/projects/{project_key.upper()}/releases", data=payload)
+
+    def update_release(
+        self,
+        release_id: int,
+        project_key: str = "DAV",
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        start_date: Any = _UNSET,
+        end_date: Any = _UNSET,
+    ) -> Dict[str, Any]:
+        """Update an existing release milestone, including setting or clearing dates."""
+        payload: Dict[str, Any] = {}
+        if name is not None:
+            payload["name"] = name
+        if description is not None:
+            payload["description"] = description
+        if start_date is not _UNSET:
+            if start_date in (None, "", "null", "none", "clear"):
+                payload["start_date"] = None
+            else:
+                payload["start_date"] = start_date
+        if end_date is not _UNSET:
+            if end_date in (None, "", "null", "none", "clear"):
+                payload["end_date"] = None
+            else:
+                payload["end_date"] = end_date
+        return self._request("PATCH", f"/projects/{project_key.upper()}/releases/{release_id}", data=payload)
 
     def get_project_summary(self, project_key: str = "DAV") -> Dict[str, Any]:
         """Calculate board statistics for a project, including sprint and release breakdowns."""
