@@ -68,7 +68,7 @@ export function SprintDetailModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      maxWidth="max-w-xl"
+      maxWidth="max-w-xl md:max-w-3xl lg:max-w-4xl"
       closeOnOverlayClick={!isEditing}
       headerActions={
         <div className="flex items-center gap-1.5">
@@ -250,7 +250,7 @@ export function SprintDetailModal({
               No work items assigned to this sprint yet.
             </div>
           ) : (
-            <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-56 md:max-h-72 overflow-y-auto pr-1">
               {sprintItems.map(item => (
                 <div
                   key={item.key}

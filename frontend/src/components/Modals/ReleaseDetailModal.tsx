@@ -70,7 +70,7 @@ export function ReleaseDetailModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      maxWidth="max-w-xl"
+      maxWidth="max-w-xl md:max-w-3xl lg:max-w-4xl"
       closeOnOverlayClick={!isEditing}
       headerActions={
         <div className="flex items-center gap-1.5">
@@ -279,7 +279,7 @@ export function ReleaseDetailModal({
               No work items directly tagged with this release yet.
             </div>
           ) : (
-            <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+            <div className="space-y-1.5 max-h-52 md:max-h-72 overflow-y-auto pr-1">
               {releaseItems.map(item => (
                 <div
                   key={item.key}

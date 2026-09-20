@@ -163,7 +163,7 @@ export function WorkItemDetailModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      maxWidth="max-w-2xl"
+      maxWidth="max-w-2xl md:max-w-4xl lg:max-w-5xl"
       closeOnOverlayClick={!isEditingDetails}
       headerActions={
         <div className="flex items-center gap-1.5">
@@ -460,7 +460,7 @@ export function WorkItemDetailModal({
 
           {/* Progress list */}
           {item.progress && item.progress.length > 0 ? (
-            <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-44 md:max-h-64 overflow-y-auto pr-1">
               {item.progress.map((p, idx) => (
                 <div
                   key={p.id || idx}
