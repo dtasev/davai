@@ -253,6 +253,7 @@ export function WorkItemList({
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
             <ListTodo className="w-4 h-4 text-emerald-400" />

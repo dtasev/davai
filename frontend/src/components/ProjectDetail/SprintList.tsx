@@ -143,6 +143,7 @@ export function SprintList({
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-amber-400" />

@@ -167,6 +167,7 @@ export function DashboardView({
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
             <FolderPlus className="w-5 h-5 text-indigo-400" />

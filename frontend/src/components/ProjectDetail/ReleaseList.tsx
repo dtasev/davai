@@ -132,6 +132,7 @@ export function ReleaseList({
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
             <Rocket className="w-4 h-4 text-indigo-400" />

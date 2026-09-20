@@ -324,4 +324,62 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByText('Projects Dashboard')).toBeInTheDocument()
     })
   })
+
+  it('makes "create new ..." modals sticky (overlay click does NOT close) while detail modals close on overlay click', async () => {
+    const { router } = await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // 1. Open "Create New Work Item" modal
+    const createBtn = screen.getByTestId('create-work-item-button')
+    await act(async () => {
+      fireEvent.click(createBtn)
+    })
+
+    expect(screen.getByText('Create New Work Item')).toBeInTheDocument()
+
+    // Find the backdrop overlay (has aria-hidden="true")
+    const backdrop = document.querySelector('.bg-black\\/80') as HTMLElement
+    expect(backdrop).toBeInTheDocument()
+
+    // Clicking overlay should NOT close the create new modal
+    await act(async () => {
+      fireEvent.click(backdrop)
+    })
+    expect(screen.getByText('Create New Work Item')).toBeInTheDocument()
+
+    // Close with X button
+    const closeCreateBtn = screen.getByRole('button', { name: /Close/i })
+    await act(async () => {
+      fireEvent.click(closeCreateBtn)
+    })
+    await waitFor(() => {
+      expect(screen.queryByText('Create New Work Item')).not.toBeInTheDocument()
+    })
+
+    // 2. Open a detail modal (e.g. Sprint detail)
+    const sprintCard = screen.getByTestId('sprint-card-1')
+    await act(async () => {
+      fireEvent.click(sprintCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Sprint Details & Scope')).toBeInTheDocument()
+    })
+
+    // Find the backdrop overlay for the detail modal
+    const detailBackdrop = document.querySelector('.bg-black\\/80') as HTMLElement
+    expect(detailBackdrop).toBeInTheDocument()
+
+    // Clicking overlay on detail modal DOES close it
+    await act(async () => {
+      fireEvent.click(detailBackdrop)
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+      expect(screen.queryByText('Sprint Details & Scope')).not.toBeInTheDocument()
+    })
+  })
 })
