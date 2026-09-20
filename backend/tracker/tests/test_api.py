@@ -84,6 +84,36 @@ class TestNinjaAPI:
         assert data["username"] == "cookie_user"
         assert data["email"] == "cookie_user@ecmwf.int"
 
+    def test_auth_me_authorized_via_jwt(self, ninja_client, monkeypatch):
+        mock_claims = {
+            "preferred_username": "jwt_user",
+            "email": "jwt_user@ecmwf.int",
+            "name": "JWT User",
+            "groups": ["dev", "ecmwf"],
+        }
+        from tracker import auth
+        monkeypatch.setattr(auth, "verify_oidc_jwt", lambda token: mock_claims if token == "valid_token_abc" else None)
+
+        response = ninja_client.get(
+            "/auth/me",
+            headers={"Authorization": "Bearer valid_token_abc"}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["username"] == "jwt_user"
+        assert data["email"] == "jwt_user@ecmwf.int"
+        assert data["is_staff"] is True
+
+    def test_auth_me_invalid_jwt(self, ninja_client, monkeypatch):
+        from tracker import auth
+        monkeypatch.setattr(auth, "verify_oidc_jwt", lambda token: None)
+
+        response = ninja_client.get(
+            "/auth/me",
+            headers={"Authorization": "Bearer invalid_token_xyz"}
+        )
+        assert response.status_code == 401
+
     def test_api_key_management_flow(self, ninja_client, test_user, test_api_key):
         _, raw_key = test_api_key
 

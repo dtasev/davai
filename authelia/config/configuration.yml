@@ -86,3 +86,62 @@ regulation:
 webauthn:
   display_name: 'Davai'
   enable_passkey_login: true
+
+identity_providers:
+  oidc:
+    hmac_secret: 'davai_authelia_oidc_hmac_secret_32_chars_minimum'
+    jwks:
+      - key_id: 'davai-oidc-key'
+        key: |
+          -----BEGIN RSA PRIVATE KEY-----
+          MIIEpAIBAAKCAQEAlVy6OFR72qu4W6G/sMtMS5jOgsbrwndkCLu3p+jX3ES9Bi5P
+          NJ8LtvfZbJIYKJqS2Ebpfy7gEDUyM0ZOhIhShw9/+B2AS+om5lgcEfkFXmynS97Y
+          eFpUoLnhiBuRApJ39R9HkBQsOT0isl0uFxNSF3VcQQThfz134BXut7UXVCJ8jVfH
+          XKWGH9gczRQAIZWI4YUvxgrx/UzibukvsOzbYJYTm00H9QnG4icWhjsbEnMLeKCb
+          Fd51+bI2Nz7y0aWqmT5bgcvIIdLlB1nnRFeJULTUfmURLthAhsIPkXhPkKqHSYOS
+          o+ZHQb4BByDZqyz7eGWB1jGFxLvlQ90OugsanQIDAQABAoIBADjvbfUHD2ddyhrz
+          33RvKpgumZn0Ze5tQG6rz+hrs809TqjKglrWvcpzVCg00Iy5z3wuG9flcHf9LzOo
+          e0m+BWeCmw9jf4JwsX9g2uJnAIrr9CHRwsat+FCEStptV6uZVazUzZy4c9sl2NIQ
+          /v7A2KwkipQmXib4sXd0JNlWaJwjK9dLwOVKdzBdCJtF2pXne/GO7vLqULVxPrgo
+          CtThIgvZy9BA+d/oEjVqCgzsRgE5JKD/lqiqb7QvsZdkIixKqd4BSj0lU/xxSXmV
+          xx5LoZXCV4KWZkWbTpvwxVLgPH7+UBDvy6U+RTE7NyXAOCvO5r2ExnA4o/WacRL4
+          rvhnKGkCgYEA0UJMNLSbzfsldboyVExcuSZtm4etagI3wW75pNBJRs2nGK625RYg
+          rv3eJAoWtBTj33cPsvCHVg/SoqfaW0jHcEKC2LuXKTph9y6Jo9MgY6w+obPOpifm
+          ky8QbuVD7TfpMr6tnkZSg03d2ztJucpo6MX0VMma2Gw1AiR+gEdrwSsCgYEAtrl0
+          YY+No56eb1MrOnVYw6tSmUlwqBk7FWKmsaokz5F64X1adERRsoeqprS5kvo09Jt6
+          vClYmLQKL/HKhE5jUbdqNKTNtHeG1r2K7CeCMzdZL3Dxxl9H4DffMewxmnLgsmU/
+          8o0leoun0vzPDOZJ23BZ+fIOrA1ZGE/8Q6F431cCgYEArrKznji97jvibSOSSvAp
+          ZOVhEjw2GU9aruFwBxlgY3zjKGcMB7rudEk7AElv5M2f4/qpH5FQ2xeAmQya7iSX
+          Y/AS/s+1hdTY3px6ikuDOdMdwq+zMOIUzAG5rWs3xz4rMJMhrQY2cqo6MoGPrkz+
+          Qn6o2XQqEs5bfrtq5Ls7iVsCgYEAjzHQ6a/VIPdqU/XKd7qEgHrfdS8fcSysp7qy
+          xaJ/zIbG1LUm0NzFZXJ6IsCYeX1JSLQbwB9qxei53w7OVVcU8HIbcfwBFL9i1SCf
+          IShpGXfzlYEeiAYdTrKaYAYobVA/lK5SKePBDkMpluf13rcOBEEM0hqGswCW5L2y
+          BNIi5msCgYAOJWJJYqdg7ln1ax4pkl3wtQg+4cE7t5+KnzXQjHFAnzg5Ty5viaat
+          LIqJAwXQkN5JkEtdeGFikoDlp5YIKFGboGpL52XjKxnxQJ8vvQ43ujWbFCJc/180
+          J2hYHkCUbg3pVqJIZAcPehVvs8ufHEXAcrSSZH2jt1gc6Csa8AVQsQ==
+          -----END RSA PRIVATE KEY-----
+    clients:
+      - client_id: 'davai'
+        client_name: 'Davai'
+        public: true
+        authorization_policy: 'one_factor'
+        redirect_uris:
+          - 'http://localhost:6477/'
+          - 'http://127.0.0.1:6477/'
+          - 'https://davai-dev.ecmwf.int/'
+          - 'https://davai.ecmwf.int/'
+        scopes:
+          - 'openid'
+          - 'profile'
+          - 'email'
+          - 'groups'
+          - 'offline_access'
+        response_types:
+          - 'code'
+        grant_types:
+          - 'authorization_code'
+          - 'refresh_token'
+        token_endpoint_auth_method: 'none'
+        require_pkce: true
+        pkce_challenge_method: 'S256'
+

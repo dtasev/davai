@@ -6,8 +6,10 @@ from django.contrib.auth.models import User
 import time
 import urllib.request
 import urllib.error
+import jwt
+from jwt import PyJWKClient
 from django.conf import settings
-from ninja.security import APIKeyHeader, APIKeyQuery, APIKeyCookie
+from ninja.security import APIKeyHeader, APIKeyQuery, APIKeyCookie, HttpBearer
 from tracker.models import APIKey
 
 def hash_key(raw_key: str) -> str:
@@ -182,6 +184,78 @@ class AutheliaSessionAuth(APIKeyCookie):
     def authenticate(self, request, key: Optional[str]) -> Optional[User]:
         return verify_authelia_session(key, request)
 
-# Composite authenticators: API key in header, query param, Remote-User header, or authelia_session cookie
-api_key_auth = [ApiKeyHeaderAuth(), ApiKeyQueryAuth(), RemoteUserAuth(), AutheliaSessionAuth()]
+_JWKS_CLIENT = None
+
+def get_jwks_client() -> PyJWKClient:
+    global _JWKS_CLIENT
+    if _JWKS_CLIENT is None:
+        jwks_url = getattr(settings, "OIDC_JWKS_URL", "")
+        _JWKS_CLIENT = PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
+    return _JWKS_CLIENT
+
+def verify_oidc_jwt(token: str) -> Optional[dict]:
+    """
+    Validate an OIDC JWT bearer token using cached JWKS public keys.
+    Returns decoded token claims if valid, or None.
+    """
+    if not token or not isinstance(token, str):
+        return None
+
+    issuer = getattr(settings, "OIDC_ISSUER_URL", None)
+    audience = getattr(settings, "OIDC_AUDIENCE", None)
+
+    try:
+        jwks_client = get_jwks_client()
+        signing_key = jwks_client.get_signing_key_from_jwt(token)
+
+        decode_kwargs = {
+            "algorithms": ["RS256", "ES256"],
+            "options": {"verify_exp": True},
+        }
+        if issuer:
+            decode_kwargs["issuer"] = issuer
+        if audience:
+            decode_kwargs["audience"] = audience
+        else:
+            decode_kwargs["options"]["verify_aud"] = False
+
+        payload = jwt.decode(
+            token,
+            signing_key.key,
+            **decode_kwargs
+        )
+        return payload
+    except Exception:
+        return None
+
+class JWTAuth(HttpBearer):
+    """
+    Authenticates interactive users via 'Authorization: Bearer <jwt>' header issued by OIDC provider.
+    Provisions or updates Django user based on standard OIDC claims.
+    """
+    def authenticate(self, request, token: str) -> Optional[User]:
+        claims = verify_oidc_jwt(token)
+        if not claims:
+            return None
+
+        username = (claims.get("preferred_username") or claims.get("sub") or "").strip()
+        if not username:
+            return None
+
+        email = claims.get("email") or ""
+        name = claims.get("name") or ""
+        groups_val = claims.get("groups") or []
+        groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
+
+        return get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
+
+# Composite authenticators: OIDC JWT Bearer, API key in header, query param, Remote-User, or authelia cookie
+api_key_auth = [
+    JWTAuth(),
+    ApiKeyHeaderAuth(),
+    ApiKeyQueryAuth(),
+    RemoteUserAuth(),
+    AutheliaSessionAuth()
+]
+
 

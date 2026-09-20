@@ -123,3 +123,12 @@ AUTHELIA_AUTH_URL = os.environ.get(
     "http://authelia:9091/api/authz/auth-request"
 )
 
+OIDC_ISSUER_URL = os.environ.get(
+    "OIDC_ISSUER_URL",
+    "http://authelia:9091/authelia"
+).rstrip("/")
+
+OIDC_AUDIENCE = os.environ.get("OIDC_AUDIENCE", "davai")
+OIDC_JWKS_URL = os.environ.get("OIDC_JWKS_URL", f"{OIDC_ISSUER_URL}/api/oidc/jwks")
+
+

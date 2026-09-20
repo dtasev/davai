@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { Project, UserProfile, APIKeyItem, BackendInfo } from '../types'
 import { GeneratedKey } from '../components/Settings/SettingsView'
+import { handleOidcCallback, getStoredOidcToken, startOidcLogin, logoutOidc } from '../auth/oidc'
 
 export const DEFAULT_DEV_KEY = 'dav_live_7186ea3e7362a9f418e5332be398dc7c6132bdfd'
 
@@ -13,6 +14,9 @@ interface AppContextType {
   apiKeys: APIKeyItem[]
   loadingAuth: boolean
   authError: string | null
+  oidcToken: string | null
+  loginWithOidc: () => Promise<void>
+  logout: () => void
   handleSaveApiKey: () => void
   handleCreateKey: (name: string) => Promise<GeneratedKey | null>
   handleRevokeKey: (id: number) => Promise<void>
@@ -38,6 +42,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return localStorage.getItem('davai_api_key') || DEFAULT_DEV_KEY
   })
   const [apiKeyInput, setApiKeyInput] = useState<string>(apiKey)
+  const [oidcToken, setOidcToken] = useState<string | null>(() => getStoredOidcToken())
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [apiKeys, setApiKeys] = useState<APIKeyItem[]>([])
   const [loadingAuth, setLoadingAuth] = useState<boolean>(false)
@@ -50,6 +55,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState<boolean>(true)
+
+  const getAuthHeaders = (extraHeaders?: Record<string, string>): Record<string, string> => {
+    const headers: Record<string, string> = { ...extraHeaders }
+    const token = getStoredOidcToken()
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    } else if (apiKey) {
+      headers['X-API-Key'] = apiKey
+    }
+    return headers
+  }
 
   const checkBackend = async () => {
     setBackendStatus('checking')
@@ -75,22 +91,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const loadUserData = async (keyToUse: string) => {
+  const loadUserData = async (keyToUse?: string) => {
     setLoadingAuth(true)
     setAuthError(null)
     try {
+      const token = getStoredOidcToken()
       const headers: Record<string, string> = {}
-      if (keyToUse.trim()) {
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`
+      } else if (keyToUse && keyToUse.trim()) {
         headers['X-API-Key'] = keyToUse.trim()
+      } else if (apiKey && apiKey.trim()) {
+        headers['X-API-Key'] = apiKey.trim()
       }
 
-      // 1. Fetch /api/auth/me with key or cookie credentials
+      // 1. Fetch /api/auth/me with Bearer token, API key, or cookie credentials
       let meRes = await fetch('/api/auth/me', {
         headers,
         credentials: 'same-origin'
       })
 
-      // 2. If key failed with 401, retry without the key to let Authelia session / Remote-User authenticate
+      // 2. If key failed with 401 and we passed a key, retry without the key to let session authenticate
       if (meRes.status === 401 && headers['X-API-Key']) {
         const sessionRes = await fetch('/api/auth/me', {
           credentials: 'same-origin'
@@ -106,17 +127,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (meRes.ok) {
         const meData = await meRes.json()
         setUserProfile(meData)
-        if (keyToUse.trim() && headers['X-API-Key']) {
-          localStorage.setItem('davai_api_key', keyToUse)
+        if (keyToUse && keyToUse.trim() && headers['X-API-Key']) {
+          localStorage.setItem('davai_api_key', keyToUse.trim())
         }
 
-        const keysHeaders: Record<string, string> = {}
-        const currentKey = localStorage.getItem('davai_api_key') || ''
-        if (currentKey) {
-          keysHeaders['X-API-Key'] = currentKey
-        }
         const keysRes = await fetch('/api/auth/keys', {
-          headers: keysHeaders,
+          headers: getAuthHeaders(),
           credentials: 'same-origin'
         })
         if (keysRes.ok) {
@@ -143,15 +159,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const handleCreateKey = async (name: string): Promise<GeneratedKey | null> => {
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json'
-      }
-      if (apiKey) {
-        headers['X-API-Key'] = apiKey
-      }
       const res = await fetch('/api/auth/keys', {
         method: 'POST',
-        headers,
+        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'same-origin',
         body: JSON.stringify({ name })
       })
@@ -159,7 +169,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data: GeneratedKey = await res.json()
         const keysRes = await fetch('/api/auth/keys', {
-          headers: apiKey ? { 'X-API-Key': apiKey } : {},
+          headers: getAuthHeaders(),
           credentials: 'same-origin'
         })
         if (keysRes.ok) {
@@ -183,13 +193,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const headers: Record<string, string> = {}
-      if (apiKey) {
-        headers['X-API-Key'] = apiKey
-      }
       const res = await fetch(`/api/auth/keys/${keyId}`, {
         method: 'DELETE',
-        headers,
+        headers: getAuthHeaders(),
         credentials: 'same-origin'
       })
 
@@ -201,10 +207,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const loginWithOidc = async () => {
+    await startOidcLogin()
+  }
+
+  const logout = () => {
+    logoutOidc()
+    setOidcToken(null)
+    setUserProfile(null)
+    setApiKeys([])
+  }
+
   const fetchProjects = async () => {
     setLoadingProjects(true)
     try {
-      const res = await fetch('/api/projects', { credentials: 'same-origin' })
+      const res = await fetch('/api/projects', {
+        headers: getAuthHeaders(),
+        credentials: 'same-origin'
+      })
       if (res.ok) {
         const data: Project[] = await res.json()
         setProjects(data)
@@ -221,15 +241,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     name: string,
     description: string
   ) => {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
-    }
-    if (apiKey) {
-      headers['X-API-Key'] = apiKey
-    }
     const res = await fetch('/api/projects', {
       method: 'POST',
-      headers,
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       credentials: 'same-origin',
       body: JSON.stringify({ key, name, description })
     })
@@ -243,9 +257,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    checkBackend()
-    fetchProjects()
-    loadUserData(apiKey)
+    const init = async () => {
+      // 1. Process OIDC callback if returning from login (?code=...)
+      const exchangedToken = await handleOidcCallback()
+      if (exchangedToken) {
+        setOidcToken(exchangedToken)
+      }
+
+      checkBackend()
+      fetchProjects()
+      loadUserData(apiKey)
+    }
+
+    init()
   }, [])
 
   return (
@@ -258,6 +282,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         apiKeys,
         loadingAuth,
         authError,
+        oidcToken,
+        loginWithOidc,
+        logout,
         handleSaveApiKey,
         handleCreateKey,
         handleRevokeKey,
