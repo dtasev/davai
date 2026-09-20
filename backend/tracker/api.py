@@ -22,6 +22,7 @@ api = NinjaAPI(
     title="Davai API",
     version="1.0.0",
     description="Cutting-edge, lean Jira-like project tracking engine powered by Django ORM & Django Ninja",
+    csrf=False,
 )
 
 # ---------------------------------------------------------------------------
