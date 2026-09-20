@@ -108,7 +108,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 CSRF_TRUSTED_ORIGINS = [
+    'https://davai-dev.ecmwf.int',
+    'https://davai.ecmwf.int',
     'https://davai.dtasev.co.uk',
     'http://127.0.0.1:6477',
     'http://localhost:6477',

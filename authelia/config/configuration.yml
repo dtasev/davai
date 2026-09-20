@@ -23,6 +23,12 @@ access_control:
         - '*.lvh.me'
         - 'davai.dtasev.co.uk'
         - '*.dtasev.co.uk'
+        - 'davai-dev.ecmwf.int'
+        - '*.davai-dev.ecmwf.int'
+        - 'davai.ecmwf.int'
+        - '*.davai.ecmwf.int'
+        - 'ecmwf.int'
+        - '*.ecmwf.int'
       policy: 'two_factor'
       resources:
         - '^/admin.*$'
@@ -33,6 +39,12 @@ access_control:
         - '*.lvh.me'
         - 'davai.dtasev.co.uk'
         - '*.dtasev.co.uk'
+        - 'davai-dev.ecmwf.int'
+        - '*.davai-dev.ecmwf.int'
+        - 'davai.ecmwf.int'
+        - '*.davai.ecmwf.int'
+        - 'ecmwf.int'
+        - '*.ecmwf.int'
       policy: 'bypass'
 
 session:
@@ -50,6 +62,12 @@ session:
     - domain: 'davai.dtasev.co.uk'
       authelia_url: 'https://davai.dtasev.co.uk/authelia'
       default_redirection_url: 'https://davai.dtasev.co.uk/'
+    - domain: 'davai-dev.ecmwf.int'
+      authelia_url: 'https://davai-dev.ecmwf.int/authelia'
+      default_redirection_url: 'https://davai-dev.ecmwf.int/'
+    - domain: 'davai.ecmwf.int'
+      authelia_url: 'https://davai.ecmwf.int/authelia'
+      default_redirection_url: 'https://davai.ecmwf.int/'
 
 storage:
   encryption_key: 'davai_authelia_storage_encryption_key_32_chars'
