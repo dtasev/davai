@@ -357,7 +357,7 @@ export function WorkItemDetailModal({
         </div>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-4" data-testid="work-item-detail-modal">
         {showDeleteConfirm && (
           <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 text-rose-300 text-xs font-medium">

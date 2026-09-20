@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, useOutletContext } from 'react-router-dom'
 import { WorkItem } from '../types'
 import { apiFetch } from '../utils/apiFetch'
 import { ProjectDetailOutletContext } from './ProjectDetailRoute'
@@ -10,6 +10,7 @@ import { WorkItemDetailModal } from '../components/Modals/WorkItemDetailModal'
 export function SprintModalRoute() {
   const { projectKey, sprintId } = useParams<{ projectKey: string; sprintId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const {
     sprints,
     releases,
@@ -22,7 +23,7 @@ export function SprintModalRoute() {
 
   const handleDelete = sprint ? async () => {
     await handleDeleteSprint(sprint.id)
-    navigate(`/projects/${projectKey}`)
+    navigate(`/projects/${projectKey}${location.search}`)
   } : undefined
 
   const handleUpdate = sprint ? async (data: {
@@ -39,8 +40,8 @@ export function SprintModalRoute() {
       sprint={sprint}
       releases={releases}
       workItems={workItems}
-      onClose={() => navigate(`/projects/${projectKey}`)}
-      onSelectWorkItem={item => navigate(`/projects/${projectKey}/items/${item.key}`)}
+      onClose={() => navigate(`/projects/${projectKey}${location.search}`)}
+      onSelectWorkItem={item => navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)}
       onDelete={handleDelete}
       onUpdate={handleUpdate}
     />
@@ -50,6 +51,7 @@ export function SprintModalRoute() {
 export function ReleaseModalRoute() {
   const { projectKey, releaseId } = useParams<{ projectKey: string; releaseId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const {
     releases,
     sprints,
@@ -62,7 +64,7 @@ export function ReleaseModalRoute() {
 
   const handleDelete = release ? async () => {
     await handleDeleteRelease(release.id)
-    navigate(`/projects/${projectKey}`)
+    navigate(`/projects/${projectKey}${location.search}`)
   } : undefined
 
   const handleUpdate = release ? async (data: {
@@ -79,9 +81,9 @@ export function ReleaseModalRoute() {
       release={release}
       sprints={sprints}
       workItems={workItems}
-      onClose={() => navigate(`/projects/${projectKey}`)}
-      onSelectWorkItem={item => navigate(`/projects/${projectKey}/items/${item.key}`)}
-      onSelectSprint={sprint => navigate(`/projects/${projectKey}/sprints/${sprint.id}`)}
+      onClose={() => navigate(`/projects/${projectKey}${location.search}`)}
+      onSelectWorkItem={item => navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)}
+      onSelectSprint={sprint => navigate(`/projects/${projectKey}/sprints/${sprint.id}${location.search}`)}
       onDelete={handleDelete}
       onUpdate={handleUpdate}
     />
@@ -91,6 +93,7 @@ export function ReleaseModalRoute() {
 export function WorkItemModalRoute() {
   const { projectKey, itemKey } = useParams<{ projectKey: string; itemKey: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const {
     project,
     workItems,
@@ -123,7 +126,7 @@ export function WorkItemModalRoute() {
   const handleDelete = (foundItem || itemKey) ? async () => {
     const keyToDelete = foundItem?.key || itemKey!
     await handleDeleteWorkItem(keyToDelete)
-    navigate(`/projects/${projectKey}`)
+    navigate(`/projects/${projectKey}${location.search}`)
   } : undefined
 
   const handleUpdateDetails = (foundItem || itemKey) ? async (data: {
@@ -146,7 +149,7 @@ export function WorkItemModalRoute() {
       sprints={sprints}
       releases={releases}
       statuses={project?.statuses || []}
-      onClose={() => navigate(`/projects/${projectKey}`)}
+      onClose={() => navigate(`/projects/${projectKey}${location.search}`)}
       onUpdateStatus={handleUpdateStatus}
       onUpdateContext={handleUpdateContext}
       onAddProgress={handleAddProgress}

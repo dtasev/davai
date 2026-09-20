@@ -1,8 +1,8 @@
-import { ArrowLeft, RefreshCw } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { ArrowLeft, RefreshCw, LayoutList, Kanban } from 'lucide-react'
 import { Project, Sprint, Release, WorkItem } from '../../types'
-import { SprintList } from './SprintList'
-import { ReleaseList } from './ReleaseList'
-import { WorkItemList } from './WorkItemList'
+import { ProjectListView } from './ProjectListView'
+import { KanbanBoard } from './KanbanBoard'
 
 interface ProjectDetailViewProps {
   project: Project
@@ -15,6 +15,7 @@ interface ProjectDetailViewProps {
   onSelectSprint: (sprint: Sprint) => void
   onSelectRelease: (release: Release) => void
   onSelectWorkItem: (item: WorkItem) => void
+  onUpdateStatus?: (key: string, newStatus: string) => Promise<void>
   onCreateSprint: (
     name: string,
     description: string,
@@ -50,10 +51,36 @@ export function ProjectDetailView({
   onSelectSprint,
   onSelectRelease,
   onSelectWorkItem,
+  onUpdateStatus,
   onCreateSprint,
   onCreateRelease,
   onCreateWorkItem
 }: ProjectDetailViewProps) {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const viewParam = searchParams.get('view')
+  const activeView: 'list' | 'board' = viewParam === 'board' ? 'board' : 'list'
+
+  const handleSelectView = (view: 'list' | 'board') => {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (view === 'list') {
+        next.delete('view')
+      } else {
+        next.set('view', view)
+      }
+      return next
+    })
+  }
+
+  // Quick stats by status
+  const statuses = project.statuses && project.statuses.length > 0
+    ? project.statuses
+    : [
+        { id: 1, name: 'todo', order: 1, is_default: true },
+        { id: 2, name: 'in progress', order: 2, is_default: false },
+        { id: 3, name: 'done', order: 3, is_default: false }
+      ]
+
   return (
     <div className="space-y-6" data-testid="project-detail-view">
       {/* Top Project Navigation & Metadata */}
@@ -108,38 +135,99 @@ export function ProjectDetailView({
         </div>
       </div>
 
-      {/* Strictly Top-to-Bottom Layout */}
-      <div className="space-y-8">
-        {/* 1. TOP: List of Sprints */}
-        <section data-testid="sprint-list-section">
-          <SprintList
-            sprints={sprints}
-            releases={releases}
-            onSelectSprint={onSelectSprint}
-            onCreateSprint={onCreateSprint}
-          />
-        </section>
+      {/* Main Layout: Left Sidebar Menu + Content View */}
+      <div className="flex flex-col md:flex-row gap-6 items-start">
+        {/* Left Side Navigation Menu */}
+        <aside
+          className="w-full md:w-52 shrink-0 space-y-4"
+          data-testid="project-sidebar-menu"
+        >
+          {/* Views Navigation */}
+          <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-xl p-2 space-y-1">
+            <div className="px-2.5 py-1 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Views
+            </div>
 
-        {/* 2. MIDDLE: List of Releases */}
-        <section data-testid="release-list-section">
-          <ReleaseList
-            releases={releases}
-            onSelectRelease={onSelectRelease}
-            onCreateRelease={onCreateRelease}
-          />
-        </section>
+            <button
+              onClick={() => handleSelectView('list')}
+              data-testid="view-option-list"
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
+                activeView === 'list'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+              }`}
+            >
+              <LayoutList className="w-4 h-4" />
+              <span>List View</span>
+            </button>
 
-        {/* 3. BOTTOM: List of Work Items */}
-        <section data-testid="work-item-list-section">
-          <WorkItemList
-            workItems={workItems}
-            sprints={sprints}
-            releases={releases}
-            statuses={project.statuses || []}
-            onSelectWorkItem={onSelectWorkItem}
-            onCreateWorkItem={onCreateWorkItem}
-          />
-        </section>
+            <button
+              onClick={() => handleSelectView('board')}
+              data-testid="view-option-board"
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
+                activeView === 'board'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+              }`}
+            >
+              <Kanban className="w-4 h-4" />
+              <span>Board View</span>
+            </button>
+          </div>
+
+          {/* Quick Status Stats Card */}
+          <div className="bg-zinc-900/30 border border-zinc-800/60 rounded-xl p-3 space-y-2 hidden md:block">
+            <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Status Overview
+            </div>
+            <div className="space-y-1.5 text-xs">
+              {statuses.map(st => {
+                const count = workItems.filter(
+                  item => (item.status || 'todo').toLowerCase() === st.name.toLowerCase()
+                ).length
+                return (
+                  <div
+                    key={st.id || st.name}
+                    className="flex items-center justify-between text-zinc-400 text-[11px]"
+                  >
+                    <span className="capitalize">{st.name}</span>
+                    <span className="font-mono text-zinc-300 font-medium">
+                      {count}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </aside>
+
+        {/* Middle/Main Content Area */}
+        <main className="flex-1 min-w-0 w-full">
+          {activeView === 'list' ? (
+            <ProjectListView
+              sprints={sprints}
+              releases={releases}
+              workItems={workItems}
+              statuses={statuses}
+              onSelectSprint={onSelectSprint}
+              onSelectRelease={onSelectRelease}
+              onSelectWorkItem={onSelectWorkItem}
+              onCreateSprint={onCreateSprint}
+              onCreateRelease={onCreateRelease}
+              onCreateWorkItem={onCreateWorkItem}
+            />
+          ) : (
+            <KanbanBoard
+              workItems={workItems}
+              statuses={statuses}
+              sprints={sprints}
+              releases={releases}
+              onSelectWorkItem={onSelectWorkItem}
+              onUpdateStatus={onUpdateStatus}
+              onCreateWorkItem={onCreateWorkItem}
+            />
+          )}
+        </main>
       </div>
     </div>
   )

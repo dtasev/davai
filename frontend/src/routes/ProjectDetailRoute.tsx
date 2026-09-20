@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react'
-import { useParams, useNavigate, Outlet } from 'react-router-dom'
+import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { Project, Sprint, Release, WorkItem } from '../types'
 import { useApp } from '../context/AppContext'
 import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
@@ -45,6 +45,7 @@ export interface ProjectDetailOutletContext {
 export function ProjectDetailRoute() {
   const { projectKey } = useParams<{ projectKey: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const { apiKey, projects, fetchProjects } = useApp()
 
   const [sprints, setSprints] = useState<Sprint[]>([])
@@ -376,14 +377,15 @@ export function ProjectDetailRoute() {
         onBack={() => navigate('/')}
         onRefresh={fetchDetails}
         onSelectSprint={sprint =>
-          navigate(`/projects/${projectKey}/sprints/${sprint.id}`)
+          navigate(`/projects/${projectKey}/sprints/${sprint.id}${location.search}`)
         }
         onSelectRelease={release =>
-          navigate(`/projects/${projectKey}/releases/${release.id}`)
+          navigate(`/projects/${projectKey}/releases/${release.id}${location.search}`)
         }
         onSelectWorkItem={item =>
-          navigate(`/projects/${projectKey}/items/${item.key}`)
+          navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)
         }
+        onUpdateStatus={handleUpdateStatus}
         onCreateSprint={handleCreateSprint}
         onCreateRelease={handleCreateRelease}
         onCreateWorkItem={handleCreateWorkItem}

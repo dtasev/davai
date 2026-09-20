@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router-dom'
 import App from './App'
 import { routes } from './routes/router'
@@ -97,6 +97,7 @@ describe('Davai Frontend App with React Router', () => {
           } as Response)
         }
         if (urlStr.includes('/api/work-items/DAV-1')) {
+          if (body.status) mockWorkItem.status = body.status
           if (body.title) mockWorkItem.title = body.title
           if (body.description !== undefined) mockWorkItem.description = body.description
           if (body.priority) mockWorkItem.priority = body.priority
@@ -1007,5 +1008,121 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('work-item-target-date-input')).toHaveValue('2026-10-10')
     })
   })
+
+  it('renders left sidebar menu and toggles between list view and kanban board view', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // Sidebar menu exists with List and Board view options
+    expect(screen.getByTestId('project-sidebar-menu')).toBeInTheDocument()
+    const listViewBtn = screen.getByTestId('view-option-list')
+    const boardViewBtn = screen.getByTestId('view-option-board')
+    expect(listViewBtn).toBeInTheDocument()
+    expect(boardViewBtn).toBeInTheDocument()
+
+    // Default is List View
+    expect(screen.getByTestId('project-list-view')).toBeInTheDocument()
+    expect(screen.getByTestId('sprint-list-section')).toBeInTheDocument()
+    expect(screen.getByTestId('release-list-section')).toBeInTheDocument()
+    expect(screen.getByTestId('work-item-list-section')).toBeInTheDocument()
+    expect(screen.queryByTestId('kanban-board-section')).not.toBeInTheDocument()
+
+    // Switch to Board View
+    await act(async () => {
+      fireEvent.click(boardViewBtn)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+      expect(screen.queryByTestId('project-list-view')).not.toBeInTheDocument()
+    })
+
+    // Verify columns correspond to project statuses
+    expect(screen.getByTestId('kanban-column-todo')).toBeInTheDocument()
+    expect(screen.getByTestId('kanban-column-in-progress')).toBeInTheDocument()
+    expect(screen.getByTestId('kanban-column-done')).toBeInTheDocument()
+
+    // DAV-1 has status "done", so it should be in the done column
+    const doneColumn = screen.getByTestId('kanban-column-done')
+    expect(doneColumn).toContainElement(screen.getByTestId('kanban-item-DAV-1'))
+
+    // Clicking card opens WorkItemDetailModal
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('kanban-item-DAV-1'))
+    })
+
+    await waitFor(() => {
+      expect(within(document.body).getByTestId('work-item-detail-modal')).toBeInTheDocument()
+    })
+
+    // Close modal
+    const closeBtn = screen.getByRole('button', { name: /Close/i })
+    await act(async () => {
+      fireEvent.click(closeBtn)
+    })
+
+    // Switch back to List View
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('view-option-list'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-list-view')).toBeInTheDocument()
+      expect(screen.queryByTestId('kanban-board-section')).not.toBeInTheDocument()
+    })
+  })
+
+  it('renders kanban board view directly when ?view=board query param is present', async () => {
+    await renderWithRouter(['/projects/DAV?view=board'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+      expect(screen.queryByTestId('project-list-view')).not.toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('kanban-item-DAV-1')).toBeInTheDocument()
+  })
+
+  it('supports drag-and-drop between kanban columns to update status', async () => {
+    await renderWithRouter(['/projects/DAV?view=board'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+    })
+
+    const todoColumn = screen.getByTestId('kanban-column-todo')
+    const doneColumn = screen.getByTestId('kanban-column-done')
+    const itemCard = screen.getByTestId('kanban-item-DAV-1')
+
+    expect(doneColumn).toContainElement(itemCard)
+    expect(todoColumn).not.toContainElement(itemCard)
+
+    // Simulate drag and drop from done to todo
+    const dataTransfer = {
+      data: {} as Record<string, string>,
+      setData(format: string, data: string) {
+        this.data[format] = data
+      },
+      getData(format: string) {
+        return this.data[format] || ''
+      },
+      dropEffect: 'none',
+      effectAllowed: 'all'
+    }
+
+    fireEvent.dragStart(itemCard, { dataTransfer })
+    fireEvent.dragOver(todoColumn, { dataTransfer })
+    await act(async () => {
+      fireEvent.drop(todoColumn, { dataTransfer })
+    })
+
+    await waitFor(() => {
+      expect(todoColumn).toContainElement(screen.getByTestId('kanban-item-DAV-1'))
+    })
+  })
 })
+
 
