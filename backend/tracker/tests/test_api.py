@@ -321,23 +321,23 @@ class TestNinjaAPI:
         ctx_markdown = "# Technical Guidelines\n- Use Django ORM\n- Follow models.md"
         put_ctx = ninja_client.put(
             f"/work-items/{item_key}/context",
-            json={"t": ctx_markdown},
+            json={"summary": ctx_markdown},
             headers={"X-API-Key": raw_key}
         )
         assert put_ctx.status_code == 200
-        assert put_ctx.json()["t"] == ctx_markdown
+        assert put_ctx.json()["summary"] == ctx_markdown
 
         # 3. Get Context
         get_ctx = ninja_client.get(f"/work-items/{item_key}/context")
         assert get_ctx.status_code == 200
-        assert get_ctx.json()["t"] == ctx_markdown
+        assert get_ctx.json()["summary"] == ctx_markdown
         assert get_ctx.json()["user"] == test_user.username
 
         # 4. Log Progress with Proof (git sha)
         prog_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
             json={
-                "t": "Implemented models and ran migrations",
+                "summary": "Implemented models and ran migrations",
                 "proof": "git:8f3a9e2",
                 "status": "COMPLETED"
             },
@@ -345,6 +345,7 @@ class TestNinjaAPI:
         )
         assert prog_res.status_code == 200
         prog_data = prog_res.json()
+        assert prog_data["summary"] == "Implemented models and ran migrations"
         assert prog_data["proof"] == "git:8f3a9e2"
         assert prog_data["status"] == "COMPLETED"
 
@@ -352,6 +353,7 @@ class TestNinjaAPI:
         prog_list_res = ninja_client.get(f"/work-items/{item_key}/progress")
         assert prog_list_res.status_code == 200
         assert len(prog_list_res.json()) == 1
+        assert prog_list_res.json()[0]["summary"] == "Implemented models and ran migrations"
         assert prog_list_res.json()[0]["proof"] == "git:8f3a9e2"
 
     def test_delete_sprint_release_and_work_item(self, ninja_client, test_user, test_api_key):

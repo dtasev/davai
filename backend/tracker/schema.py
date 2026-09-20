@@ -87,7 +87,7 @@ class SprintType:
 class ContextType:
     id: int
     user: Optional[str]
-    t: str
+    summary: str
     timestamp: str
 
 
@@ -95,7 +95,7 @@ class ContextType:
 class ProgressType:
     id: int
     user: Optional[str]
-    t: str
+    summary: str
     proof: str
     status: str
     timestamp: str
@@ -125,7 +125,7 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
         ctx = ContextType(
             id=item.context.id,
             user=item.context.user.username if item.context.user else None,
-            t=item.context.t,
+            summary=item.context.summary,
             timestamp=item.context.timestamp.isoformat(),
         )
 
@@ -133,7 +133,7 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
         ProgressType(
             id=p.id,
             user=p.user.username if p.user else None,
-            t=p.t,
+            summary=p.summary,
             proof=p.proof,
             status=p.status,
             timestamp=p.timestamp.isoformat(),

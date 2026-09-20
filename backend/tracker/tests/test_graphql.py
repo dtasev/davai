@@ -1,7 +1,7 @@
 import pytest
 from asgiref.sync import sync_to_async
 from tracker.schema import schema
-from tracker.models import WorkItem
+from tracker.models import WorkItem, Context, Progress
 
 @pytest.mark.django_db
 @pytest.mark.asyncio
@@ -34,13 +34,25 @@ async def test_graphql_hello_authorized(test_api_key):
 @pytest.mark.asyncio
 async def test_graphql_projects_and_items(test_project, test_user, test_api_key):
     _, raw_key = test_api_key
-    await sync_to_async(WorkItem.objects.create)(
+    item = await sync_to_async(WorkItem.objects.create)(
         project=test_project,
         key=f"{test_project.key}-100",
         title="GraphQL Test Item",
         descr="Created for testing GraphQL schema",
         priority="HIGH",
         created_by=test_user
+    )
+    await sync_to_async(Context.objects.create)(
+        work_item=item,
+        user=test_user,
+        summary="GraphQL Context Summary"
+    )
+    await sync_to_async(Progress.objects.create)(
+        work_item=item,
+        user=test_user,
+        summary="GraphQL Progress Summary",
+        proof="git:sha123",
+        status="IN_PROGRESS"
     )
 
     query = """
@@ -62,6 +74,14 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
             title
             descr
             status
+            context {
+                summary
+            }
+            progress {
+                summary
+                proof
+                status
+            }
         }
     }
     """
@@ -76,3 +96,8 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
     assert res.data["workItem"]["title"] == "GraphQL Test Item"
     assert res.data["workItem"]["descr"] == "Created for testing GraphQL schema"
     assert res.data["workItem"]["status"] == "todo"
+    assert res.data["workItem"]["context"]["summary"] == "GraphQL Context Summary"
+    assert len(res.data["workItem"]["progress"]) == 1
+    assert res.data["workItem"]["progress"][0]["summary"] == "GraphQL Progress Summary"
+    assert res.data["workItem"]["progress"][0]["proof"] == "git:sha123"
+    assert res.data["workItem"]["progress"][0]["status"] == "IN_PROGRESS"

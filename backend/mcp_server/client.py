@@ -170,9 +170,9 @@ class DavaiClient:
         """Fetch context documentation for a work item."""
         return self._request("GET", f"/work-items/{key}/context")
 
-    def set_work_item_context(self, key: str, t: str) -> Dict[str, Any]:
+    def set_work_item_context(self, key: str, summary: str) -> Dict[str, Any]:
         """Set or update SKILL.md-style markdown context for a work item."""
-        return self._request("PUT", f"/work-items/{key}/context", data={"t": t})
+        return self._request("PUT", f"/work-items/{key}/context", data={"summary": summary})
 
     def list_work_item_progress(self, key: str) -> List[Dict[str, Any]]:
         """List progress entries for a work item."""
@@ -181,12 +181,12 @@ class DavaiClient:
     def log_work_item_progress(
         self,
         key: str,
-        t: str,
+        summary: str,
         proof: str = "",
         status: str = "COMPLETED"
     ) -> Dict[str, Any]:
         """Log a progress step with optional git sha, feature branch, or artifact proof."""
-        payload = {"t": t, "proof": proof, "status": status}
+        payload = {"summary": summary, "proof": proof, "status": status}
         return self._request("POST", f"/work-items/{key}/progress", data=payload)
 
     def list_projects(self) -> List[Dict[str, Any]]:

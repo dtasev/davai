@@ -154,7 +154,7 @@ class Context(models.Model):
     work_item = models.OneToOneField(WorkItem, on_delete=models.CASCADE, related_name="context")
     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="contexts")
     timestamp = models.DateTimeField(auto_now=True)
-    t = models.TextField(help_text="SKILL.md-style markdown context for LLM agent and developer")
+    summary = models.TextField(help_text="SKILL.md-style markdown context for LLM agent and developer")
 
     def __str__(self):
         return f"Context for {self.work_item.key}"
@@ -170,7 +170,7 @@ class Progress(models.Model):
 
     work_item = models.ForeignKey(WorkItem, on_delete=models.CASCADE, related_name="progress")
     user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="progress_entries")
-    t = models.TextField(help_text="Progress log, completed step, decision, or blocker note")
+    summary = models.TextField(help_text="Progress log, completed step, decision, or blocker note")
     proof = models.CharField(
         max_length=500,
         blank=True,

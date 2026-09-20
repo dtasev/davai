@@ -216,7 +216,7 @@ export function WorkItemList({
 
                 {/* Meta pills on right */}
                 <div className="flex items-center gap-2 self-start sm:self-center text-xs text-zinc-500 shrink-0">
-                  {item.context && item.context.t && (
+                  {item.context && item.context.summary && (
                     <span
                       title="LLM Agent Context Documented"
                       className="flex items-center gap-1 text-[10px] font-mono text-purple-400 bg-purple-950/40 px-1.5 py-0.5 rounded border border-purple-800/40 leading-none"

@@ -30,7 +30,7 @@ interface WorkItemDetailModalProps {
   onUpdateContext?: (key: string, contextText: string) => Promise<void>
   onAddProgress?: (
     key: string,
-    entry: { t: string; proof: string; status: string }
+    entry: { summary: string; proof: string; status: string }
   ) => Promise<void>
   onDelete?: () => Promise<void>
   onUpdateDetails?: (data: {
@@ -78,7 +78,7 @@ export function WorkItemDetailModal({
 
   // Edit context state
   const [isEditingContext, setIsEditingContext] = useState(false)
-  const [contextInput, setContextInput] = useState(item?.context?.t || '')
+  const [contextInput, setContextInput] = useState(item?.context?.summary || '')
   const [savingContext, setSavingContext] = useState(false)
 
   // Add progress state
@@ -94,7 +94,7 @@ export function WorkItemDetailModal({
     if (!item) return
     const title = isEditingDetails ? editTitle : item.title
     const descr = isEditingDetails ? editDescr : (item.descr || '')
-    const context = isEditingContext ? contextInput : (item.context?.t || '')
+    const context = isEditingContext ? contextInput : (item.context?.summary || '')
 
     const textToCopy = [
       `ID: ${item.id}\nKey: ${item.key}\nTitle: ${title}`,
@@ -111,7 +111,7 @@ export function WorkItemDetailModal({
 
   useEffect(() => {
     if (item) {
-      setContextInput(item.context?.t || '')
+      setContextInput(item.context?.summary || '')
       setProgressStatus(item.status || 'COMPLETED')
       setEditTitle(item.title)
       setEditDescr(item.descr || '')
@@ -123,7 +123,7 @@ export function WorkItemDetailModal({
     }
   }, [
     item?.key,
-    item?.context?.t,
+    item?.context?.summary,
     item?.status,
     item?.title,
     item?.descr,
@@ -245,7 +245,7 @@ export function WorkItemDetailModal({
     setSubmittingProgress(true)
     try {
       await onAddProgress(item.key, {
-        t: progressText.trim(),
+        summary: progressText.trim(),
         proof: progressProof.trim(),
         status: progressStatus
       })
@@ -630,7 +630,7 @@ export function WorkItemDetailModal({
               <button
                 type="button"
                 onClick={() => {
-                  setContextInput(item.context?.t || '')
+                  setContextInput(item.context?.summary || '')
                   setIsEditingContext(!isEditingContext)
                 }}
                 className="text-[11px] text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium transition"
@@ -661,9 +661,9 @@ export function WorkItemDetailModal({
                 </button>
               </div>
             </div>
-          ) : item.context && item.context.t ? (
+          ) : item.context && item.context.summary ? (
             <div className="p-3 rounded-lg bg-purple-950/10 border border-purple-900/30 text-xs font-mono text-purple-200 whitespace-pre-wrap leading-relaxed">
-              {item.context.t}
+              {item.context.summary}
             </div>
           ) : (
             <div className="text-[11px] text-zinc-500 italic p-2.5 bg-zinc-950/40 rounded-lg border border-zinc-900">
@@ -698,7 +698,7 @@ export function WorkItemDetailModal({
                         </span>
                       )}
                     </div>
-                    <p className="text-zinc-300 text-xs">{p.t}</p>
+                    <p className="text-zinc-300 text-xs">{p.summary}</p>
                   </div>
 
                   <div className="text-[10px] text-zinc-500 whitespace-nowrap self-start sm:self-center">

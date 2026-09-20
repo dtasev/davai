@@ -100,11 +100,11 @@ class TestDomainModels:
         ctx = Context.objects.create(
             work_item=item,
             user=test_user,
-            t="## Implementation Rules\n1. Strictly ORM\n2. Follow patterns"
+            summary="## Implementation Rules\n1. Strictly ORM\n2. Follow patterns"
         )
         assert item.context == ctx
         assert str(ctx) == f"Context for {item.key}"
-        assert "Strictly ORM" in item.context.t
+        assert "Strictly ORM" in item.context.summary
 
     def test_progress_with_proof_and_status(self, test_project, test_user):
         item = WorkItem.objects.create(
@@ -116,14 +116,14 @@ class TestDomainModels:
         p1 = Progress.objects.create(
             work_item=item,
             user=test_user,
-            t="Drafted data models",
+            summary="Drafted data models",
             proof="git:feature-models-branch",
             status="COMPLETED"
         )
         p2 = Progress.objects.create(
             work_item=item,
             user=test_user,
-            t="Encountered blocker on migrations",
+            summary="Encountered blocker on migrations",
             proof="https://github.com/org/repo/issues/9",
             status="BLOCKED"
         )

@@ -80,11 +80,12 @@ class TestMCPWithApiClient:
         assert updated["status"] == "done"
 
         # 5. Set technical context via MCP tool
-        ctx = set_work_item_context(key=item_key, t="# Technical Context\nVerified by MCP.")
-        assert ctx["t"] == "# Technical Context\nVerified by MCP."
+        ctx = set_work_item_context(key=item_key, summary="# Technical Context\nVerified by MCP.")
+        assert ctx["summary"] == "# Technical Context\nVerified by MCP."
 
         # 6. Log progress with proof via MCP tool
-        prog = log_work_item_progress(key=item_key, t="Shipped MCP integration", proof="git:sha-987abc", status="COMPLETED")
+        prog = log_work_item_progress(key=item_key, summary="Shipped MCP integration", proof="git:sha-987abc", status="COMPLETED")
+        assert prog["summary"] == "Shipped MCP integration"
         assert prog["proof"] == "git:sha-987abc"
         assert prog["status"] == "COMPLETED"
 

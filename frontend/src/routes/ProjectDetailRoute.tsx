@@ -15,7 +15,7 @@ export interface ProjectDetailOutletContext {
   handleUpdateContext: (key: string, contextText: string) => Promise<void>
   handleAddProgress: (
     key: string,
-    entry: { t: string; proof: string; status: string }
+    entry: { summary: string; proof: string; status: string }
   ) => Promise<void>
   handleDeleteSprint: (sprintId: number) => Promise<void>
   handleDeleteRelease: (releaseId: number) => Promise<void>
@@ -189,7 +189,7 @@ export function ProjectDetailRoute() {
         'Content-Type': 'application/json',
         'X-API-Key': apiKey
       },
-      body: JSON.stringify({ t: contextText })
+      body: JSON.stringify({ summary: contextText })
     })
 
     if (res.ok) {
@@ -204,7 +204,7 @@ export function ProjectDetailRoute() {
 
   const handleAddProgress = async (
     key: string,
-    entry: { t: string; proof: string; status: string }
+    entry: { summary: string; proof: string; status: string }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}/progress`, {
       method: 'POST',

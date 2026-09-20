@@ -36,7 +36,7 @@ describe('Davai Frontend App with React Router', () => {
         id: 1,
         work_item_key: 'DAV-1',
         user: 'admin',
-        t: 'Specifications for AI data models',
+        summary: 'Specifications for AI data models',
         timestamp: '2026-09-20T00:00:00Z',
       },
       progress: [
@@ -44,7 +44,7 @@ describe('Davai Frontend App with React Router', () => {
           id: 1,
           work_item_key: 'DAV-1',
           user: 'admin',
-          t: 'Completed models',
+          summary: 'Completed models',
           proof: 'git:e93f18a',
           status: 'COMPLETED',
           timestamp: '2026-09-20T00:00:00Z',

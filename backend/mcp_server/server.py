@@ -140,19 +140,19 @@ def update_work_item(
     return get_client().update_work_item(key=key, **kwargs)
 
 @mcp_server.tool()
-def set_work_item_context(key: str, t: str) -> Dict[str, Any]:
+def set_work_item_context(key: str, summary: str) -> Dict[str, Any]:
     """
     Set or update the SKILL.md-style markdown technical context for an LLM agent working on this item.
     Args:
         key: Work item key (e.g. 'DAV-1').
-        t: Detailed technical guidelines, architecture constraints, and relevant context in markdown.
+        summary: Detailed technical guidelines, architecture constraints, and relevant context in markdown.
     """
-    return get_client().set_work_item_context(key=key, t=t)
+    return get_client().set_work_item_context(key=key, summary=summary)
 
 @mcp_server.tool()
 def log_work_item_progress(
     key: str,
-    t: str,
+    summary: str,
     proof: str = "",
     status: str = "COMPLETED"
 ) -> Dict[str, Any]:
@@ -160,11 +160,11 @@ def log_work_item_progress(
     Log a progress step, decision, or completed milestone for a work item.
     Args:
         key: Work item key (e.g. 'DAV-1').
-        t: Summary of the step completed, decision made, or current obstacle.
+        summary: Summary of the step completed, decision made, or current obstacle.
         proof: If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact.
         status: Step status ('COMPLETED', 'IN_PROGRESS', 'BLOCKED', 'FAILED').
     """
-    return get_client().log_work_item_progress(key=key, t=t, proof=proof, status=status)
+    return get_client().log_work_item_progress(key=key, summary=summary, proof=proof, status=status)
 
 @mcp_server.tool()
 def list_sprints(project_key: str = "DAV") -> List[Dict[str, Any]]:

@@ -157,7 +157,7 @@ class ContextOut(Schema):
     id: int
     work_item_key: str
     user: Optional[str] = None
-    t: str
+    summary: str
     timestamp: str
 
     @staticmethod
@@ -174,14 +174,14 @@ class ContextOut(Schema):
 
 
 class UpdateContextIn(Schema):
-    t: str
+    summary: str
 
 
 class ProgressOut(Schema):
     id: int
     work_item_key: str
     user: Optional[str] = None
-    t: str
+    summary: str
     proof: str
     status: str
     timestamp: str
@@ -200,7 +200,7 @@ class ProgressOut(Schema):
 
 
 class CreateProgressIn(Schema):
-    t: str
+    summary: str
     proof: str = ""
     status: str = "COMPLETED"
 
@@ -706,7 +706,7 @@ def update_work_item_context(request, key: str, payload: UpdateContextIn):
     user = request.auth
     item = get_object_or_404(WorkItem, key=key.upper())
     context, _ = Context.objects.get_or_create(work_item=item)
-    context.t = payload.t
+    context.summary = payload.summary
     context.user = user
     context.save()
     return context
@@ -728,7 +728,7 @@ def log_work_item_progress(request, key: str, payload: CreateProgressIn):
     return Progress.objects.create(
         work_item=item,
         user=user,
-        t=payload.t,
+        summary=payload.summary,
         proof=payload.proof,
         status=payload.status.upper()
     )
