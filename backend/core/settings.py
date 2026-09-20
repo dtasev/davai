@@ -129,6 +129,8 @@ OIDC_ISSUER_URL = os.environ.get(
 ).rstrip("/")
 
 OIDC_AUDIENCE = os.environ.get("OIDC_AUDIENCE", "davai")
-OIDC_JWKS_URL = os.environ.get("OIDC_JWKS_URL", f"{OIDC_ISSUER_URL}/api/oidc/jwks")
+OIDC_JWKS_URL = os.environ.get("OIDC_JWKS_URL", f"{OIDC_ISSUER_URL}/jwks.json")
+OIDC_USERINFO_URL = os.environ.get("OIDC_USERINFO_URL", f"{OIDC_ISSUER_URL}/api/oidc/userinfo")
+OIDC_FORWARDED_HOST = os.environ.get("OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
 
 

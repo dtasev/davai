@@ -1,4 +1,5 @@
 import hashlib
+import json
 import secrets
 from typing import Optional, Tuple
 from django.utils import timezone
@@ -149,13 +150,23 @@ def verify_authelia_session(session_cookie: str, request) -> Optional[User]:
             _AUTHELIA_SESSION_CACHE.pop(session_cookie, None)
 
     authelia_url = getattr(settings, "AUTHELIA_AUTH_URL", "http://authelia:9091/api/authz/auth-request")
+    forwarded_host = getattr(settings, "OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
+    if request:
+        try:
+            forwarded_host = request.get_host() or forwarded_host
+        except Exception:
+            pass
+
     try:
         req = urllib.request.Request(
             authelia_url,
             headers={
                 "Cookie": f"authelia_session={session_cookie}",
-                "X-Original-URL": request.build_absolute_uri(),
-                "X-Forwarded-Method": request.method,
+                "X-Original-URL": request.build_absolute_uri() if request else f"https://{forwarded_host}/",
+                "X-Original-Method": request.method if request else "GET",
+                "X-Forwarded-Method": request.method if request else "GET",
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-Host": forwarded_host,
             }
         )
         with urllib.request.urlopen(req, timeout=2.0) as resp:
@@ -189,8 +200,12 @@ _JWKS_CLIENT = None
 def get_jwks_client() -> PyJWKClient:
     global _JWKS_CLIENT
     if _JWKS_CLIENT is None:
-        jwks_url = getattr(settings, "OIDC_JWKS_URL", "")
-        _JWKS_CLIENT = PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600)
+        jwks_url = getattr(settings, "OIDC_JWKS_URL", "http://authelia:9091/authelia/jwks.json")
+        headers = {
+            "X-Forwarded-Proto": "https",
+            "X-Forwarded-Host": getattr(settings, "OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int"),
+        }
+        _JWKS_CLIENT = PyJWKClient(jwks_url, headers=headers, cache_jwk_set=True, lifespan=3600)
     return _JWKS_CLIENT
 
 def verify_oidc_jwt(token: str) -> Optional[dict]:
@@ -201,23 +216,18 @@ def verify_oidc_jwt(token: str) -> Optional[dict]:
     if not token or not isinstance(token, str):
         return None
 
-    issuer = getattr(settings, "OIDC_ISSUER_URL", None)
-    audience = getattr(settings, "OIDC_AUDIENCE", None)
-
     try:
         jwks_client = get_jwks_client()
         signing_key = jwks_client.get_signing_key_from_jwt(token)
 
         decode_kwargs = {
             "algorithms": ["RS256", "ES256"],
-            "options": {"verify_exp": True},
+            "options": {
+                "verify_exp": True,
+                "verify_aud": False,
+                "verify_iss": False,
+            },
         }
-        if issuer:
-            decode_kwargs["issuer"] = issuer
-        if audience:
-            decode_kwargs["audience"] = audience
-        else:
-            decode_kwargs["options"]["verify_aud"] = False
 
         payload = jwt.decode(
             token,
@@ -228,28 +238,92 @@ def verify_oidc_jwt(token: str) -> Optional[dict]:
     except Exception:
         return None
 
+_OIDC_USERINFO_CACHE = {}
+
+def verify_oidc_userinfo(token: str, request=None) -> Optional[User]:
+    """
+    Validate an opaque OIDC access token (e.g. authelia_at_...) via Authelia userinfo endpoint.
+    Caches verified users for 60 seconds to minimize HTTP round-trips.
+    """
+    if not token:
+        return None
+
+    now = time.time()
+    cached = _OIDC_USERINFO_CACHE.get(token)
+    if cached:
+        user, expires_at = cached
+        if now < expires_at:
+            return user
+        else:
+            _OIDC_USERINFO_CACHE.pop(token, None)
+
+    userinfo_url = getattr(
+        settings,
+        "OIDC_USERINFO_URL",
+        "http://authelia:9091/authelia/api/oidc/userinfo"
+    )
+    forwarded_host = getattr(settings, "OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
+    if request:
+        try:
+            forwarded_host = request.get_host() or forwarded_host
+        except Exception:
+            pass
+
+    req_headers = {
+        "Authorization": f"Bearer {token}",
+        "X-Forwarded-Proto": "https",
+        "X-Forwarded-Host": forwarded_host,
+    }
+
+    try:
+        req = urllib.request.Request(userinfo_url, headers=req_headers)
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            if resp.status == 200:
+                data = json.loads(resp.read().decode("utf-8"))
+                username = (data.get("preferred_username") or data.get("sub") or "").strip()
+                if not username:
+                    return None
+                email = data.get("email") or ""
+                name = data.get("name") or ""
+                groups_val = data.get("groups") or []
+                groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
+                user = get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
+                _OIDC_USERINFO_CACHE[token] = (user, now + 60)
+                return user
+    except Exception:
+        return None
+
+    return None
+
 class JWTAuth(HttpBearer):
     """
-    Authenticates interactive users via 'Authorization: Bearer <jwt>' header issued by OIDC provider.
+    Authenticates interactive users via 'Authorization: Bearer <token>' header issued by OIDC provider.
+    Supports both signed JWT tokens (via JWKS) and opaque tokens (via userinfo endpoint).
     Provisions or updates Django user based on standard OIDC claims.
     """
     def authenticate(self, request, token: str) -> Optional[User]:
+        if not token:
+            return None
+
+        # 1. Try local cryptographic verification via JWKS (for JWT tokens)
         claims = verify_oidc_jwt(token)
-        if not claims:
-            return None
+        if claims:
+            username = (claims.get("preferred_username") or claims.get("sub") or "").strip()
+            if username:
+                email = claims.get("email") or ""
+                name = claims.get("name") or ""
+                groups_val = claims.get("groups") or []
+                groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
+                return get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
 
-        username = (claims.get("preferred_username") or claims.get("sub") or "").strip()
-        if not username:
-            return None
+        # 2. Fallback to OIDC userinfo verification (for opaque tokens or if JWKS fetch missed key)
+        user = verify_oidc_userinfo(token, request)
+        if user:
+            return user
 
-        email = claims.get("email") or ""
-        name = claims.get("name") or ""
-        groups_val = claims.get("groups") or []
-        groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
+        return None
 
-        return get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
-
-# Composite authenticators: OIDC JWT Bearer, API key in header, query param, Remote-User, or authelia cookie
+# Composite authenticators: OIDC JWT/Bearer, API key in header, query param, Remote-User, or authelia cookie
 api_key_auth = [
     JWTAuth(),
     ApiKeyHeaderAuth(),

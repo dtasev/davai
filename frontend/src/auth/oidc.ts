@@ -143,7 +143,12 @@ export async function handleOidcCallback(): Promise<string | null> {
 
 export function getStoredOidcToken(): string | null {
   if (typeof window === 'undefined') return null
-  return localStorage.getItem('davai_oidc_access_token')
+  const accessToken = localStorage.getItem('davai_oidc_access_token')
+  const idToken = localStorage.getItem('davai_oidc_id_token')
+  if (idToken && (!accessToken || accessToken.startsWith('authelia_at_'))) {
+    return idToken
+  }
+  return accessToken || idToken
 }
 
 export function logoutOidc(): void {
