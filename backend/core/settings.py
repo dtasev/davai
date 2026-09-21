@@ -145,6 +145,7 @@ OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "davai_oidc_client_sec
 OIDC_TOKEN_URL = os.environ.get("OIDC_TOKEN_URL", f"{OIDC_ISSUER_URL}/api/oidc/token")
 OIDC_AUTHORIZATION_URL = os.environ.get("OIDC_AUTHORIZATION_URL", "")
 OIDC_REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "")
+OIDC_SCOPES = os.environ.get("OIDC_SCOPES", "openid email")
 
 LOGGING = {
     'version': 1,

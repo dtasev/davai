@@ -49,7 +49,7 @@ def oidc_login(request: HttpRequest) -> HttpResponse:
     params = {
         "client_id": settings.OIDC_CLIENT_ID,
         "response_type": "code",
-        "scope": "openid profile email groups",
+        "scope": getattr(settings, "OIDC_SCOPES", "openid email"),
         "redirect_uri": redirect_uri,
         "state": state,
         "nonce": nonce,
