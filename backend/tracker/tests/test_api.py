@@ -691,5 +691,69 @@ class TestNinjaAPI:
         assert patch_res4.status_code == 200
         assert patch_res4.json()["active_assignee"] is None
 
+    def test_unauthenticated_modifying_operations_require_auth_and_gets_are_open(
+        self, ninja_client, test_user, test_project, test_api_key
+    ):
+        _, raw_key = test_api_key
+
+        # Seed a work item with auth first to have a valid key for testing
+        create_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Test Auth Work Item", "project_key": test_project.key},
+            headers={"X-API-Key": raw_key}
+        )
+        assert create_res.status_code == 200
+        item_key = create_res.json()["key"]
+
+        # 1. Verify GET operations are open without auth
+        get_endpoints = [
+            "/work-items",
+            "/work-items/preview",
+            f"/work-items/{item_key}",
+            f"/work-items/{item_key}/progress",
+            "/projects",
+            f"/projects/{test_project.key}/statuses",
+            f"/projects/{test_project.key}/releases",
+            f"/projects/{test_project.key}/sprints",
+            "/users",
+        ]
+        for endpoint in get_endpoints:
+            res = ninja_client.get(endpoint)
+            assert res.status_code == 200, f"Expected 200 for open GET {endpoint}, got {res.status_code}"
+
+        # 2. Verify modifying operations require auth and return 401 when unauthenticated
+        mutating_requests = [
+            # Work items
+            ("post", "/work-items", {"title": "No Auth", "project_key": test_project.key}),
+            ("patch", f"/work-items/{item_key}", {"title": "Hacked Title"}),
+            ("delete", f"/work-items/{item_key}", None),
+            ("put", f"/work-items/{item_key}/context", {"summary": "Hacked Context"}),
+            ("post", f"/work-items/{item_key}/progress", {"summary": "Progress", "status": "IN_PROGRESS"}),
+            ("patch", f"/work-items/{item_key}/progress/1", {"summary": "Progress Edit"}),
+            ("delete", f"/work-items/{item_key}/progress/1", None),
+            # Projects
+            ("post", "/projects", {"key": "NEW", "name": "New Project"}),
+            # Releases
+            ("post", f"/projects/{test_project.key}/releases", {"name": "v9.9.9"}),
+            ("patch", f"/projects/{test_project.key}/releases/1", {"name": "v9.9.9-patch"}),
+            ("delete", f"/projects/{test_project.key}/releases/1", None),
+            # Sprints
+            ("post", f"/projects/{test_project.key}/sprints", {"name": "Sprint Unauthorized"}),
+            ("patch", f"/projects/{test_project.key}/sprints/1", {"name": "Sprint Renamed"}),
+            ("delete", f"/projects/{test_project.key}/sprints/1", None),
+            # API Keys
+            ("post", "/auth/keys", {"name": "Unauthorized Key"}),
+            ("delete", "/auth/keys/1", None),
+        ]
+        for method, path, data in mutating_requests:
+            fn = getattr(ninja_client, method)
+            kwargs = {"json": data} if data is not None else {}
+            res = fn(path, **kwargs)
+            assert res.status_code == 401, (
+                f"Expected 401 Unauthorized for unauthenticated {method.upper()} {path}, "
+                f"got {res.status_code}: {res.content}"
+            )
+
+
 
 

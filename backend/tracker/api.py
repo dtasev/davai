@@ -595,7 +595,7 @@ def _resolve_status(project: Project, status_val: Optional[str]) -> Optional[Pro
 
 
 @api.get("/work-items", response=List[WorkItemOut], summary="List Work Items")
-@api.get("/work-items/preview", response=List[WorkItemOut], summary="Public Preview of Work Items")
+@api.get("/work-items/preview", response=List[WorkItemOut], summary="Public Preview of Work Items", operation_id="tracker_api_list_work_items_preview")
 def list_work_items(request, status: Optional[str] = None, project_key: Optional[str] = None):
     qs = WorkItem.objects.select_related(
         "project", "parent", "status", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
