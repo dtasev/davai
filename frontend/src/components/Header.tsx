@@ -1,6 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
-  Layers,
   LayoutDashboard,
   Key,
   Code2,
@@ -41,9 +40,11 @@ export function Header({
             to="/"
             className="flex items-center gap-2.5 group shrink-0"
           >
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-400 flex items-center justify-center shadow-md shadow-indigo-500/20 group-hover:scale-105 transition">
-              <Layers className="w-4 h-4 text-white" />
-            </div>
+            <img
+              src="/davai-smoll.svg"
+              alt="Davai"
+              className="w-8 h-8 rounded-lg object-contain group-hover:scale-105 transition shadow-sm"
+            />
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
                 Davai
