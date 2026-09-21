@@ -70,7 +70,16 @@ class TestMCPWithApiClient:
         assert created["title"] == "MCP Tool Generated Ticket"
         assert created["description"] == "Created through MCP API Client"
         assert created["key"].startswith("DAV-")
+        assert created["active_assignee"] == test_user.username
         item_key = created["key"]
+
+        # 2b. Create work item with active_assignee_username="" (explicit unassigned)
+        created_unassigned = create_work_item(
+            title="Unassigned Ticket",
+            active_assignee_username="",
+            project_key=test_project.key
+        )
+        assert created_unassigned["active_assignee"] is None
 
         # 3. Fetch single item via MCP tool
         fetched = get_work_item(item_key)

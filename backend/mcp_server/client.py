@@ -108,7 +108,7 @@ class DavaiClient:
         }
         if status:
             payload["status"] = status
-        if active_assignee_username:
+        if active_assignee_username is not None:
             payload["active_assignee_username"] = active_assignee_username
         if parent_key:
             payload["parent_key"] = parent_key

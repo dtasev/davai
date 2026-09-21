@@ -617,8 +617,13 @@ def create_work_item(request, payload: CreateWorkItemIn):
         parent = WorkItem.objects.filter(key=payload.parent_key.upper()).first()
 
     assignee = None
-    if payload.active_assignee_username:
-        assignee = User.objects.filter(username=payload.active_assignee_username).first()
+    if "active_assignee_username" in payload.model_fields_set:
+        if payload.active_assignee_username:
+            assignee = User.objects.filter(username=payload.active_assignee_username).first()
+        else:
+            assignee = None
+    else:
+        assignee = user
 
     sprint = None
     if payload.sprint_id:

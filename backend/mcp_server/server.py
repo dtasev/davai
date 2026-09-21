@@ -66,7 +66,7 @@ def create_work_item(
         priority: Priority level ('LOW', 'MEDIUM', 'HIGH'). Defaults to 'MEDIUM'.
         status: Status ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
         project_key: Target project key (defaults to 'DAV').
-        active_assignee_username: Optional username of assigned user.
+        active_assignee_username: Optional username of assigned user. Defaults to the current user (creator) if omitted. Pass empty string to leave unassigned.
         parent_key: Optional parent work item key for subtasks (e.g. 'DAV-1').
         sprint_id: Optional sprint ID to assign to.
         release_id: Optional release ID to tag with.
