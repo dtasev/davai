@@ -64,11 +64,11 @@ export function Header({
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
-            <div className="relative flex items-center justify-center shrink-0 h-8 w-8">
+            <div className="relative flex items-center justify-center shrink-0 h-8 aspect-[128/162]">
               <img
                 src="/davai-2-small.png"
                 alt="Davai"
-                className={`h-8 w-auto object-contain transition-opacity duration-200 group-hover:scale-105 ${
+                className={`w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
                   isHovered ? 'opacity-0' : 'opacity-100'
                 }`}
               />
@@ -79,7 +79,7 @@ export function Header({
                 playsInline
                 loop
                 preload="auto"
-                className={`absolute inset-0 h-8 w-auto object-contain transition-opacity duration-200 group-hover:scale-105 ${
+                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
                   isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
                 style={{ mixBlendMode: 'screen' }}
