@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -26,6 +27,27 @@ export function Header({
 }: HeaderProps) {
   const location = useLocation()
   const navigate = useNavigate()
+  const [isHovered, setIsHovered] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  const handleMouseEnter = () => {
+    setIsHovered(true)
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0
+      const playPromise = videoRef.current.play()
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {})
+      }
+    }
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+    if (videoRef.current) {
+      videoRef.current.pause()
+      videoRef.current.currentTime = 0
+    }
+  }
 
   const isSettings = location.pathname.startsWith('/settings')
   const isDashboard = location.pathname === '/' || location.pathname === '/dashboard'
@@ -39,12 +61,30 @@ export function Header({
           <Link
             to="/"
             className="flex items-center gap-2.5 group shrink-0"
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
           >
-            <img
-              src="/davai-2-small.png"
-              alt="Davai"
-              className="h-8 w-auto object-contain group-hover:scale-105 transition drop-shadow-sm"
-            />
+            <div className="relative flex items-center justify-center shrink-0 h-8 w-8">
+              <img
+                src="/davai-2-small.png"
+                alt="Davai"
+                className={`h-8 w-auto object-contain transition-opacity duration-200 group-hover:scale-105 ${
+                  isHovered ? 'opacity-0' : 'opacity-100'
+                }`}
+              />
+              <video
+                ref={videoRef}
+                src="/davai-6.mp4"
+                muted
+                playsInline
+                loop
+                preload="auto"
+                className={`absolute inset-0 h-8 w-auto object-contain transition-opacity duration-200 group-hover:scale-105 ${
+                  isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+                style={{ mixBlendMode: 'screen' }}
+              />
+            </div>
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
                 Davai
