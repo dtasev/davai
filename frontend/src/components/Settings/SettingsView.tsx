@@ -94,7 +94,15 @@ export function SettingsView({
           <span>Identity Profile</span>
         </h2>
 
-        {userProfile ? (
+        {loadingAuth ? (
+          <div className="flex items-center gap-3 py-2 text-zinc-400 text-xs animate-pulse">
+            <div className="w-11 h-11 rounded-xl bg-zinc-800" />
+            <div className="space-y-1.5">
+              <div className="w-28 h-4 bg-zinc-800 rounded" />
+              <div className="w-40 h-3 bg-zinc-800/60 rounded" />
+            </div>
+          </div>
+        ) : userProfile ? (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-base font-bold text-white shadow-md">
