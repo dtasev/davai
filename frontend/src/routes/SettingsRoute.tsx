@@ -3,10 +3,6 @@ import { SettingsView } from '../components/Settings/SettingsView'
 
 export function SettingsRoute() {
   const {
-    apiKey,
-    apiKeyInput,
-    setApiKeyInput,
-    handleSaveApiKey,
     userProfile,
     apiKeys,
     loadingAuth,
@@ -17,10 +13,6 @@ export function SettingsRoute() {
 
   return (
     <SettingsView
-      apiKey={apiKey}
-      apiKeyInput={apiKeyInput}
-      setApiKeyInput={setApiKeyInput}
-      handleSaveApiKey={handleSaveApiKey}
       userProfile={userProfile}
       apiKeys={apiKeys}
       loadingAuth={loadingAuth}

@@ -4,13 +4,8 @@ import { GeneratedKey } from '../components/Settings/SettingsView'
 import { handleOidcCallback, getStoredOidcToken, startOidcLogin, logoutOidc } from '../auth/oidc'
 import { apiFetch } from '../utils/apiFetch'
 
-export const DEFAULT_DEV_KEY = 'dav_live_7186ea3e7362a9f418e5332be398dc7c6132bdfd'
-
 interface AppContextType {
   // Auth & API Key
-  apiKey: string
-  apiKeyInput: string
-  setApiKeyInput: (val: string) => void
   userProfile: UserProfile | null
   apiKeys: APIKeyItem[]
   loadingAuth: boolean
@@ -18,7 +13,6 @@ interface AppContextType {
   oidcToken: string | null
   loginWithOidc: () => Promise<void>
   logout: () => void
-  handleSaveApiKey: () => void
   handleCreateKey: (name: string) => Promise<GeneratedKey | null>
   handleRevokeKey: (id: number) => Promise<void>
 
@@ -39,10 +33,6 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null)
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [apiKey, setApiKey] = useState<string>(() => {
-    return localStorage.getItem('davai_api_key') || DEFAULT_DEV_KEY
-  })
-  const [apiKeyInput, setApiKeyInput] = useState<string>(apiKey)
   const [oidcToken, setOidcToken] = useState<string | null>(() => getStoredOidcToken())
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [apiKeys, setApiKeys] = useState<APIKeyItem[]>([])
@@ -56,14 +46,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState<boolean>(true)
-
-  const getAuthHeaders = (extraHeaders?: Record<string, string>): Record<string, string> => {
-    const headers: Record<string, string> = { ...extraHeaders }
-    if (apiKey) {
-      headers['X-API-Key'] = apiKey
-    }
-    return headers
-  }
 
   const checkBackend = async () => {
     setBackendStatus('checking')
@@ -89,32 +71,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const loadUserData = async (keyToUse?: string) => {
+  const loadUserData = async () => {
     setLoadingAuth(true)
     setAuthError(null)
     try {
-      const headers: Record<string, string> = {}
-      if (keyToUse && keyToUse.trim()) {
-        headers['X-API-Key'] = keyToUse.trim()
-      } else if (apiKey && apiKey.trim() && apiKey !== DEFAULT_DEV_KEY) {
-        headers['X-API-Key'] = apiKey.trim()
-      }
-
-      // 1. Fetch /api/auth/me with session cookie or explicit API key
+      // 1. Fetch /api/auth/me with session cookie
       const meRes = await apiFetch('/api/auth/me', {
-        headers,
         credentials: 'same-origin'
       })
 
       if (meRes.ok) {
         const meData = await meRes.json()
         setUserProfile(meData)
-        if (keyToUse && keyToUse.trim() && headers['X-API-Key']) {
-          localStorage.setItem('davai_api_key', keyToUse.trim())
-        }
 
         const keysRes = await apiFetch('/api/auth/keys', {
-          headers: getAuthHeaders(),
           credentials: 'same-origin'
         })
         if (keysRes.ok) {
@@ -123,26 +93,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUserProfile(null)
+        setApiKeys([])
       }
     } catch (err: any) {
       setAuthError(`Connection error: ${err.message}`)
       setUserProfile(null)
+      setApiKeys([])
     } finally {
       setLoadingAuth(false)
     }
-  }
-
-  const handleSaveApiKey = () => {
-    const trimmed = apiKeyInput.trim()
-    setApiKey(trimmed)
-    loadUserData(trimmed)
   }
 
   const handleCreateKey = async (name: string): Promise<GeneratedKey | null> => {
     try {
       const res = await apiFetch('/api/auth/keys', {
         method: 'POST',
-        headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'same-origin',
         body: JSON.stringify({ name })
       })
@@ -150,7 +116,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const data: GeneratedKey = await res.json()
         const keysRes = await apiFetch('/api/auth/keys', {
-          headers: getAuthHeaders(),
           credentials: 'same-origin'
         })
         if (keysRes.ok) {
@@ -176,7 +141,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await apiFetch(`/api/auth/keys/${keyId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
         credentials: 'same-origin'
       })
 
@@ -194,6 +158,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await logoutOidc()
+    localStorage.removeItem('davai_api_key')
     setOidcToken(null)
     setUserProfile(null)
     setApiKeys([])
@@ -203,7 +168,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLoadingProjects(true)
     try {
       const res = await apiFetch('/api/projects', {
-        headers: getAuthHeaders(),
         credentials: 'same-origin'
       })
       if (res.ok) {
@@ -224,7 +188,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const res = await apiFetch('/api/projects', {
       method: 'POST',
-      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
+      headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({ key, name, description })
     })
@@ -238,6 +202,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    // Proactively clean up any stale legacy browser API key
+    localStorage.removeItem('davai_api_key')
+
     const init = async () => {
       // 1. Process OIDC callback if returning from login (?code=...)
       const exchangedToken = await handleOidcCallback()
@@ -247,7 +214,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       checkBackend()
       fetchProjects()
-      loadUserData(apiKey)
+      loadUserData()
     }
 
     init()
@@ -256,9 +223,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   return (
     <AppContext.Provider
       value={{
-        apiKey,
-        apiKeyInput,
-        setApiKeyInput,
         userProfile,
         apiKeys,
         loadingAuth,
@@ -266,7 +230,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         oidcToken,
         loginWithOidc,
         logout,
-        handleSaveApiKey,
         handleCreateKey,
         handleRevokeKey,
         backendStatus,

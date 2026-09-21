@@ -24,10 +24,6 @@ export interface GeneratedKey {
 }
 
 interface SettingsViewProps {
-  apiKey: string
-  apiKeyInput: string
-  setApiKeyInput: (val: string) => void
-  handleSaveApiKey: () => void
   userProfile: UserProfile | null
   apiKeys: APIKeyItem[]
   loadingAuth: boolean
@@ -37,10 +33,6 @@ interface SettingsViewProps {
 }
 
 export function SettingsView({
-  apiKey,
-  apiKeyInput,
-  setApiKeyInput,
-  handleSaveApiKey,
   userProfile,
   apiKeys,
   loadingAuth,
@@ -134,50 +126,19 @@ export function SettingsView({
             <div>
               <div className="font-semibold">Not Connected</div>
               <div className="text-amber-200/80 mt-0.5">
-                Enter your valid API key below to access user profile details and key management.
+                Log in via OIDC to view your profile and manage API keys for external services.
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Browser API Key Config */}
-      <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-xl p-4 sm:p-5 shadow-sm space-y-3">
-        <div>
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-            <Shield className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Active Browser API Key</span>
-          </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            This key is stored locally in your browser to authenticate API and GraphQL requests.
-          </p>
+      {authError && (
+        <div className="text-xs text-rose-400 flex items-center gap-1.5 p-3 rounded-lg bg-rose-950/20 border border-rose-800/40">
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>{authError}</span>
         </div>
-
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="password"
-            value={apiKeyInput}
-            onChange={e => setApiKeyInput(e.target.value)}
-            placeholder="dav_live_..."
-            className="flex-1 px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs font-mono text-zinc-200"
-          />
-          <button
-            onClick={handleSaveApiKey}
-            disabled={loadingAuth}
-            className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50"
-          >
-            {loadingAuth ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-            <span>Save &amp; Connect</span>
-          </button>
-        </div>
-
-        {authError && (
-          <div className="text-xs text-rose-400 flex items-center gap-1.5 mt-1">
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span>{authError}</span>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* API Key Management Table */}
       <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-xl p-4 sm:p-5 shadow-sm space-y-3.5">
@@ -259,7 +220,7 @@ export function SettingsView({
             <span>LLM Agent &amp; Developer Config</span>
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Ready-to-use configuration blocks pre-populated with your active API key.
+            Ready-to-use configuration blocks for connecting external LLM agents and scripts.
           </p>
         </div>
 
@@ -277,7 +238,7 @@ export function SettingsView({
                         args: [
                           '-m', 'mcp_server',
                           '--api-url', 'http://127.0.0.1:6477/api',
-                          '--api-key', apiKey
+                          '--api-key', 'YOUR_API_KEY'
                         ]
                       }
                     }
@@ -301,7 +262,7 @@ export function SettingsView({
       "args": [
         "-m", "mcp_server",
         "--api-url", "http://127.0.0.1:6477/api",
-        "--api-key", "${apiKey}"
+        "--api-key", "YOUR_API_KEY"
       ]
     }
   }
@@ -315,7 +276,7 @@ export function SettingsView({
             <span>GraphQL Query via Curl</span>
             <button
               onClick={() => {
-                const cmd = `curl -X POST http://127.0.0.1:6477/graphql/ -H "Content-Type: application/json" -H "X-API-Key: ${apiKey}" -d '{"query": "query { workItems { key title status } }"}'`
+                const cmd = `curl -X POST http://127.0.0.1:6477/graphql/ -H "Content-Type: application/json" -H "X-API-Key: YOUR_API_KEY" -d '{"query": "query { workItems { key title status } }"}'`
                 copyToClipboard(cmd, 'curl')
               }}
               className="flex items-center gap-1 hover:text-white transition text-xs"
@@ -327,7 +288,7 @@ export function SettingsView({
           <pre className="p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 text-[11px] font-mono text-zinc-300 overflow-x-auto">
 {`curl -X POST http://127.0.0.1:6477/graphql/ \\
   -H "Content-Type: application/json" \\
-  -H "X-API-Key: ${apiKey}" \\
+  -H "X-API-Key: YOUR_API_KEY" \\
   -d '{"query": "query { workItems { key title status } }"}'`}
           </pre>
         </div>

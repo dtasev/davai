@@ -15,7 +15,6 @@ import { UserProfile, Project } from '../types'
 interface HeaderProps {
   selectedProject?: Project | null
   userProfile: UserProfile | null
-  apiKey: string
   onLogin?: () => void
   onLogout?: () => void
 }
@@ -23,7 +22,6 @@ interface HeaderProps {
 export function Header({
   selectedProject,
   userProfile,
-  apiKey,
   onLogin,
   onLogout
 }: HeaderProps) {
@@ -146,7 +144,7 @@ export function Header({
 
           {/* GraphQL IDE */}
           <a
-            href={`/graphql/?api_key=${encodeURIComponent(apiKey)}`}
+            href="/graphql/"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"

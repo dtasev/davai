@@ -339,8 +339,7 @@ describe('Davai Frontend App with React Router', () => {
 
     const graphqlLink = screen.getByTestId('graphql-link')
     expect(graphqlLink).toBeInTheDocument()
-    expect(graphqlLink).toHaveAttribute('target', '_blank')
-    expect(graphqlLink.getAttribute('href')).toMatch(/^\/graphql\/\?api_key=dav_live_/)
+    expect(graphqlLink).toHaveAttribute('href', '/graphql/')
 
     const swaggerLink = screen.getByTestId('swagger-link')
     expect(swaggerLink).toBeInTheDocument()
@@ -446,7 +445,7 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('settings-view')).toBeInTheDocument()
     })
     expect(screen.getByText('Identity Profile')).toBeInTheDocument()
-    expect(screen.getByText('Active Browser API Key')).toBeInTheDocument()
+    expect(screen.getByText('Active API Keys')).toBeInTheDocument()
 
     // Click Dashboard tab
     const dashboardTab = screen.getByRole('link', { name: /Dashboard/i })

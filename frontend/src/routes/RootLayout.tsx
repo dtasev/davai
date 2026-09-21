@@ -3,7 +3,7 @@ import { Header } from '../components/Header'
 import { useApp } from '../context/AppContext'
 
 export function RootLayout() {
-  const { userProfile, apiKey, projects, loginWithOidc, logout } = useApp()
+  const { userProfile, projects, loginWithOidc, logout } = useApp()
   const location = useLocation()
 
   // Extract projectKey from pathname if present
@@ -16,7 +16,6 @@ export function RootLayout() {
       <Header
         selectedProject={selectedProject}
         userProfile={userProfile}
-        apiKey={apiKey}
         onLogin={loginWithOidc}
         onLogout={logout}
       />
