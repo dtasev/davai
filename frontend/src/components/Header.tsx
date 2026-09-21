@@ -49,13 +49,6 @@ export function Header({
     }
   }
 
-  const handleVideoEnded = () => {
-    setIsHovered(false)
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0
-    }
-  }
-
   const isSettings = location.pathname.startsWith('/settings')
   const isDashboard = location.pathname === '/' || location.pathname === '/dashboard'
   const isProjectView = location.pathname.startsWith('/projects/')
@@ -85,7 +78,6 @@ export function Header({
                 muted
                 playsInline
                 preload="auto"
-                onEnded={handleVideoEnded}
                 className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
                   isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
