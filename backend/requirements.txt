@@ -12,3 +12,4 @@ pytest-django==4.14.0
 pytest-asyncio==1.4.0
 pytest-cov==7.1.0
 psycopg[binary]==3.3.6
+mozilla-django-oidc==5.0.2

@@ -128,6 +128,68 @@ def get_or_create_remote_user(username: str, email: str = "", name: str = "", gr
 
     return user
 
+try:
+    import requests
+    from mozilla_django_oidc.auth import OIDCAuthenticationBackend
+
+    class DavaiOIDCAuthenticationBackend(OIDCAuthenticationBackend):
+        """
+        OIDC authentication backend for mozilla-django-oidc.
+        Maps OIDC claims (preferred_username, nickname, email, name, groups) to Django Users.
+        """
+        def get_userinfo(self, access_token, id_token, payload):
+            claims = dict(payload) if payload else {}
+            userinfo_url = self.OIDC_OP_USER_ENDPOINT
+            forwarded_host = getattr(settings, "OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
+            if self.request:
+                try:
+                    forwarded_host = self.request.get_host() or forwarded_host
+                except Exception:
+                    pass
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-Host": forwarded_host,
+            }
+            try:
+                response = requests.get(
+                    userinfo_url,
+                    headers=headers,
+                    verify=self.get_settings("OIDC_VERIFY_SSL", True),
+                    timeout=self.get_settings("OIDC_TIMEOUT", 5.0),
+                    proxies=self.get_settings("OIDC_PROXY", None),
+                )
+                response.raise_for_status()
+                user_info = response.json()
+                if isinstance(user_info, dict):
+                    claims.update(user_info)
+            except Exception as exc:
+                logger.warning("OIDC userinfo fetch failed (%s); using ID token payload if available", exc)
+                if not claims:
+                    raise
+            return claims
+
+        def verify_claims(self, claims):
+            username, _, _, _ = extract_oidc_user_details(claims)
+            return bool(username)
+
+        def filter_users_by_claims(self, claims):
+            username, email, name, groups_str = extract_oidc_user_details(claims)
+            if not username:
+                return self.UserModel.objects.none()
+            return self.UserModel.objects.filter(username=username)
+
+        def create_user(self, claims):
+            username, email, name, groups_str = extract_oidc_user_details(claims)
+            return get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
+
+        def update_user(self, user, claims):
+            username, email, name, groups_str = extract_oidc_user_details(claims)
+            return get_or_create_remote_user(user.username, email=email, name=name, groups=groups_str)
+except ImportError:
+    class DavaiOIDCAuthenticationBackend:
+        pass
+
 class ApiKeyHeaderAuth(APIKeyHeader):
     """Authenticates API requests via 'X-API-Key: dav_live_...' header."""
     param_name = "X-API-Key"

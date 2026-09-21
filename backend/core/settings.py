@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'ninja',
     'strawberry_django',
+    'mozilla_django_oidc',
     # Local apps
     'tracker',
 ]
@@ -139,13 +140,32 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_AGE = 86400 * 7  # 7 days
 
-# OIDC Client settings for Backend-driven flow
+# OIDC Client settings for Backend-driven flow (mozilla-django-oidc & custom views)
 OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "davai")
 OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "davai_oidc_client_secret_dev_key_40_chars_min")
 OIDC_TOKEN_URL = os.environ.get("OIDC_TOKEN_URL", f"{OIDC_ISSUER_URL}/api/oidc/token")
-OIDC_AUTHORIZATION_URL = os.environ.get("OIDC_AUTHORIZATION_URL", "")
+OIDC_AUTHORIZATION_URL = os.environ.get("OIDC_AUTHORIZATION_URL", f"{OIDC_ISSUER_URL}/api/oidc/authorization")
 OIDC_REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "")
 OIDC_SCOPES = os.environ.get("OIDC_SCOPES", "openid email")
+
+# mozilla-django-oidc settings
+OIDC_RP_CLIENT_ID = OIDC_CLIENT_ID
+OIDC_RP_CLIENT_SECRET = OIDC_CLIENT_SECRET
+OIDC_RP_SCOPES = OIDC_SCOPES
+OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_OP_AUTHORIZATION_ENDPOINT = OIDC_AUTHORIZATION_URL
+OIDC_OP_TOKEN_ENDPOINT = OIDC_TOKEN_URL
+OIDC_OP_USER_ENDPOINT = OIDC_USERINFO_URL
+OIDC_OP_JWKS_ENDPOINT = OIDC_JWKS_URL
+OIDC_USE_PKCE = True
+OIDC_PKCE_CODE_CHALLENGE_METHOD = "S256"
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
+AUTHENTICATION_BACKENDS = [
+    'tracker.auth.DavaiOIDCAuthenticationBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 LOGGING = {
     'version': 1,

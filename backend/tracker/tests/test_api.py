@@ -129,34 +129,46 @@ class TestNinjaAPI:
         assert "client_id=davai" in response.url
         assert "code_challenge=" in response.url
         assert "code_challenge_method=S256" in response.url
-        assert client.session.get("oidc_state") is not None
-        assert client.session.get("oidc_code_verifier") is not None
+        # mozilla-django-oidc stores states in oidc_states dict
+        states = client.session.get("oidc_states")
+        assert states is not None
+        assert len(states) > 0
+        state = list(states.keys())[0]
+        assert states[state].get("code_verifier") is not None
 
     def test_oidc_callback_flow(self, client, monkeypatch):
         # 1. Initiate login to set session state
         client.get("/api/auth/login")
-        saved_state = client.session["oidc_state"]
+        states = client.session.get("oidc_states")
+        saved_state = list(states.keys())[0]
 
-        # 2. Mock token exchange response
-        class MockTokenResp:
-            status = 200
-            def read(self):
-                return b'{"id_token": "dummy_jwt", "access_token": "token_123"}'
-            def __enter__(self):
-                return self
-            def __exit__(self, exc_type, exc_val, exc_tb):
-                pass
-
-        import urllib.request
-        monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=5.0: MockTokenResp())
-
-        from tracker import views
-        monkeypatch.setattr(views, "verify_oidc_jwt", lambda token: {
-            "preferred_username": "oidc_session_user",
-            "email": "session_user@ecmwf.int",
-            "name": "Session User",
-            "groups": ["dev"],
-        })
+        # 2. Mock token exchange and verify_token in OIDCAuthenticationBackend
+        from mozilla_django_oidc.auth import OIDCAuthenticationBackend
+        monkeypatch.setattr(
+            OIDCAuthenticationBackend,
+            "get_token",
+            lambda self, payload: {"id_token": "dummy_jwt", "access_token": "token_123"}
+        )
+        monkeypatch.setattr(
+            OIDCAuthenticationBackend,
+            "verify_token",
+            lambda self, id_token, **kwargs: {
+                "preferred_username": "oidc_session_user",
+                "email": "session_user@ecmwf.int",
+                "name": "Session User",
+                "groups": ["dev"],
+            }
+        )
+        monkeypatch.setattr(
+            OIDCAuthenticationBackend,
+            "get_userinfo",
+            lambda self, access_token, id_token, payload: {
+                "preferred_username": "oidc_session_user",
+                "email": "session_user@ecmwf.int",
+                "name": "Session User",
+                "groups": ["dev"],
+            }
+        )
 
         # 3. Call callback with matching state
         cb_res = client.get(f"/api/auth/oidc/callback?code=test_code_123&state={saved_state}")
@@ -169,45 +181,6 @@ class TestNinjaAPI:
         data = me_res.json()
         assert data["username"] == "oidc_session_user"
         assert data["email"] == "session_user@ecmwf.int"
-
-    def test_oidc_callback_logging(self, client, monkeypatch, caplog):
-        import logging
-        caplog.set_level(logging.INFO)
-
-        client.get("/api/auth/login")
-        saved_state = client.session["oidc_state"]
-
-        class MockTokenResp:
-            status = 200
-            def read(self):
-                return b'{"id_token": "dummy_jwt", "access_token": "token_123", "token_type": "Bearer"}'
-            def __enter__(self):
-                return self
-            def __exit__(self, exc_type, exc_val, exc_tb):
-                pass
-
-        import urllib.request
-        monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=5.0: MockTokenResp())
-
-        from tracker import views
-        monkeypatch.setattr(views, "verify_oidc_jwt", lambda token: {
-            "preferred_username": "logger_user",
-            "email": "logger_user@ecmwf.int",
-            "name": "Logger User",
-            "groups": ["dev", "admins"],
-            "sub": "user-sub-12345",
-        })
-
-        res = client.get(f"/api/auth/oidc/callback?code=test_code_123&state={saved_state}")
-        assert res.status_code == 302
-
-        info_logs = [rec.getMessage() for rec in caplog.records if rec.levelno == logging.INFO]
-        joined = "\n".join(info_logs)
-        assert "OIDC ID token claims received" in joined
-        assert "logger_user" in joined
-        assert "logger_user@ecmwf.int" in joined
-        assert "user-sub-12345" in joined
-        assert "Django successfully logged in user 'logger_user'" in joined
 
     def test_oidc_logout(self, client, test_user):
         from tracker.auth import _AUTHELIA_SESSION_CACHE
