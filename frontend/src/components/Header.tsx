@@ -49,6 +49,13 @@ export function Header({
     }
   }
 
+  const handleVideoEnded = () => {
+    setIsHovered(false)
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0
+    }
+  }
+
   const isSettings = location.pathname.startsWith('/settings')
   const isDashboard = location.pathname === '/' || location.pathname === '/dashboard'
   const isProjectView = location.pathname.startsWith('/projects/')
@@ -68,18 +75,20 @@ export function Header({
               <img
                 src="/davai-2-small.png"
                 alt="Davai"
-                className={`w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${isHovered ? 'opacity-0' : 'opacity-100'
-                  }`}
+                className={`w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
+                  isHovered ? 'opacity-0' : 'opacity-100'
+                }`}
               />
               <video
                 ref={videoRef}
-                src="/davai-10.webm"
+                src="/davai-8.webm"
                 muted
                 playsInline
-                loop
                 preload="auto"
-                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                  }`}
+                onEnded={handleVideoEnded}
+                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
+                  isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
                 style={{ mixBlendMode: 'screen' }}
               />
             </div>
@@ -118,8 +127,8 @@ export function Header({
             <Link
               to="/"
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${isDashboard
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                 }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
@@ -129,8 +138,8 @@ export function Header({
             <Link
               to="/settings"
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${isSettings
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
+                ? 'bg-indigo-600 text-white shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                 }`}
             >
               <Key className="w-3.5 h-3.5" />
