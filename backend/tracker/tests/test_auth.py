@@ -39,3 +39,46 @@ class TestAuth:
         assert verify_api_key("dav_live_doesnotexist123456789") is None
         assert verify_api_key("") is None
         assert verify_api_key(None) is None
+
+    def test_extract_oidc_user_details_priority(self):
+        from tracker.auth import extract_oidc_user_details
+
+        # 1. preferred_username takes top precedence
+        u1, e1, n1, g1 = extract_oidc_user_details({
+            "preferred_username": "dimitar",
+            "email": "dimitar@ecmwf.int",
+            "nickname": "d_nick",
+            "sub": "7cfeb968-6cb8-4d1f-8a21-00fadee4ce14",
+            "groups": ["dev", "ecmwf"],
+        })
+        assert u1 == "dimitar"
+        assert e1 == "dimitar@ecmwf.int"
+        assert g1 == "dev,ecmwf"
+
+        # 2. nickname when preferred_username missing
+        u2, _, _, _ = extract_oidc_user_details({
+            "nickname": "d_nick",
+            "email": "dimitar@ecmwf.int",
+            "sub": "7cfeb968-6cb8-4d1f-8a21-00fadee4ce14",
+        })
+        assert u2 == "d_nick"
+
+        # 3. email prefix fallback when neither preferred_username nor nickname
+        u3, _, _, _ = extract_oidc_user_details({
+            "email": "dtasev@ecmwf.int",
+            "sub": "7cfeb968-6cb8-4d1f-8a21-00fadee4ce14",
+        })
+        assert u3 == "dtasev"
+
+        # 4. name when single word
+        u4, _, _, _ = extract_oidc_user_details({
+            "name": "dimitar",
+            "sub": "7cfeb968-6cb8-4d1f-8a21-00fadee4ce14",
+        })
+        assert u4 == "dimitar"
+
+        # 5. sub fallback when no readable fields exist
+        u5, _, _, _ = extract_oidc_user_details({
+            "sub": "7cfeb968-6cb8-4d1f-8a21-00fadee4ce14",
+        })
+        assert u5 == "7cfeb968-6cb8-4d1f-8a21-00fadee4ce14"

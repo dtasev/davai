@@ -64,7 +64,35 @@ def verify_api_key(raw_key: Optional[str]) -> Optional[User]:
     except Exception:
         return None
 
-    return None
+def extract_oidc_user_details(claims: dict) -> Tuple[str, str, str, str]:
+    """
+    Extract (username, email, name, groups_str) from OIDC claims or userinfo dict.
+    Prioritizes human-friendly username fields before falling back to sub UUID.
+    """
+    email = claims.get("email") or ""
+    name = claims.get("name") or claims.get("displayname") or ""
+    
+    # Candidate username fields in order of human-readability preference:
+    # 1. preferred_username (standard OIDC profile claim)
+    # 2. nickname
+    # 3. email prefix (e.g. 'dimitar' from 'dimitar@ecmwf.int')
+    # 4. upn (User Principal Name)
+    # 5. name (if single word / username-like)
+    # 6. sub (unique subject identifier / UUID fallback)
+    username = (
+        claims.get("preferred_username")
+        or claims.get("nickname")
+        or (email.split("@")[0] if email and "@" in email else "")
+        or claims.get("upn")
+        or (name if name and " " not in name.strip() else "")
+        or claims.get("sub")
+        or ""
+    ).strip()
+
+    groups_val = claims.get("groups") or []
+    groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
+
+    return username, email, name, groups_str
 
 def get_or_create_remote_user(username: str, email: str = "", name: str = "", groups: str = "") -> User:
     """Retrieve or provision a Django User based on Authelia/reverse-proxy remote headers."""
@@ -336,13 +364,9 @@ def verify_oidc_userinfo(token: str, request=None) -> Optional[User]:
 
     logger.info("OIDC userinfo claims received: %s", json.dumps(data, indent=2, default=str))
 
-    username = (data.get("preferred_username") or data.get("sub") or "").strip()
+    username, email, name, groups_str = extract_oidc_user_details(data)
     if not username:
         return None
-    email = data.get("email") or ""
-    name = data.get("name") or ""
-    groups_val = data.get("groups") or []
-    groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
     user = get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
     _OIDC_USERINFO_CACHE[token] = (user, now + 60)
     return user
@@ -360,12 +384,8 @@ class JWTAuth(HttpBearer):
         # 1. Try local cryptographic verification via JWKS (for JWT tokens)
         claims = verify_oidc_jwt(token)
         if claims:
-            username = (claims.get("preferred_username") or claims.get("sub") or "").strip()
+            username, email, name, groups_str = extract_oidc_user_details(claims)
             if username:
-                email = claims.get("email") or ""
-                name = claims.get("name") or ""
-                groups_val = claims.get("groups") or []
-                groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
                 return get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
 
         # 2. Fallback to OIDC userinfo verification (for opaque tokens or if JWKS fetch missed key)

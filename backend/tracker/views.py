@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth import login, logout
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
-from tracker.auth import get_or_create_remote_user, verify_oidc_jwt, invalidate_authelia_session
+from tracker.auth import get_or_create_remote_user, verify_oidc_jwt, invalidate_authelia_session, extract_oidc_user_details
 
 logger = logging.getLogger(__name__)
 
@@ -153,11 +153,7 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
     all_oidc_fields = {**userinfo_claims, **claims}
     logger.info("OIDC all resolved user fields/claims: %s", json.dumps(all_oidc_fields, indent=2, default=str))
 
-    username = (all_oidc_fields.get("preferred_username") or all_oidc_fields.get("sub") or "").strip()
-    email = all_oidc_fields.get("email") or ""
-    name = all_oidc_fields.get("name") or ""
-    groups_val = all_oidc_fields.get("groups") or []
-    groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
+    username, email, name, groups_str = extract_oidc_user_details(all_oidc_fields)
 
     if not username:
         logger.error("Could not determine username from OIDC tokens. Received fields: %s", json.dumps(all_oidc_fields, default=str))
@@ -173,7 +169,7 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
         user.email,
         user.first_name,
         user.is_staff,
-        groups_val,
+        groups_str,
     )
 
     # Clean up OIDC session variables
