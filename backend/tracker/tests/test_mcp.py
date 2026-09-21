@@ -81,6 +81,20 @@ class TestMCPWithApiClient:
         )
         assert created_unassigned["active_assignee"] is None
 
+        # 2c. Create work item with initial LLM context and verify semantic guidelines
+        assert "description (Human Request)" in create_work_item.__doc__
+        assert "context (LLM Technical Plan)" in create_work_item.__doc__
+        created_with_ctx = create_work_item(
+            title="Ticket with Initial Context",
+            description="Original human request",
+            context="# Initial LLM Analysis\nArchitecture plan and constraints.",
+            project_key=test_project.key
+        )
+        assert created_with_ctx["description"] == "Original human request"
+        assert created_with_ctx["context"] is not None
+        assert created_with_ctx["context"]["summary"] == "# Initial LLM Analysis\nArchitecture plan and constraints."
+        assert created_with_ctx["context"]["updated_by"] == test_user.username
+
         # 3. Fetch single item via MCP tool
         fetched = get_work_item(item_key)
         assert fetched["key"] == item_key

@@ -48,6 +48,7 @@ def get_work_item(key: str) -> Dict[str, Any]:
 def create_work_item(
     title: str,
     description: str = "",
+    context: Optional[str] = None,
     priority: str = "MEDIUM",
     status: Optional[str] = None,
     project_key: str = "DAV",
@@ -60,9 +61,15 @@ def create_work_item(
 ) -> Dict[str, Any]:
     """
     Create a new work item in Davai.
+
+    Field Semantics & Guidelines:
+    - description (Human Request): Original task description and requirements from the human user (user story, prompt, bug report). Preserve user intent here without replacing it with agent analysis.
+    - context (LLM Technical Plan): The agent's technical analysis, architectural investigation, decisions, constraints, or implementation plan deduced by the model (SKILL.md-style markdown technical context). Can be initialized here or updated later via set_work_item_context.
+
     Args:
         title: Title of the task.
-        description: Detailed task description.
+        description: Original task requirements/description from human input.
+        context: Optional initial technical context, analysis, or implementation plan deduced by the LLM agent (markdown supported).
         priority: Priority level ('LOW', 'MEDIUM', 'HIGH'). Defaults to 'MEDIUM'.
         status: Status ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
         project_key: Target project key (defaults to 'DAV').
@@ -84,7 +91,8 @@ def create_work_item(
         sprint_id=sprint_id,
         release_id=release_id,
         start_date=start_date,
-        target_date=target_date
+        target_date=target_date,
+        context=context
     )
 
 @mcp_server.tool()

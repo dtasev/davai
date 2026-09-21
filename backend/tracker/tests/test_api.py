@@ -397,6 +397,28 @@ class TestNinjaAPI:
         assert prog_list_res.json()[0]["created_by"] == test_user.username
         assert "created_at" in prog_list_res.json()[0]
 
+    def test_create_work_item_with_context(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+        res = ninja_client.post(
+            "/work-items",
+            json={
+                "title": "Item With Direct Context",
+                "description": "User requested feature",
+                "context": "# Agent Plan\nImplementation steps.",
+                "project_key": test_project.key,
+            },
+            headers={"X-API-Key": raw_key},
+        )
+        assert res.status_code == 200
+        data = res.json()
+        assert data["title"] == "Item With Direct Context"
+        assert data["description"] == "User requested feature"
+        assert data["context"] is not None
+        assert data["context"]["summary"] == "# Agent Plan\nImplementation steps."
+        assert data["context"]["user"] == test_user.username
+        assert data["context"]["updated_by"] == test_user.username
+        assert "timestamp" in data["context"]
+
     def test_context_unversioned_overwrite_replaces_previous_value(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
 

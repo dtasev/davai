@@ -5,6 +5,7 @@ import django
 import ninja
 from ninja import NinjaAPI, Schema, errors
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from tracker.models import (
     WorkItem,
@@ -325,6 +326,7 @@ class CreateWorkItemIn(Schema):
     target_date: Optional[datetime] = None
     sprint_id: Optional[int] = None
     release_id: Optional[int] = None
+    context: Optional[str] = None
 
 
 class UpdateWorkItemIn(Schema):
@@ -651,22 +653,26 @@ def create_work_item(request, payload: CreateWorkItemIn):
 
     status_obj = _resolve_status(project, payload.status)
 
-    item = WorkItem.objects.create(
-        project=project,
-        parent=parent,
-        key=item_key,
-        title=payload.title,
-        description=payload.description,
-        status=status_obj,
-        priority=payload.priority.upper(),
-        active_assignee=assignee,
-        created_by=user,
-        source=payload.source,
-        start_date=payload.start_date,
-        target_date=payload.target_date,
-        sprint=sprint,
-        release=release
-    )
+    with transaction.atomic():
+        item = WorkItem.objects.create(
+            project=project,
+            parent=parent,
+            key=item_key,
+            title=payload.title,
+            description=payload.description,
+            status=status_obj,
+            priority=payload.priority.upper(),
+            active_assignee=assignee,
+            created_by=user,
+            source=payload.source,
+            start_date=payload.start_date,
+            target_date=payload.target_date,
+            sprint=sprint,
+            release=release
+        )
+        if payload.context:
+            context_obj = Context.objects.create(work_item=item, user=user, summary=payload.context)
+            item.context = context_obj
     return item
 
 

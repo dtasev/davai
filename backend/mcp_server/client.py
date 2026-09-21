@@ -96,7 +96,8 @@ class DavaiClient:
         sprint_id: Optional[int] = None,
         release_id: Optional[int] = None,
         start_date: Optional[str] = None,
-        target_date: Optional[str] = None
+        target_date: Optional[str] = None,
+        context: Optional[str] = None
     ) -> Dict[str, Any]:
         """Create a new work item."""
         payload: Dict[str, Any] = {
@@ -120,6 +121,8 @@ class DavaiClient:
             payload["start_date"] = start_date
         if target_date is not None:
             payload["target_date"] = target_date
+        if context is not None:
+            payload["context"] = context
         return self._request("POST", "/work-items", data=payload)
 
     def update_work_item(
