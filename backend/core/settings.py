@@ -146,5 +146,35 @@ OIDC_TOKEN_URL = os.environ.get("OIDC_TOKEN_URL", f"{OIDC_ISSUER_URL}/api/oidc/t
 OIDC_AUTHORIZATION_URL = os.environ.get("OIDC_AUTHORIZATION_URL", "")
 OIDC_REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "")
 
-
-
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{asctime} [{levelname}] {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'tracker': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

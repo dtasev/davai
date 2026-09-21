@@ -167,14 +167,60 @@ class TestNinjaAPI:
         assert data["username"] == "oidc_session_user"
         assert data["email"] == "session_user@ecmwf.int"
 
+    def test_oidc_callback_logging(self, client, monkeypatch, caplog):
+        import logging
+        caplog.set_level(logging.INFO)
+
+        client.get("/api/auth/login")
+        saved_state = client.session["oidc_state"]
+
+        class MockTokenResp:
+            status = 200
+            def read(self):
+                return b'{"id_token": "dummy_jwt", "access_token": "token_123", "token_type": "Bearer"}'
+            def __enter__(self):
+                return self
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                pass
+
+        import urllib.request
+        monkeypatch.setattr(urllib.request, "urlopen", lambda req, timeout=5.0: MockTokenResp())
+
+        from tracker import views
+        monkeypatch.setattr(views, "verify_oidc_jwt", lambda token: {
+            "preferred_username": "logger_user",
+            "email": "logger_user@ecmwf.int",
+            "name": "Logger User",
+            "groups": ["dev", "admins"],
+            "sub": "user-sub-12345",
+        })
+
+        res = client.get(f"/api/auth/oidc/callback?code=test_code_123&state={saved_state}")
+        assert res.status_code == 302
+
+        info_logs = [rec.getMessage() for rec in caplog.records if rec.levelno == logging.INFO]
+        joined = "\n".join(info_logs)
+        assert "OIDC ID token claims received" in joined
+        assert "logger_user" in joined
+        assert "logger_user@ecmwf.int" in joined
+        assert "user-sub-12345" in joined
+        assert "Django successfully logged in user 'logger_user'" in joined
+
     def test_oidc_logout(self, client, test_user):
+        from tracker.auth import _AUTHELIA_SESSION_CACHE
+        _AUTHELIA_SESSION_CACHE["dummy_authelia_cookie"] = (test_user, 9999999999)
+
         client.force_login(test_user)
+        client.cookies["authelia_session"] = "dummy_authelia_cookie"
+
         me_res = client.get("/api/auth/me")
         assert me_res.status_code == 200
 
         logout_res = client.post("/api/auth/logout")
         assert logout_res.status_code == 200
         assert logout_res.json() == {"ok": True}
+        assert "dummy_authelia_cookie" not in _AUTHELIA_SESSION_CACHE
+        assert logout_res.cookies["authelia_session"].value == ""
 
         me_after = client.get("/api/auth/me")
         assert me_after.status_code == 401

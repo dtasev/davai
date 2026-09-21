@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import secrets
 from typing import Optional, Tuple
 from django.utils import timezone
@@ -12,6 +13,8 @@ from jwt import PyJWKClient
 from django.conf import settings
 from ninja.security import APIKeyHeader, APIKeyQuery, APIKeyCookie, HttpBearer, django_auth
 from tracker.models import APIKey
+
+logger = logging.getLogger(__name__)
 
 def hash_key(raw_key: str) -> str:
     """Compute SHA-256 hash of a raw API key token."""
@@ -185,6 +188,39 @@ def verify_authelia_session(session_cookie: str, request) -> Optional[User]:
 
     return None
 
+def invalidate_authelia_session(session_cookie: Optional[str], request=None) -> None:
+    """
+    Invalidate an Authelia session from local cache and call Authelia's logout endpoint if reachable.
+    """
+    if not session_cookie:
+        return
+
+    _AUTHELIA_SESSION_CACHE.pop(session_cookie, None)
+
+    authelia_logout_url = getattr(settings, "AUTHELIA_LOGOUT_URL", "http://authelia:9091/api/logout")
+    forwarded_host = getattr(settings, "OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
+    if request:
+        try:
+            forwarded_host = request.get_host() or forwarded_host
+        except Exception:
+            pass
+
+    try:
+        req = urllib.request.Request(
+            authelia_logout_url,
+            data=b"",
+            headers={
+                "Cookie": f"authelia_session={session_cookie}",
+                "X-Forwarded-Proto": "https",
+                "X-Forwarded-Host": forwarded_host,
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=2.0) as resp:
+            pass
+    except Exception:
+        pass
+
 class AutheliaSessionAuth(APIKeyCookie):
     """
     Authenticates requests carrying an 'authelia_session' cookie.
@@ -240,22 +276,12 @@ def verify_oidc_jwt(token: str) -> Optional[dict]:
 
 _OIDC_USERINFO_CACHE = {}
 
-def verify_oidc_userinfo(token: str, request=None) -> Optional[User]:
+def fetch_oidc_userinfo(token: str, request=None) -> Optional[dict]:
     """
-    Validate an opaque OIDC access token (e.g. authelia_at_...) via Authelia userinfo endpoint.
-    Caches verified users for 60 seconds to minimize HTTP round-trips.
+    Fetch raw userinfo claims dict from Authelia/OIDC userinfo endpoint.
     """
     if not token:
         return None
-
-    now = time.time()
-    cached = _OIDC_USERINFO_CACHE.get(token)
-    if cached:
-        user, expires_at = cached
-        if now < expires_at:
-            return user
-        else:
-            _OIDC_USERINFO_CACHE.pop(token, None)
 
     userinfo_url = getattr(
         settings,
@@ -280,20 +306,46 @@ def verify_oidc_userinfo(token: str, request=None) -> Optional[User]:
         with urllib.request.urlopen(req, timeout=3.0) as resp:
             if resp.status == 200:
                 data = json.loads(resp.read().decode("utf-8"))
-                username = (data.get("preferred_username") or data.get("sub") or "").strip()
-                if not username:
-                    return None
-                email = data.get("email") or ""
-                name = data.get("name") or ""
-                groups_val = data.get("groups") or []
-                groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
-                user = get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
-                _OIDC_USERINFO_CACHE[token] = (user, now + 60)
-                return user
-    except Exception:
+                return data
+    except Exception as exc:
+        logger.debug("Failed to fetch OIDC userinfo: %s", exc)
         return None
 
     return None
+
+def verify_oidc_userinfo(token: str, request=None) -> Optional[User]:
+    """
+    Validate an opaque OIDC access token (e.g. authelia_at_...) via Authelia userinfo endpoint.
+    Caches verified users for 60 seconds to minimize HTTP round-trips.
+    """
+    if not token:
+        return None
+
+    now = time.time()
+    cached = _OIDC_USERINFO_CACHE.get(token)
+    if cached:
+        user, expires_at = cached
+        if now < expires_at:
+            return user
+        else:
+            _OIDC_USERINFO_CACHE.pop(token, None)
+
+    data = fetch_oidc_userinfo(token, request)
+    if not data:
+        return None
+
+    logger.info("OIDC userinfo claims received: %s", json.dumps(data, indent=2, default=str))
+
+    username = (data.get("preferred_username") or data.get("sub") or "").strip()
+    if not username:
+        return None
+    email = data.get("email") or ""
+    name = data.get("name") or ""
+    groups_val = data.get("groups") or []
+    groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
+    user = get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
+    _OIDC_USERINFO_CACHE[token] = (user, now + 60)
+    return user
 
 class JWTAuth(HttpBearer):
     """

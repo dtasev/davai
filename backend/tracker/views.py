@@ -8,7 +8,7 @@ from django.conf import settings
 from django.contrib.auth import login, logout
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect
-from tracker.auth import get_or_create_remote_user, verify_oidc_jwt
+from tracker.auth import get_or_create_remote_user, verify_oidc_jwt, invalidate_authelia_session
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +55,12 @@ def oidc_login(request: HttpRequest) -> HttpResponse:
         "nonce": nonce,
     }
     auth_url = f"{auth_endpoint}?{urllib.parse.urlencode(params)}"
+    logger.info("Initiating OIDC login redirect to %s (redirect_uri=%s)", auth_endpoint, redirect_uri)
     return redirect(auth_url)
 
 def oidc_callback(request: HttpRequest) -> HttpResponse:
     """Handle OIDC authorization code callback from the IdP."""
+    logger.info("OIDC authorization callback received: state=%s", request.GET.get("state"))
     error = request.GET.get("error")
     if error:
         desc = request.GET.get("error_description") or error
@@ -73,6 +75,7 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
 
     code = request.GET.get("code")
     if not code:
+        logger.warning("OIDC callback received without authorization code")
         return redirect("/?auth_error=Missing+authorization+code")
 
     redirect_uri = get_redirect_uri(request)
@@ -111,6 +114,13 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
         logger.exception(f"Error during OIDC token exchange: {exc}")
         return redirect("/?auth_error=Token+exchange+exception")
 
+    # Log token endpoint response structure/fields
+    token_fields_summary = {
+        k: (f"<{k} present ({len(v)} chars)>" if k in ("access_token", "id_token", "refresh_token") and isinstance(v, str) else v)
+        for k, v in data.items()
+    }
+    logger.info("OIDC token endpoint response fields: %s", json.dumps(token_fields_summary, indent=2, default=str))
+
     # Extract user identity:
     id_token = data.get("id_token")
     access_token = data.get("access_token")
@@ -121,29 +131,50 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
         if not claims:
             try:
                 claims = jwt.decode(id_token, options={"verify_signature": False})
-            except Exception:
+            except Exception as exc:
+                logger.warning(f"Could not decode ID token: {exc}")
                 claims = {}
+        logger.info("OIDC ID token claims received: %s", json.dumps(claims, indent=2, default=str))
 
-    username = (claims.get("preferred_username") or claims.get("sub") or "").strip()
-    email = claims.get("email") or ""
-    name = claims.get("name") or ""
-    groups_val = claims.get("groups") or []
+    # Also query userinfo if access_token is present to discover any additional profile fields
+    userinfo_claims = {}
+    if access_token:
+        try:
+            from tracker.auth import fetch_oidc_userinfo
+            raw_userinfo = fetch_oidc_userinfo(access_token, request) or {}
+            if raw_userinfo:
+                # Exclude mock token leaks if running in test harnesses
+                userinfo_claims = {k: v for k, v in raw_userinfo.items() if k not in ("id_token", "access_token", "refresh_token")}
+                logger.info("OIDC userinfo endpoint claims received: %s", json.dumps(userinfo_claims, indent=2, default=str))
+        except Exception as exc:
+            logger.debug(f"Could not fetch OIDC userinfo during callback: {exc}")
+
+    # Combine all fields received from OIDC (ID token claims + userinfo claims)
+    all_oidc_fields = {**userinfo_claims, **claims}
+    logger.info("OIDC all resolved user fields/claims: %s", json.dumps(all_oidc_fields, indent=2, default=str))
+
+    username = (all_oidc_fields.get("preferred_username") or all_oidc_fields.get("sub") or "").strip()
+    email = all_oidc_fields.get("email") or ""
+    name = all_oidc_fields.get("name") or ""
+    groups_val = all_oidc_fields.get("groups") or []
     groups_str = ",".join(groups_val) if isinstance(groups_val, list) else str(groups_val)
 
-    if not username and access_token:
-        from tracker.auth import verify_oidc_userinfo
-        user = verify_oidc_userinfo(access_token, request)
-        if user:
-            login(request, user)
-            next_url = request.session.pop("oidc_next", "/")
-            return redirect(next_url)
-
     if not username:
-        logger.error("Could not determine username from OIDC tokens")
+        logger.error("Could not determine username from OIDC tokens. Received fields: %s", json.dumps(all_oidc_fields, default=str))
         return redirect("/?auth_error=Could+not+identify+user")
 
     user = get_or_create_remote_user(username, email=email, name=name, groups=groups_str)
     login(request, user)
+
+    logger.info(
+        "Django successfully logged in user '%s' (id=%s, email='%s', name='%s', is_staff=%s, groups=%s) via OIDC session",
+        user.username,
+        user.id,
+        user.email,
+        user.first_name,
+        user.is_staff,
+        groups_val,
+    )
 
     # Clean up OIDC session variables
     request.session.pop("oidc_state", None)
@@ -153,8 +184,17 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
     return redirect(next_url)
 
 def oidc_logout(request: HttpRequest) -> HttpResponse:
-    """Terminate the Django session and redirect to /."""
+    """Terminate the Django session, invalidate Authelia session, and redirect or return ok."""
+    authelia_cookie = request.COOKIES.get("authelia_session")
+    if authelia_cookie:
+        invalidate_authelia_session(authelia_cookie, request)
+
     logout(request)
+
     if request.headers.get("Accept") == "application/json" or request.method == "POST":
-        return JsonResponse({"ok": True})
-    return redirect("/")
+        response = JsonResponse({"ok": True})
+    else:
+        response = redirect("/")
+
+    response.delete_cookie("authelia_session", path="/")
+    return response

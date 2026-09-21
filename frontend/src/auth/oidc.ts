@@ -22,6 +22,11 @@ export async function logoutOidc(): Promise<void> {
     } catch {
       // Ignored
     }
+    try {
+      await apiFetch('/authelia/api/logout', { method: 'POST' })
+    } catch {
+      // Ignored
+    }
     // Clean any legacy tokens from localStorage
     localStorage.removeItem('davai_oidc_access_token')
     localStorage.removeItem('davai_oidc_id_token')
