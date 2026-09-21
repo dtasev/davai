@@ -68,19 +68,18 @@ export function Header({
               <img
                 src="/davai-2-small.png"
                 alt="Davai"
-                className={`w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
-                  isHovered ? 'opacity-0' : 'opacity-100'
-                }`}
+                className={`w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${isHovered ? 'opacity-0' : 'opacity-100'
+                  }`}
               />
               <video
                 ref={videoRef}
-                src="/davai-8.webm"
+                src="/davai-14.webm"
                 muted
                 playsInline
+                loop
                 preload="auto"
-                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
-                  isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
+                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
                 style={{ mixBlendMode: 'screen' }}
               />
             </div>
