@@ -36,7 +36,7 @@ export function Header({
       videoRef.current.currentTime = 0
       const playPromise = videoRef.current.play()
       if (playPromise !== undefined) {
-        playPromise.catch(() => {})
+        playPromise.catch(() => { })
       }
     }
   }
@@ -68,20 +68,18 @@ export function Header({
               <img
                 src="/davai-2-small.png"
                 alt="Davai"
-                className={`w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
-                  isHovered ? 'opacity-0' : 'opacity-100'
-                }`}
+                className={`w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${isHovered ? 'opacity-0' : 'opacity-100'
+                  }`}
               />
               <video
                 ref={videoRef}
-                src="/davai-8.webm"
+                src="/davai-10.webm"
                 muted
                 playsInline
                 loop
                 preload="auto"
-                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${
-                  isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
+                className={`absolute inset-0 w-full h-full object-contain transition-opacity duration-200 group-hover:scale-105 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                  }`}
                 style={{ mixBlendMode: 'screen' }}
               />
             </div>
@@ -119,11 +117,10 @@ export function Header({
           <nav className="flex items-center gap-1 bg-zinc-900/80 p-1 rounded-lg border border-zinc-800 shrink-0">
             <Link
               to="/"
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${
-                isDashboard
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${isDashboard
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-              }`}
+                }`}
             >
               <LayoutDashboard className="w-3.5 h-3.5" />
               <span>Dashboard</span>
@@ -131,11 +128,10 @@ export function Header({
 
             <Link
               to="/settings"
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${
-                isSettings
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${isSettings
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
-              }`}
+                }`}
             >
               <Key className="w-3.5 h-3.5" />
               <span>Settings &amp; API Keys</span>
