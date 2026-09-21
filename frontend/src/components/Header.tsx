@@ -41,9 +41,9 @@ export function Header({
             className="flex items-center gap-2.5 group shrink-0"
           >
             <img
-              src="/davai-smoll.svg"
+              src="/davai-2-small.png"
               alt="Davai"
-              className="w-8 h-8 rounded-lg object-contain group-hover:scale-105 transition shadow-sm"
+              className="h-8 w-auto object-contain group-hover:scale-105 transition drop-shadow-sm"
             />
             <div className="flex items-center gap-1.5">
               <span className="font-bold text-base tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-zinc-200 to-zinc-400">
