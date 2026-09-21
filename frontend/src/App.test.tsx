@@ -54,6 +54,31 @@ describe('Davai Frontend App with React Router', () => {
       ],
     }
 
+    const mockWorkItem2 = {
+      id: 2,
+      key: 'DAV-2',
+      parent_key: null,
+      title: 'Frontend Kanban Board',
+      description: 'Interactive board',
+      status: 'todo',
+      priority: 'MEDIUM',
+      project_key: 'DAV',
+      active_assignee: 'john_doe',
+      created_by: 'admin',
+      updated_by: null,
+      assigned: ['john_doe'],
+      watching: [],
+      source: '',
+      start_date: null,
+      target_date: null,
+      sprint_id: 1,
+      release_id: 1,
+      created: '2026-09-20T00:00:00Z',
+      updated: '2026-09-20T00:00:00Z',
+      context: null,
+      progress: [],
+    }
+
     // Mock global fetch for backend API calls
     globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
       const urlStr = url.toString()
@@ -131,6 +156,8 @@ describe('Davai Frontend App with React Router', () => {
           if (body.release_id !== undefined) mockWorkItem.release_id = body.release_id === 0 ? null : body.release_id
           if (body.start_date !== undefined) mockWorkItem.start_date = body.start_date
           if (body.target_date !== undefined) mockWorkItem.target_date = body.target_date
+          if (body.active_assignee_username !== undefined)
+            mockWorkItem.active_assignee = body.active_assignee_username || null
           return Promise.resolve({
             ok: true,
             json: () =>
@@ -198,6 +225,25 @@ describe('Davai Frontend App with React Router', () => {
         } as Response)
       }
 
+      if (urlStr.includes('/api/users')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve([
+              { id: 1, username: 'admin' },
+              { id: 2, username: 'john_doe' },
+              { id: 3, username: 'jane_smith' },
+            ]),
+        } as Response)
+      }
+
+      if (urlStr.includes('/api/work-items/DAV-2')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockWorkItem2),
+        } as Response)
+      }
+
       if (urlStr.includes('/api/work-items/DAV-1') || urlStr.includes('/api/work-items?project_key=DAV')) {
         if (urlStr.includes('/api/work-items/DAV-1')) {
           return Promise.resolve({
@@ -207,7 +253,7 @@ describe('Davai Frontend App with React Router', () => {
         }
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([mockWorkItem]),
+          json: () => Promise.resolve([mockWorkItem, mockWorkItem2]),
         } as Response)
       }
 
@@ -1033,6 +1079,128 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('work-item-start-date-input')).toHaveValue('2026-09-28')
       expect(screen.getByTestId('work-item-target-date-input')).toHaveValue('2026-10-10')
     })
+  })
+
+  it('supports assignee dropdown with lazy loading and updates work item assignee in WorkItemDetailModal', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    const workItemCard = screen.getByTestId('work-item-DAV-1')
+    await act(async () => {
+      fireEvent.click(workItemCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-assignee-select')).toBeInTheDocument()
+    })
+
+    const assigneeSelect = screen.getByTestId('work-item-assignee-select')
+    // Defaults to assigned user 'admin'
+    expect(assigneeSelect).toHaveValue('admin')
+
+    // Before clicking/focusing, only Unassigned and admin are present
+    const initialOptions = within(assigneeSelect).getAllByRole('option')
+    expect(initialOptions.map(o => (o as HTMLOptionElement).value)).toEqual(['', 'admin'])
+
+    // Clicking / focusing loads available users
+    await act(async () => {
+      fireEvent.focus(assigneeSelect)
+    })
+
+    await waitFor(() => {
+      const loadedOptions = within(assigneeSelect).getAllByRole('option')
+      expect(loadedOptions.map(o => (o as HTMLOptionElement).value)).toEqual([
+        '',
+        'admin',
+        'john_doe',
+        'jane_smith'
+      ])
+    })
+
+    // Assign to john_doe
+    await act(async () => {
+      fireEvent.change(assigneeSelect, { target: { value: 'john_doe' } })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-assignee-select')).toHaveValue('john_doe')
+    })
+
+    // Unassign work item
+    await act(async () => {
+      fireEvent.change(assigneeSelect, { target: { value: '' } })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-assignee-select')).toHaveValue('')
+    })
+  })
+
+  it('supports "My Issues" filter toggle on list view and board view, remembers choice in localStorage, and defaults to OFF', async () => {
+    localStorage.removeItem('davai_filter_my_issues')
+
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // 1. Both DAV-1 (assigned to admin) and DAV-2 (assigned to john_doe) are visible initially in List View
+    expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    expect(screen.getByTestId('work-item-DAV-2')).toBeInTheDocument()
+
+    // 2. Toggle button defaults to OFF
+    const myIssuesBtnList = screen.getByTestId('filter-my-issues-button')
+    expect(myIssuesBtnList).toHaveAttribute('aria-pressed', 'false')
+
+    // 3. Toggle ON in List View
+    await act(async () => {
+      fireEvent.click(myIssuesBtnList)
+    })
+
+    expect(myIssuesBtnList).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('work-item-DAV-2')).not.toBeInTheDocument()
+    expect(localStorage.getItem('davai_filter_my_issues')).toBe('true')
+
+    // 4. Switch to Board View - filter state is preserved and reflected
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('view-option-board'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+    })
+
+    const myIssuesBtnBoard = screen.getByTestId('filter-my-issues-button')
+    expect(myIssuesBtnBoard).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('kanban-item-DAV-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('kanban-item-DAV-2')).not.toBeInTheDocument()
+
+    // 5. Toggle OFF in Board View
+    await act(async () => {
+      fireEvent.click(myIssuesBtnBoard)
+    })
+
+    expect(myIssuesBtnBoard).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('kanban-item-DAV-1')).toBeInTheDocument()
+    expect(screen.getByTestId('kanban-item-DAV-2')).toBeInTheDocument()
+    expect(localStorage.getItem('davai_filter_my_issues')).toBe('false')
+
+    // 6. Switch back to List View - both items visible
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('view-option-list'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-list-view')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    expect(screen.getByTestId('work-item-DAV-2')).toBeInTheDocument()
   })
 
   it('renders left sidebar menu and toggles between list view and kanban board view', async () => {

@@ -16,12 +16,14 @@ import {
   Copy,
   Calendar
 } from 'lucide-react'
-import { WorkItem, Sprint, Release, ProjectStatus } from '../../types'
+import { WorkItem, Sprint, Release, ProjectStatus, UserSummary } from '../../types'
 import { PriorityBadge, StatusBadge } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+import { apiFetch } from '../../utils/apiFetch'
 
 interface WorkItemDetailModalProps {
   item: WorkItem | null
+  projectKey?: string
   sprints: Sprint[]
   releases: Release[]
   statuses: ProjectStatus[]
@@ -47,11 +49,13 @@ interface WorkItemDetailModalProps {
     release_id?: number | null
     start_date?: string | null
     target_date?: string | null
+    active_assignee_username?: string | null
   }) => Promise<void>
 }
 
 export function WorkItemDetailModal({
   item,
+  projectKey,
   sprints,
   releases,
   statuses,
@@ -82,7 +86,29 @@ export function WorkItemDetailModal({
   const [editTargetDate, setEditTargetDate] = useState(
     item?.target_date ? item.target_date.slice(0, 10) : ''
   )
+  const [editAssignee, setEditAssignee] = useState<string>(item?.active_assignee || '')
   const [isSavingDetails, setIsSavingDetails] = useState(false)
+
+  // Users lazy loading state
+  const [availableUsers, setAvailableUsers] = useState<UserSummary[] | null>(null)
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+
+  const handleLoadUsers = async () => {
+    if (availableUsers !== null || isLoadingUsers) return
+    setIsLoadingUsers(true)
+    try {
+      const proj = projectKey || item?.project_key || ''
+      const res = await apiFetch(`/api/users?project=${encodeURIComponent(proj)}`)
+      if (res.ok) {
+        const data: UserSummary[] = await res.json()
+        setAvailableUsers(data)
+      }
+    } catch (err) {
+      console.error('Failed to load users', err)
+    } finally {
+      setIsLoadingUsers(false)
+    }
+  }
 
   // Edit context state
   const [isEditingContext, setIsEditingContext] = useState(false)
@@ -174,6 +200,7 @@ export function WorkItemDetailModal({
       setEditReleaseId(item.release_id ?? null)
       setEditStartDate(item.start_date ? item.start_date.slice(0, 10) : '')
       setEditTargetDate(item.target_date ? item.target_date.slice(0, 10) : '')
+      setEditAssignee(item.active_assignee || '')
     }
   }, [
     item?.key,
@@ -185,7 +212,8 @@ export function WorkItemDetailModal({
     item?.sprint_id,
     item?.release_id,
     item?.start_date,
-    item?.target_date
+    item?.target_date,
+    item?.active_assignee
   ])
 
   if (!item) return null
@@ -201,7 +229,8 @@ export function WorkItemDetailModal({
         sprint_id: editSprintId === null ? 0 : editSprintId,
         release_id: editReleaseId === null ? 0 : editReleaseId,
         start_date: editStartDate ? editStartDate : null,
-        target_date: editTargetDate ? editTargetDate : null
+        target_date: editTargetDate ? editTargetDate : null,
+        active_assignee_username: editAssignee
       })
       setIsEditingDetails(false)
     } finally {
@@ -218,8 +247,18 @@ export function WorkItemDetailModal({
       setEditReleaseId(item.release_id ?? null)
       setEditStartDate(item.start_date ? item.start_date.slice(0, 10) : '')
       setEditTargetDate(item.target_date ? item.target_date.slice(0, 10) : '')
+      setEditAssignee(item.active_assignee || '')
     }
     setIsEditingDetails(false)
+  }
+
+  const handleAssigneeChange = async (e: ChangeEvent<HTMLSelectElement>) => {
+    const newAssignee = e.target.value
+    if (isEditingDetails) {
+      setEditAssignee(newAssignee)
+    } else if (onUpdateDetails) {
+      await onUpdateDetails({ active_assignee_username: newAssignee })
+    }
   }
 
   const handlePriorityChange = async (e: ChangeEvent<HTMLSelectElement>) => {
@@ -495,6 +534,70 @@ export function WorkItemDetailModal({
               )}
             </div>
 
+            {/* Assignee Selector */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+                <UserIcon className="w-3 h-3 text-zinc-400" />
+                <span>Assignee:</span>
+              </span>
+              {onUpdateDetails ? (
+                <select
+                  value={isEditingDetails ? editAssignee : (item.active_assignee || '')}
+                  onChange={handleAssigneeChange}
+                  onFocus={handleLoadUsers}
+                  onClick={handleLoadUsers}
+                  onMouseDown={handleLoadUsers}
+                  data-testid={isEditingDetails ? 'edit-work-item-assignee-select' : 'work-item-assignee-select'}
+                  aria-label="Work Item Assignee"
+                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                    (isEditingDetails ? editAssignee : item.active_assignee)
+                      ? 'text-indigo-300 bg-indigo-950/30 border-indigo-800/40'
+                      : 'text-zinc-400 bg-zinc-900 border-zinc-800'
+                  } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
+                >
+                  <option value="" className="bg-zinc-900 text-zinc-400">
+                    Unassigned
+                  </option>
+                  {availableUsers === null ? (
+                    (isEditingDetails ? editAssignee : item.active_assignee) ? (
+                      <option
+                        value={isEditingDetails ? editAssignee : item.active_assignee!}
+                        className="bg-zinc-900 text-zinc-200"
+                      >
+                        {isEditingDetails ? editAssignee : item.active_assignee}
+                      </option>
+                    ) : null
+                  ) : (
+                    <>
+                      {availableUsers.map(u => (
+                        <option key={u.id} value={u.username} className="bg-zinc-900 text-zinc-200">
+                          {u.username}
+                        </option>
+                      ))}
+                      {(isEditingDetails ? editAssignee : item.active_assignee) &&
+                        !availableUsers.some(
+                          u => u.username === (isEditingDetails ? editAssignee : item.active_assignee)
+                        ) && (
+                          <option
+                            value={isEditingDetails ? editAssignee : item.active_assignee!}
+                            className="bg-zinc-900 text-zinc-200"
+                          >
+                            {isEditingDetails ? editAssignee : item.active_assignee}
+                          </option>
+                        )}
+                    </>
+                  )}
+                </select>
+              ) : item.active_assignee ? (
+                <div className="flex items-center gap-1 text-[10px] text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/30 leading-none">
+                  <UserIcon className="w-2.5 h-2.5" />
+                  <span>{item.active_assignee}</span>
+                </div>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">Unassigned</span>
+              )}
+            </div>
+
             {/* Sprint Selector */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-zinc-500 flex items-center gap-1">
@@ -623,12 +726,6 @@ export function WorkItemDetailModal({
           </div>
 
           <div className="flex items-center gap-2.5 text-xs text-zinc-400">
-            {item.active_assignee && (
-              <span className="flex items-center gap-1 text-[11px]">
-                <UserIcon className="w-3 h-3 text-zinc-500" />
-                <span>{item.active_assignee}</span>
-              </span>
-            )}
             <span className="flex items-center gap-1 text-[10px] text-zinc-500">
               <Clock className="w-3 h-3 text-zinc-500" />
               <span>{new Date(item.created).toLocaleDateString()}</span>

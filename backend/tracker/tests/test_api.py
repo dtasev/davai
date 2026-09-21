@@ -607,4 +607,89 @@ class TestNinjaAPI:
         assert get_wi.status_code == 200
         assert len(get_wi.json()["progress"]) == 0
 
+    def test_list_users_optimized(self, ninja_client, test_user):
+        res = ninja_client.get("/users")
+        assert res.status_code == 200
+        data = res.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+        user_item = next(u for u in data if u["username"] == test_user.username)
+        assert user_item == {"id": test_user.id, "username": test_user.username}
+
+        # Accepts project argument as well
+        res_with_project = ninja_client.get("/users?project=DAV")
+        assert res_with_project.status_code == 200
+        data_with_project = res_with_project.json()
+        assert isinstance(data_with_project, list)
+        assert any(u["username"] == test_user.username for u in data_with_project)
+
+    def test_work_item_active_assignee_assignment_and_unassignment(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+
+        # 1. Create work item without active_assignee_username -> defaults to creator (test_user)
+        create_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Assignee Test Item", "project_key": test_project.key},
+            headers={"X-API-Key": raw_key}
+        )
+        assert create_res.status_code == 200
+        item = create_res.json()
+        assert item["active_assignee"] == test_user.username
+        item_key = item["key"]
+
+        # 1b. Create explicitly unassigned work item with empty string
+        create_unassigned_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Explicitly Unassigned", "project_key": test_project.key, "active_assignee_username": ""},
+            headers={"X-API-Key": raw_key}
+        )
+        assert create_unassigned_res.status_code == 200
+        assert create_unassigned_res.json()["active_assignee"] is None
+
+        # 1c. Create explicitly unassigned work item with null
+        create_null_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Explicitly Null Assignee", "project_key": test_project.key, "active_assignee_username": None},
+            headers={"X-API-Key": raw_key}
+        )
+        assert create_null_res.status_code == 200
+        assert create_null_res.json()["active_assignee"] is None
+
+        # 2. Assign user
+        patch_res1 = ninja_client.patch(
+            f"/work-items/{item_key}",
+            json={"active_assignee_username": test_user.username},
+            headers={"X-API-Key": raw_key}
+        )
+        assert patch_res1.status_code == 200
+        assert patch_res1.json()["active_assignee"] == test_user.username
+
+        # 3. Unassign with empty string
+        patch_res2 = ninja_client.patch(
+            f"/work-items/{item_key}",
+            json={"active_assignee_username": ""},
+            headers={"X-API-Key": raw_key}
+        )
+        assert patch_res2.status_code == 200
+        assert patch_res2.json()["active_assignee"] is None
+
+        # 4. Re-assign user
+        patch_res3 = ninja_client.patch(
+            f"/work-items/{item_key}",
+            json={"active_assignee_username": test_user.username},
+            headers={"X-API-Key": raw_key}
+        )
+        assert patch_res3.status_code == 200
+        assert patch_res3.json()["active_assignee"] == test_user.username
+
+        # 5. Unassign with null
+        patch_res4 = ninja_client.patch(
+            f"/work-items/{item_key}",
+            json={"active_assignee_username": None},
+            headers={"X-API-Key": raw_key}
+        )
+        assert patch_res4.status_code == 200
+        assert patch_res4.json()["active_assignee"] is None
+
+
 

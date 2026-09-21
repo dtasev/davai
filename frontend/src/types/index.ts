@@ -81,6 +81,11 @@ export interface WorkItem {
   progress: ProgressEntry[]
 }
 
+export interface UserSummary {
+  id: number
+  username: string
+}
+
 export interface UserProfile {
   id: number
   username: string

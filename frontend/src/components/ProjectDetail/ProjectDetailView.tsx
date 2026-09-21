@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, LayoutList, Kanban } from 'lucide-react'
 import { Project, Sprint, Release, WorkItem } from '../../types'
 import { ProjectListView } from './ProjectListView'
 import { KanbanBoard } from './KanbanBoard'
+import { useOptionalApp } from '../../context/AppContext'
 
 interface ProjectDetailViewProps {
   project: Project
@@ -68,6 +70,25 @@ export function ProjectDetailView({
       } else {
         next.set('view', view)
       }
+      return next
+    })
+  }
+
+  const app = useOptionalApp()
+  const [myIssuesOnly, setMyIssuesOnly] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('davai_filter_my_issues') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  const handleToggleMyIssues = () => {
+    setMyIssuesOnly(prev => {
+      const next = !prev
+      try {
+        localStorage.setItem('davai_filter_my_issues', String(next))
+      } catch {}
       return next
     })
   }
@@ -209,6 +230,9 @@ export function ProjectDetailView({
               releases={releases}
               workItems={workItems}
               statuses={statuses}
+              myIssuesOnly={myIssuesOnly}
+              onToggleMyIssues={handleToggleMyIssues}
+              currentUsername={app?.userProfile?.username}
               onSelectSprint={onSelectSprint}
               onSelectRelease={onSelectRelease}
               onSelectWorkItem={onSelectWorkItem}
@@ -222,6 +246,9 @@ export function ProjectDetailView({
               statuses={statuses}
               sprints={sprints}
               releases={releases}
+              myIssuesOnly={myIssuesOnly}
+              onToggleMyIssues={handleToggleMyIssues}
+              currentUsername={app?.userProfile?.username}
               onSelectWorkItem={onSelectWorkItem}
               onUpdateStatus={onUpdateStatus}
               onCreateWorkItem={onCreateWorkItem}

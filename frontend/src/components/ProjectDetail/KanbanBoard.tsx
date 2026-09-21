@@ -18,6 +18,9 @@ interface KanbanBoardProps {
   statuses: ProjectStatus[]
   sprints: Sprint[]
   releases: Release[]
+  myIssuesOnly?: boolean
+  onToggleMyIssues?: () => void
+  currentUsername?: string
   onSelectWorkItem: (item: WorkItem) => void
   onUpdateStatus?: (key: string, newStatus: string) => Promise<void>
   onCreateWorkItem?: (data: {
@@ -36,6 +39,9 @@ export function KanbanBoard({
   statuses,
   sprints,
   releases,
+  myIssuesOnly,
+  onToggleMyIssues,
+  currentUsername,
   onSelectWorkItem,
   onUpdateStatus,
   onCreateWorkItem
@@ -43,6 +49,28 @@ export function KanbanBoard({
   const [search, setSearch] = useState('')
   const [sprintFilter, setSprintFilter] = useState<string>('ALL')
   const [draggedOverStatus, setDraggedOverStatus] = useState<string | null>(null)
+  const [internalMyIssuesOnly, setInternalMyIssuesOnly] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('davai_filter_my_issues') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  const isMyIssuesOnly = myIssuesOnly !== undefined ? myIssuesOnly : internalMyIssuesOnly
+  const handleToggle = () => {
+    if (onToggleMyIssues) {
+      onToggleMyIssues()
+    } else {
+      setInternalMyIssuesOnly(prev => {
+        const next = !prev
+        try {
+          localStorage.setItem('davai_filter_my_issues', String(next))
+        } catch {}
+        return next
+      })
+    }
+  }
 
   // Create Work Item Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -81,9 +109,16 @@ export function KanbanBoard({
           ? item.sprint_id == null
           : item.sprint_id === parseInt(sprintFilter, 10)
 
-      return matchesSearch && matchesSprint
+      const matchesMyIssues =
+        !isMyIssuesOnly ||
+        (currentUsername && (
+          (item.active_assignee && item.active_assignee.toLowerCase() === currentUsername.toLowerCase()) ||
+          (Array.isArray(item.assigned) && item.assigned.some(u => u.toLowerCase() === currentUsername.toLowerCase()))
+        ))
+
+      return matchesSearch && matchesSprint && matchesMyIssues
     })
-  }, [workItems, search, sprintFilter])
+  }, [workItems, search, sprintFilter, isMyIssuesOnly, currentUsername])
 
   // Group items by status
   const itemsByStatus = useMemo(() => {
@@ -205,6 +240,23 @@ export function KanbanBoard({
               className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-32 sm:w-44"
             />
           </div>
+
+          {/* My Issues Filter Toggle */}
+          <button
+            type="button"
+            onClick={handleToggle}
+            data-testid="filter-my-issues-button"
+            aria-pressed={isMyIssuesOnly}
+            title={isMyIssuesOnly ? 'Showing my issues (click to show all)' : 'Filter by issues assigned to me'}
+            className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition shrink-0 ${
+              isMyIssuesOnly
+                ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300 shadow-sm'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
+            }`}
+          >
+            <UserIcon className={`w-3.5 h-3.5 ${isMyIssuesOnly ? 'text-indigo-400' : 'text-zinc-500'}`} />
+            <span>My Issues</span>
+          </button>
 
           {/* Sprint Filter */}
           {sprints.length > 0 && (

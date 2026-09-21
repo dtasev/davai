@@ -44,6 +44,7 @@ export interface ProjectDetailOutletContext {
       release_id?: number | null
       start_date?: string | null
       target_date?: string | null
+      active_assignee_username?: string | null
     }
   ) => Promise<WorkItem>
 }
@@ -398,6 +399,7 @@ export function ProjectDetailRoute() {
       release_id?: number | null
       start_date?: string | null
       target_date?: string | null
+      active_assignee_username?: string | null
     }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}`, {

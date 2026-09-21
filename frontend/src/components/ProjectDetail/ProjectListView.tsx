@@ -8,6 +8,9 @@ interface ProjectListViewProps {
   releases: Release[]
   workItems: WorkItem[]
   statuses: ProjectStatus[]
+  myIssuesOnly?: boolean
+  onToggleMyIssues?: () => void
+  currentUsername?: string
   onSelectSprint: (sprint: Sprint) => void
   onSelectRelease: (release: Release) => void
   onSelectWorkItem: (item: WorkItem) => void
@@ -40,6 +43,9 @@ export function ProjectListView({
   releases,
   workItems,
   statuses,
+  myIssuesOnly,
+  onToggleMyIssues,
+  currentUsername,
   onSelectSprint,
   onSelectRelease,
   onSelectWorkItem,
@@ -75,6 +81,9 @@ export function ProjectListView({
           sprints={sprints}
           releases={releases}
           statuses={statuses}
+          myIssuesOnly={myIssuesOnly}
+          onToggleMyIssues={onToggleMyIssues}
+          currentUsername={currentUsername}
           onSelectWorkItem={onSelectWorkItem}
           onCreateWorkItem={onCreateWorkItem}
         />

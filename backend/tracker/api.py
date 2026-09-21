@@ -36,6 +36,11 @@ class UserOut(Schema):
     is_staff: bool
 
 
+class UserSummaryOut(Schema):
+    id: int
+    username: str
+
+
 class ProjectStatusOut(Schema):
     id: int
     name: str
@@ -438,6 +443,17 @@ def revoke_user_api_key(request, key_id: int):
 
 
 # ---------------------------------------------------------------------------
+# User Endpoints
+# ---------------------------------------------------------------------------
+
+@api.get("/users", response=List[UserSummaryOut], summary="List Assignable Users")
+def list_users(request, project: Optional[str] = None, project_key: Optional[str] = None):
+    # 'project' and 'project_key' arguments are accepted for future project-level assignee scoping,
+    # but currently unused - all projects see all users as assignees.
+    return User.objects.only("id", "username").order_by("username").all()
+
+
+# ---------------------------------------------------------------------------
 # Project Endpoints
 # ---------------------------------------------------------------------------
 
@@ -675,8 +691,8 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
         item.status = _resolve_status(item.project, payload.status)
     if payload.priority is not None:
         item.priority = payload.priority.upper()
-    if payload.active_assignee_username is not None:
-        if payload.active_assignee_username == "":
+    if "active_assignee_username" in payload.model_fields_set:
+        if not payload.active_assignee_username:
             item.active_assignee = None
         else:
             assignee = User.objects.filter(username=payload.active_assignee_username).first()

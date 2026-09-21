@@ -139,6 +139,7 @@ export function WorkItemModalRoute() {
     release_id?: number | null
     start_date?: string | null
     target_date?: string | null
+    active_assignee_username?: string | null
   }) => {
     const keyToUpdate = foundItem?.key || itemKey!
     const updated = await handleUpdateWorkItemDetails(keyToUpdate, data)
@@ -148,6 +149,7 @@ export function WorkItemModalRoute() {
   return (
     <WorkItemDetailModal
       item={foundItem}
+      projectKey={projectKey}
       sprints={sprints}
       releases={releases}
       statuses={project?.statuses || []}
