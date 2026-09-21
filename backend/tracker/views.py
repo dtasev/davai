@@ -1,3 +1,5 @@
+import base64
+import hashlib
 import json
 import logging
 import secrets
@@ -35,9 +37,15 @@ def oidc_login(request: HttpRequest) -> HttpResponse:
     """Initiate OIDC authorization flow by redirecting the user to the IdP."""
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
+    # PKCE code_verifier (43-128 chars urlsafe) and code_challenge (S256)
+    code_verifier = secrets.token_urlsafe(64)
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode("ascii")).digest()
+    ).decode("ascii").rstrip("=")
 
     request.session["oidc_state"] = state
     request.session["oidc_nonce"] = nonce
+    request.session["oidc_code_verifier"] = code_verifier
 
     # Capture next redirect target if provided
     next_target = request.GET.get("next") or request.GET.get("rd") or "/"
@@ -53,6 +61,8 @@ def oidc_login(request: HttpRequest) -> HttpResponse:
         "redirect_uri": redirect_uri,
         "state": state,
         "nonce": nonce,
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
     }
     auth_url = f"{auth_endpoint}?{urllib.parse.urlencode(params)}"
     logger.info("Initiating OIDC login redirect to %s (redirect_uri=%s)", auth_endpoint, redirect_uri)
@@ -81,14 +91,19 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
     redirect_uri = get_redirect_uri(request)
     token_url = getattr(settings, "OIDC_TOKEN_URL", f"{settings.OIDC_ISSUER_URL}/api/oidc/token")
 
-    # Exchange authorization code for tokens using client credentials
-    payload = urllib.parse.urlencode({
+    # Exchange authorization code for tokens using client credentials (and PKCE code_verifier if present)
+    token_params = {
         "grant_type": "authorization_code",
         "code": code,
         "redirect_uri": redirect_uri,
         "client_id": settings.OIDC_CLIENT_ID,
         "client_secret": settings.OIDC_CLIENT_SECRET,
-    }).encode("utf-8")
+    }
+    code_verifier = request.session.get("oidc_code_verifier")
+    if code_verifier:
+        token_params["code_verifier"] = code_verifier
+
+    payload = urllib.parse.urlencode(token_params).encode("utf-8")
 
     forwarded_host = getattr(settings, "OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
     if request:
@@ -175,6 +190,7 @@ def oidc_callback(request: HttpRequest) -> HttpResponse:
     # Clean up OIDC session variables
     request.session.pop("oidc_state", None)
     request.session.pop("oidc_nonce", None)
+    request.session.pop("oidc_code_verifier", None)
 
     next_url = request.session.pop("oidc_next", "/")
     return redirect(next_url)

@@ -127,7 +127,10 @@ class TestNinjaAPI:
         assert response.status_code == 302
         assert "/api/oidc/authorization" in response.url
         assert "client_id=davai" in response.url
+        assert "code_challenge=" in response.url
+        assert "code_challenge_method=S256" in response.url
         assert client.session.get("oidc_state") is not None
+        assert client.session.get("oidc_code_verifier") is not None
 
     def test_oidc_callback_flow(self, client, monkeypatch):
         # 1. Initiate login to set session state
