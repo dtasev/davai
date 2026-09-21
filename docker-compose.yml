@@ -44,6 +44,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB:-davai}
       - POSTGRES_USER=${POSTGRES_USER:-davai}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-davai_dev_secret_password_6477}
+      - OIDC_ISSUER_URL=${OIDC_ISSUER_URL:-https://davai.dtasev.co.uk/authelia}
     restart: unless-stopped
 
   frontend:

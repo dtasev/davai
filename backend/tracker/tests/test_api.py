@@ -136,21 +136,31 @@ class TestNinjaAPI:
         state = list(states.keys())[0]
         assert states[state].get("code_verifier") is not None
 
+    def test_oidc_login_redirect_with_forwarded_headers(self, client):
+        response = client.get(
+            "/api/auth/login",
+            HTTP_X_FORWARDED_PROTO="https",
+            HTTP_HOST="davai.dtasev.co.uk"
+        )
+        assert response.status_code == 302
+        assert response.url.startswith("https://davai.dtasev.co.uk/authelia/api/oidc/authorization?")
+        assert "redirect_uri=https%3A%2F%2Fdavai.dtasev.co.uk%2Fapi%2Fauth%2Foidc%2Fcallback" in response.url
+
     def test_oidc_callback_flow(self, client, monkeypatch):
         # 1. Initiate login to set session state
         client.get("/api/auth/login")
         states = client.session.get("oidc_states")
         saved_state = list(states.keys())[0]
 
-        # 2. Mock token exchange and verify_token in OIDCAuthenticationBackend
-        from mozilla_django_oidc.auth import OIDCAuthenticationBackend
+        # 2. Mock token exchange and verify_token in DavaiOIDCAuthenticationBackend
+        from tracker.auth import DavaiOIDCAuthenticationBackend
         monkeypatch.setattr(
-            OIDCAuthenticationBackend,
+            DavaiOIDCAuthenticationBackend,
             "get_token",
             lambda self, payload: {"id_token": "dummy_jwt", "access_token": "token_123"}
         )
         monkeypatch.setattr(
-            OIDCAuthenticationBackend,
+            DavaiOIDCAuthenticationBackend,
             "verify_token",
             lambda self, id_token, **kwargs: {
                 "preferred_username": "oidc_session_user",
@@ -160,7 +170,7 @@ class TestNinjaAPI:
             }
         )
         monkeypatch.setattr(
-            OIDCAuthenticationBackend,
+            DavaiOIDCAuthenticationBackend,
             "get_userinfo",
             lambda self, access_token, id_token, payload: {
                 "preferred_username": "oidc_session_user",

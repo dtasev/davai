@@ -138,29 +138,12 @@ try:
         Maps OIDC claims (preferred_username, nickname, email, name, groups) to Django Users.
         """
         def get_userinfo(self, access_token, id_token, payload):
+            """
+            Extract user details, combining ID token claims with userinfo claims if available.
+            """
             claims = dict(payload) if payload else {}
-            userinfo_url = self.OIDC_OP_USER_ENDPOINT
-            forwarded_host = getattr(settings, "OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
-            if self.request:
-                try:
-                    forwarded_host = self.request.get_host() or forwarded_host
-                except Exception:
-                    pass
-            headers = {
-                "Authorization": f"Bearer {access_token}",
-                "X-Forwarded-Proto": "https",
-                "X-Forwarded-Host": forwarded_host,
-            }
             try:
-                response = requests.get(
-                    userinfo_url,
-                    headers=headers,
-                    verify=self.get_settings("OIDC_VERIFY_SSL", True),
-                    timeout=self.get_settings("OIDC_TIMEOUT", 5.0),
-                    proxies=self.get_settings("OIDC_PROXY", None),
-                )
-                response.raise_for_status()
-                user_info = response.json()
+                user_info = super().get_userinfo(access_token, id_token, payload)
                 if isinstance(user_info, dict):
                     claims.update(user_info)
             except Exception as exc:
