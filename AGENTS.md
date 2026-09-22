@@ -30,6 +30,15 @@ Run a specific test suite:
 docker compose exec frontend npm test -- --run src/App.test.tsx
 ```
 
+### Frontend Typecheck & Production Build (Vite / TypeScript)
+
+`vitest` runs tests via Vite transforms and does **not** execute `tsc`. Type errors (such as `TS6133` unused variables/imports or type mismatches) will not fail `npm test`, but will break the production container build (`tsc -b && vite build`).
+
+Always verify the frontend build locally before committing or deploying:
+```bash
+docker compose exec frontend npm run build
+```
+
 ## Running Django Management Commands
 
 Execute management commands inside the backend container:
