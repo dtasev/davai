@@ -37,7 +37,7 @@ interface WorkItemDetailModalProps {
   projectKey?: string
   sprints: Sprint[]
   releases: Release[]
-  statuses: ProjectStatus[]
+  statuses?: ProjectStatus[]
   onClose: () => void
   onUpdateStatus?: (key: string, newStatus: string) => Promise<void>
   onUpdateContext?: (key: string, contextText: string) => Promise<void>
@@ -69,9 +69,7 @@ export function WorkItemDetailModal({
   projectKey,
   sprints,
   releases,
-  statuses,
   onClose,
-  onUpdateStatus,
   onUpdateContext,
   onAddProgress,
   onUpdateProgress,
