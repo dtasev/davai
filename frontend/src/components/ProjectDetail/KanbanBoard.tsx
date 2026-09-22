@@ -9,7 +9,7 @@ import {
   GitCommit,
   Filter
 } from 'lucide-react'
-import { WorkItem, Sprint, Release, ProjectStatus } from '../../types'
+import { WorkItem, Sprint, Release, ProjectStatus, DEFAULT_PROJECT_STATUSES } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 
@@ -88,14 +88,7 @@ export function KanbanBoard({
     if (statuses && statuses.length > 0) {
       return [...statuses].sort((a, b) => a.order - b.order)
     }
-    return [
-      { id: 1, name: 'todo', order: 1, is_default: true },
-      { id: 2, name: 'planned', order: 2, is_default: false },
-      { id: 3, name: 'step completed', order: 3, is_default: false },
-      { id: 4, name: 'blocked', order: 4, is_default: false },
-      { id: 5, name: 'awaiting review', order: 5, is_default: false },
-      { id: 6, name: 'done', order: 6, is_default: false }
-    ]
+    return DEFAULT_PROJECT_STATUSES
   }, [statuses])
 
   const filteredItems = useMemo(() => {

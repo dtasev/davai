@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, LayoutList, Kanban } from 'lucide-react'
-import { Project, Sprint, Release, WorkItem } from '../../types'
+import { Project, Sprint, Release, WorkItem, DEFAULT_PROJECT_STATUSES } from '../../types'
 import { ProjectListView } from './ProjectListView'
 import { KanbanBoard } from './KanbanBoard'
 import { useOptionalApp } from '../../context/AppContext'
@@ -96,11 +96,7 @@ export function ProjectDetailView({
   // Quick stats by status
   const statuses = project.statuses && project.statuses.length > 0
     ? project.statuses
-    : [
-        { id: 1, name: 'todo', order: 1, is_default: true },
-        { id: 2, name: 'in progress', order: 2, is_default: false },
-        { id: 3, name: 'done', order: 3, is_default: false }
-      ]
+    : DEFAULT_PROJECT_STATUSES
 
   return (
     <div className="space-y-6" data-testid="project-detail-view">

@@ -8,8 +8,8 @@ import {
   Sparkles,
   GitCommit
 } from 'lucide-react'
-import { WorkItem, Sprint, Release, ProjectStatus } from '../../types'
-import { PriorityBadge, StatusBadge } from '../Common/Badge'
+import { WorkItem, Sprint, Release, ProjectStatus, DEFAULT_PROJECT_STATUSES } from '../../types'
+import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 
 interface WorkItemListProps {
@@ -69,10 +69,17 @@ export function WorkItemList({
     }
   }
 
+  const effectiveStatuses = useMemo(() => {
+    if (statuses && statuses.length > 0) {
+      return [...statuses].sort((a, b) => a.order - b.order)
+    }
+    return DEFAULT_PROJECT_STATUSES
+  }, [statuses])
+
   // Form state
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [status, setStatus] = useState(statuses[0]?.name || 'todo')
+  const [status, setStatus] = useState(effectiveStatuses[0]?.name || 'todo')
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
   const [parentKey, setParentKey] = useState('')
   const [sprintId, setSprintId] = useState<string>('')
@@ -88,7 +95,9 @@ export function WorkItemList({
 
       const matchesStatus =
         filterStatus === 'ALL' ||
-        item.status.toLowerCase() === filterStatus.toLowerCase()
+        item.status.toLowerCase() === filterStatus.toLowerCase() ||
+        ((filterStatus.toLowerCase() === 'in progress' || filterStatus.toLowerCase() === 'step completed') &&
+          (item.status.toLowerCase() === 'in progress' || item.status.toLowerCase() === 'step completed'))
 
       const matchesMyIssues =
         !isMyIssuesOnly ||
@@ -187,9 +196,9 @@ export function WorkItemList({
               className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
             >
               <option value="ALL">All Statuses</option>
-              {statuses.map(st => (
-                <option key={st.id} value={st.name}>
-                  {st.name}
+              {effectiveStatuses.map(st => (
+                <option key={st.id || st.name} value={st.name}>
+                  {formatStatus(st.name)}
                 </option>
               ))}
             </select>
@@ -352,9 +361,9 @@ export function WorkItemList({
                 onChange={e => setStatus(e.target.value)}
                 className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
-                {statuses.map(st => (
-                  <option key={st.id} value={st.name}>
-                    {st.name}
+                {effectiveStatuses.map(st => (
+                  <option key={st.id || st.name} value={st.name}>
+                    {formatStatus(st.name)}
                   </option>
                 ))}
               </select>

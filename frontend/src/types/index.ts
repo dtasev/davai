@@ -44,16 +44,40 @@ export interface ContextData {
   timestamp: string
 }
 
-export type ProgressStatus =
-  | 'todo'
-  | 'planned'
-  | 'step completed'
-  | 'blocked'
-  | 'failed'
-  | 'cancelled'
-  | 'awaiting review'
-  | 'done'
-  | string
+export const STANDARD_STATUSES = [
+  'todo',
+  'planned',
+  'step completed',
+  'blocked',
+  'awaiting review',
+  'done',
+  'cancelled'
+] as const
+
+export const ALL_PROGRESS_STATUSES = [
+  'step completed',
+  'planned',
+  'blocked',
+  'awaiting review',
+  'done',
+  'failed',
+  'cancelled',
+  'todo'
+] as const
+
+export type StandardStatus = (typeof STANDARD_STATUSES)[number]
+export type ProgressStatus = (typeof ALL_PROGRESS_STATUSES)[number] | string
+
+export const DEFAULT_PROJECT_STATUSES: ProjectStatus[] = STANDARD_STATUSES.map(
+  (name, index) => ({
+    id: index + 1,
+    name,
+    order: index,
+    is_default: name === 'todo'
+  })
+)
+
+export const PROGRESS_STATUS_OPTIONS: string[] = [...ALL_PROGRESS_STATUSES]
 
 export interface ProgressEntry {
   id: number

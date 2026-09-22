@@ -58,14 +58,21 @@ class ProjectStatus(models.Model):
         return f"{self.project.key}: {self.name}"
 
 
+STANDARD_STATUSES = (
+    "todo",
+    "planned",
+    "step completed",
+    "blocked",
+    "awaiting review",
+    "done",
+    "cancelled",
+)
+
+ALL_PROGRESS_STATUSES = STANDARD_STATUSES + ("failed",)
+
 DEFAULT_PROJECT_STATUSES = [
-    ("todo", True, 0),
-    ("planned", False, 1),
-    ("step completed", False, 2),
-    ("blocked", False, 3),
-    ("awaiting review", False, 4),
-    ("done", False, 5),
-    ("cancelled", False, 6),
+    (name, name == "todo", order)
+    for order, name in enumerate(STANDARD_STATUSES)
 ]
 
 
@@ -165,16 +172,7 @@ class Context(models.Model):
 
 
 class Progress(models.Model):
-    STATUS_CHOICES = [
-        ("todo", "Todo"),
-        ("planned", "Planned"),
-        ("step completed", "Step Completed"),
-        ("blocked", "Blocked"),
-        ("failed", "Failed"),
-        ("cancelled", "Cancelled"),
-        ("awaiting review", "Awaiting Review"),
-        ("done", "Done"),
-    ]
+    STATUS_CHOICES = [(s, s.title()) for s in ALL_PROGRESS_STATUSES]
 
     work_item = models.ForeignKey(WorkItem, on_delete=models.CASCADE, related_name="progress")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_progress_entries")

@@ -16,21 +16,10 @@ import {
   Copy,
   Calendar
 } from 'lucide-react'
-import { WorkItem, Sprint, Release, ProjectStatus, UserSummary } from '../../types'
+import { WorkItem, Sprint, Release, ProjectStatus, UserSummary, PROGRESS_STATUS_OPTIONS } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 import { apiFetch } from '../../utils/apiFetch'
-
-const PROGRESS_STATUS_OPTIONS = [
-  'step completed',
-  'planned',
-  'blocked',
-  'awaiting review',
-  'done',
-  'failed',
-  'cancelled',
-  'todo',
-]
 
 interface WorkItemDetailModalProps {
   item: WorkItem | null

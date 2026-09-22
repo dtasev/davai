@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react'
 import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom'
-import { Project, Sprint, Release, WorkItem, ProgressEntry } from '../types'
+import { Project, Sprint, Release, WorkItem, ProgressEntry, DEFAULT_PROJECT_STATUSES } from '../types'
 import { useApp } from '../context/AppContext'
 import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
 import { apiFetch } from '../utils/apiFetch'
@@ -420,11 +420,7 @@ export function ProjectDetailRoute() {
     name: (projectKey || '').toUpperCase(),
     description: '',
     item_count: workItems.length,
-    statuses: [
-      { id: 1, name: 'todo', order: 1, is_default: true },
-      { id: 2, name: 'in progress', order: 2, is_default: false },
-      { id: 3, name: 'done', order: 3, is_default: false }
-    ]
+    statuses: DEFAULT_PROJECT_STATUSES
   }
 
   return (
