@@ -364,7 +364,7 @@ export function WorkItemDetailModal({
                 disabled={isSavingDetails}
                 onClick={handleCancelEditDetails}
                 data-testid="cancel-edit-work-item-button"
-                className="px-2 py-1 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition cursor-pointer"
+                className="px-2 py-1 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -373,7 +373,7 @@ export function WorkItemDetailModal({
                 disabled={isSavingDetails || !editTitle.trim()}
                 onClick={handleSaveDetails}
                 data-testid="save-work-item-button"
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1 disabled:opacity-50 cursor-pointer shadow-sm"
+                className="px-2.5 py-1 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1 disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>{isSavingDetails ? 'Saving...' : 'Save'}</span>
@@ -414,7 +414,7 @@ export function WorkItemDetailModal({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-indigo-400">
+              <span className="font-mono text-sm font-bold text-indigo-400">
                 {item.key}
               </span>
               {item.parent_key && (
@@ -453,7 +453,7 @@ export function WorkItemDetailModal({
       <div className="space-y-4" data-testid="work-item-detail-modal">
         {showDeleteConfirm && (
           <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2 text-rose-300 text-xs font-medium">
+            <div className="flex items-center gap-2 text-rose-300 text-sm font-medium">
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>Are you sure you want to delete this work item? This cannot be undone.</span>
             </div>
@@ -462,7 +462,7 @@ export function WorkItemDetailModal({
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition"
+                className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-300 transition"
               >
                 Cancel
               </button>
@@ -479,7 +479,7 @@ export function WorkItemDetailModal({
                     setIsDeleting(false)
                   }
                 }}
-                className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition disabled:opacity-50 flex items-center gap-1"
+                className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-sm font-semibold text-white transition disabled:opacity-50 flex items-center gap-1"
               >
                 {isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
@@ -496,7 +496,7 @@ export function WorkItemDetailModal({
                 <select
                   value={item.status}
                   onChange={handleStatusChange}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 capitalize focus:outline-none focus:border-indigo-500"
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 capitalize focus:outline-none focus:border-indigo-500"
                 >
                   {statuses.map(st => (
                     <option key={st.id} value={st.name}>
@@ -549,7 +549,7 @@ export function WorkItemDetailModal({
                   onMouseDown={handleLoadUsers}
                   data-testid={isEditingDetails ? 'edit-work-item-assignee-select' : 'work-item-assignee-select'}
                   aria-label="Work Item Assignee"
-                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                  className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
                     (isEditingDetails ? editAssignee : item.active_assignee)
                       ? 'text-indigo-300 bg-indigo-950/30 border-indigo-800/40'
                       : 'text-zinc-400 bg-zinc-900 border-zinc-800'
@@ -594,7 +594,7 @@ export function WorkItemDetailModal({
                   <span>{item.active_assignee}</span>
                 </div>
               ) : (
-                <span className="text-xs text-zinc-500 italic">Unassigned</span>
+                <span className="text-sm text-zinc-500 italic">Unassigned</span>
               )}
             </div>
 
@@ -610,7 +610,7 @@ export function WorkItemDetailModal({
                   onChange={handleSprintChange}
                   data-testid={isEditingDetails ? 'edit-work-item-sprint-select' : 'work-item-sprint-select'}
                   aria-label="Work Item Sprint"
-                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                  className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
                     (isEditingDetails ? editSprintId : item.sprint_id)
                       ? 'text-amber-300 bg-amber-950/30 border-amber-800/40'
                       : 'text-zinc-400 bg-zinc-900 border-zinc-800'
@@ -629,7 +629,7 @@ export function WorkItemDetailModal({
                   <span>{sprint.name}</span>
                 </div>
               ) : (
-                <span className="text-xs text-zinc-500 italic">None</span>
+                <span className="text-sm text-zinc-500 italic">None</span>
               )}
             </div>
 
@@ -645,7 +645,7 @@ export function WorkItemDetailModal({
                   onChange={handleReleaseChange}
                   data-testid={isEditingDetails ? 'edit-work-item-release-select' : 'work-item-release-select'}
                   aria-label="Work Item Release"
-                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                  className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
                     (isEditingDetails ? editReleaseId : item.release_id)
                       ? 'text-indigo-300 bg-indigo-950/30 border-indigo-800/40'
                       : 'text-zinc-400 bg-zinc-900 border-zinc-800'
@@ -664,7 +664,7 @@ export function WorkItemDetailModal({
                   <span>{release.name}</span>
                 </div>
               ) : (
-                <span className="text-xs text-zinc-500 italic">None</span>
+                <span className="text-sm text-zinc-500 italic">None</span>
               )}
             </div>
 
@@ -681,18 +681,18 @@ export function WorkItemDetailModal({
                   onChange={handleStartDateChange}
                   data-testid={isEditingDetails ? 'edit-work-item-start-date-input' : 'work-item-start-date-input'}
                   aria-label="Work Item Start Date"
-                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                  className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
                     (isEditingDetails ? editStartDate : item.start_date)
                       ? 'text-zinc-200 bg-zinc-900 border-zinc-700'
                       : 'text-zinc-500 bg-zinc-900 border-zinc-800'
                   } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
                 />
               ) : item.start_date ? (
-                <span className="text-xs text-zinc-300">
+                <span className="text-sm text-zinc-300">
                   {new Date(item.start_date).toLocaleDateString()}
                 </span>
               ) : (
-                <span className="text-xs text-zinc-500 italic">None</span>
+                <span className="text-sm text-zinc-500 italic">None</span>
               )}
             </div>
 
@@ -709,23 +709,23 @@ export function WorkItemDetailModal({
                   onChange={handleTargetDateChange}
                   data-testid={isEditingDetails ? 'edit-work-item-target-date-input' : 'work-item-target-date-input'}
                   aria-label="Work Item Target Date"
-                  className={`px-2 py-0.5 rounded text-xs border focus:outline-none cursor-pointer transition ${
+                  className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
                     (isEditingDetails ? editTargetDate : item.target_date)
                       ? 'text-zinc-200 bg-zinc-900 border-zinc-700'
                       : 'text-zinc-500 bg-zinc-900 border-zinc-800'
                   } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
                 />
               ) : item.target_date ? (
-                <span className="text-xs text-zinc-300">
+                <span className="text-sm text-zinc-300">
                   {new Date(item.target_date).toLocaleDateString()}
                 </span>
               ) : (
-                <span className="text-xs text-zinc-500 italic">None</span>
+                <span className="text-sm text-zinc-500 italic">None</span>
               )}
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5 text-xs text-zinc-400">
+          <div className="flex items-center gap-2.5 text-sm text-zinc-400">
             <span className="flex items-center gap-1 text-[10px] text-zinc-500">
               <Clock className="w-3 h-3 text-zinc-500" />
               <span>{new Date(item.created).toLocaleDateString()}</span>
@@ -751,14 +751,14 @@ export function WorkItemDetailModal({
               onChange={e => setEditDescription(e.target.value)}
               placeholder="Enter work item description..."
               rows={3}
-              className="w-full p-2.5 rounded-lg bg-zinc-950 border border-indigo-500 text-xs text-zinc-200 focus:outline-none resize-y leading-relaxed"
+              className="w-full p-2.5 rounded-lg bg-zinc-950 border border-indigo-500 text-sm text-zinc-200 focus:outline-none resize-y leading-relaxed"
             />
           ) : (
             <div
               onClick={() => onUpdateDetails && setIsEditingDetails(true)}
               title={onUpdateDetails ? 'Click to edit description' : undefined}
               data-testid="work-item-description"
-              className={`p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 whitespace-pre-wrap leading-relaxed ${
+              className={`p-3 rounded-lg bg-zinc-900/60 border border-zinc-800 text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed ${
                 onUpdateDetails ? 'cursor-pointer hover:border-zinc-700 transition' : ''
               }`}
             >
@@ -821,7 +821,7 @@ export function WorkItemDetailModal({
                 value={contextInput}
                 onChange={e => setContextInput(e.target.value)}
                 placeholder="Agent context, instructions, or technical specifications (unversioned, overwrites previous context)..."
-                className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-purple-500 focus:outline-none font-mono text-xs text-zinc-200"
+                className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-purple-500 focus:outline-none font-mono text-sm text-zinc-200"
               />
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-zinc-500">
@@ -831,7 +831,7 @@ export function WorkItemDetailModal({
                   type="button"
                   onClick={handleSaveContext}
                   disabled={savingContext}
-                  className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium transition disabled:opacity-50 cursor-pointer"
+                  className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition disabled:opacity-50 cursor-pointer"
                 >
                   {savingContext ? 'Saving...' : 'Save Context'}
                 </button>
@@ -839,7 +839,7 @@ export function WorkItemDetailModal({
             </div>
           ) : item.context && item.context.summary ? (
             <div className="space-y-1.5">
-              <div className="p-3 rounded-lg bg-purple-950/10 border border-purple-900/30 text-xs font-mono text-purple-200 whitespace-pre-wrap leading-relaxed">
+              <div className="p-3 rounded-lg bg-purple-950/10 border border-purple-900/30 text-sm font-mono text-purple-200 whitespace-pre-wrap leading-relaxed">
                 {item.context.summary}
               </div>
               <div className="flex items-center justify-between text-[10px] text-zinc-500 px-1 font-mono">
@@ -887,7 +887,7 @@ export function WorkItemDetailModal({
                           value={editProgressStatus}
                           onChange={e => setEditProgressStatus(e.target.value)}
                           data-testid={`edit-progress-status-${p.id}`}
-                          className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs text-zinc-300"
+                          className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-sm text-zinc-300"
                         >
                           <option value="COMPLETED">COMPLETED</option>
                           <option value="IN_PROGRESS">IN_PROGRESS</option>
@@ -903,7 +903,7 @@ export function WorkItemDetailModal({
                         value={editProgressSummary}
                         onChange={e => setEditProgressSummary(e.target.value)}
                         data-testid={`edit-progress-summary-${p.id}`}
-                        className="w-full px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500"
+                        className="w-full px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500"
                       />
 
                       <input
@@ -912,7 +912,7 @@ export function WorkItemDetailModal({
                         value={editProgressProof}
                         onChange={e => setEditProgressProof(e.target.value)}
                         data-testid={`edit-progress-proof-${p.id}`}
-                        className="w-full px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                        className="w-full px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
                       />
 
                       <div className="flex items-center justify-end gap-2 pt-1">
@@ -921,7 +921,7 @@ export function WorkItemDetailModal({
                           disabled={savingProgressId === p.id}
                           onClick={cancelEditProgress}
                           data-testid={`cancel-edit-progress-${p.id}`}
-                          className="px-2.5 py-1 rounded text-xs text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+                          className="px-2.5 py-1 rounded text-sm text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
                         >
                           Cancel
                         </button>
@@ -930,7 +930,7 @@ export function WorkItemDetailModal({
                           disabled={savingProgressId === p.id || !editProgressSummary.trim()}
                           onClick={() => handleSaveProgressEdit(p.id)}
                           data-testid={`save-progress-${p.id}`}
-                          className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition disabled:opacity-50"
+                          className="px-3 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold text-white transition disabled:opacity-50"
                         >
                           {savingProgressId === p.id ? 'Saving...' : 'Save'}
                         </button>
@@ -946,7 +946,7 @@ export function WorkItemDetailModal({
                       className="p-3 rounded-lg bg-rose-950/30 border border-rose-800/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2"
                       data-testid={`delete-progress-confirm-${p.id}`}
                     >
-                      <span className="text-xs text-rose-300 font-medium">
+                      <span className="text-sm text-rose-300 font-medium">
                         Delete this progress entry? This cannot be undone.
                       </span>
                       <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
@@ -955,7 +955,7 @@ export function WorkItemDetailModal({
                           disabled={isDeletingProgress}
                           onClick={() => setDeletingProgressId(null)}
                           data-testid={`cancel-delete-progress-${p.id}`}
-                          className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition"
+                          className="px-2 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-300 transition"
                         >
                           Cancel
                         </button>
@@ -964,7 +964,7 @@ export function WorkItemDetailModal({
                           disabled={isDeletingProgress}
                           onClick={() => handleConfirmDeleteProgress(p.id)}
                           data-testid={`confirm-delete-progress-${p.id}`}
-                          className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition disabled:opacity-50"
+                          className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-sm font-semibold text-white transition disabled:opacity-50"
                         >
                           {isDeletingProgress ? 'Deleting...' : 'Confirm'}
                         </button>
@@ -977,7 +977,7 @@ export function WorkItemDetailModal({
                   <div
                     key={p.id || idx}
                     data-testid={`progress-entry-${p.id}`}
-                    className="group p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800/80 text-xs flex flex-col sm:flex-row sm:items-start justify-between gap-2 hover:border-zinc-700 transition"
+                    className="group p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800/80 text-sm flex flex-col sm:flex-row sm:items-start justify-between gap-2 hover:border-zinc-700 transition"
                   >
                     <div className="space-y-0.5 flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -991,7 +991,7 @@ export function WorkItemDetailModal({
                           </span>
                         )}
                       </div>
-                      <p data-testid={`progress-summary-${p.id}`} className="text-zinc-300 text-xs break-words">
+                      <p data-testid={`progress-summary-${p.id}`} className="text-zinc-300 text-sm break-words">
                         {p.summary}
                       </p>
                     </div>
@@ -1059,14 +1059,14 @@ export function WorkItemDetailModal({
                   placeholder="Progress update summary..."
                   value={progressText}
                   onChange={e => setProgressText(e.target.value)}
-                  className="sm:col-span-2 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  className="sm:col-span-2 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500"
                 />
                 <input
                   type="text"
                   placeholder="Git SHA / Proof"
                   value={progressProof}
                   onChange={e => setProgressProof(e.target.value)}
-                  className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  className="px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
@@ -1074,7 +1074,7 @@ export function WorkItemDetailModal({
                 <select
                   value={progressStatus}
                   onChange={e => setProgressStatus(e.target.value)}
-                  className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-xs text-zinc-300"
+                  className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-sm text-zinc-300"
                 >
                   <option value="COMPLETED">COMPLETED</option>
                   <option value="IN_PROGRESS">IN_PROGRESS</option>
@@ -1085,7 +1085,7 @@ export function WorkItemDetailModal({
                 <button
                   type="submit"
                   disabled={submittingProgress || !progressText.trim()}
-                  className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium flex items-center gap-1 transition disabled:opacity-50"
+                  className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium flex items-center gap-1 transition disabled:opacity-50"
                 >
                   <Send className="w-3 h-3" />
                   <span>Log Update</span>

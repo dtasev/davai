@@ -58,7 +58,7 @@ export function ReleaseList({
           <div>
             <h3 className="font-bold text-sm text-zinc-100 flex items-center gap-1.5">
               <span>Releases</span>
-              <span className="text-xs font-mono text-zinc-500 font-normal">
+              <span className="text-sm font-mono text-zinc-500 font-normal">
                 ({releases.length})
               </span>
             </h3>
@@ -70,7 +70,7 @@ export function ReleaseList({
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium flex items-center gap-1 transition border border-zinc-700/60"
+          className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium flex items-center gap-1 transition border border-zinc-700/60"
           data-testid="create-release-button"
         >
           <Plus className="w-3 h-3" />
@@ -79,7 +79,7 @@ export function ReleaseList({
       </div>
 
       {releases.length === 0 ? (
-        <div className="text-center py-6 border border-dashed border-zinc-800 rounded-lg text-xs text-zinc-500">
+        <div className="text-center py-6 border border-dashed border-zinc-800 rounded-lg text-sm text-zinc-500">
           No releases defined yet. Group sprints and work items into version milestones.
         </div>
       ) : (
@@ -92,7 +92,7 @@ export function ReleaseList({
               data-testid={`release-card-${r.id}`}
             >
               <div>
-                <div className="flex items-center justify-between text-xs mb-1">
+                <div className="flex items-center justify-between text-sm mb-1">
                   <span className="font-bold text-zinc-200 group-hover:text-indigo-400 transition flex items-center gap-1.5">
                     <Tag className="w-3 h-3 text-indigo-400" />
                     <span>{r.name}</span>
@@ -102,7 +102,7 @@ export function ReleaseList({
                   </span>
                 </div>
                 {r.description && (
-                  <p className="text-xs text-zinc-400 line-clamp-2 mt-1">
+                  <p className="text-sm text-zinc-400 line-clamp-2 mt-1">
                     {r.description}
                   </p>
                 )}
@@ -152,7 +152,7 @@ export function ReleaseList({
               placeholder="e.g. v1.0.0 or MVP Release"
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-200"
+              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-sm text-zinc-200"
             />
           </div>
 
@@ -165,7 +165,7 @@ export function ReleaseList({
               placeholder="Release targets or deliverable scope..."
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-200"
+              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-sm text-zinc-200"
             />
           </div>
 
@@ -179,7 +179,7 @@ export function ReleaseList({
                 aria-label="Target Start"
                 value={startDate}
                 onChange={e => setStartDate(e.target.value)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               />
             </div>
             <div>
@@ -191,7 +191,7 @@ export function ReleaseList({
                 aria-label="Target Release Date"
                 value={endDate}
                 onChange={e => setEndDate(e.target.value)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               />
             </div>
           </div>
@@ -200,14 +200,14 @@ export function ReleaseList({
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !name.trim()}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition disabled:opacity-50"
             >
               {submitting ? 'Creating...' : 'Create Release'}
             </button>

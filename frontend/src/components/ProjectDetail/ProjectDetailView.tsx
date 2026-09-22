@@ -118,7 +118,7 @@ export function ProjectDetailView({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-mono text-xs font-bold text-indigo-400">
+              <span className="font-mono text-sm font-bold text-indigo-400">
                 [{project.key}]
               </span>
               <h2 className="text-lg sm:text-xl font-bold tracking-tight text-zinc-100 truncate">
@@ -126,7 +126,7 @@ export function ProjectDetailView({
               </h2>
             </div>
             {project.description && (
-              <p className="text-xs text-zinc-400 mt-0.5 max-w-2xl truncate">
+              <p className="text-sm text-zinc-400 mt-0.5 max-w-2xl truncate">
                 {project.description}
               </p>
             )}
@@ -134,7 +134,7 @@ export function ProjectDetailView({
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+          <div className="flex items-center gap-1.5 text-sm text-zinc-400">
             <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
               <strong className="text-zinc-200">{sprints.length}</strong> Sprints
             </span>
@@ -172,7 +172,7 @@ export function ProjectDetailView({
             <button
               onClick={() => handleSelectView('list')}
               data-testid="view-option-list"
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
                 activeView === 'list'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
@@ -185,7 +185,7 @@ export function ProjectDetailView({
             <button
               onClick={() => handleSelectView('board')}
               data-testid="view-option-board"
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
                 activeView === 'board'
                   ? 'bg-indigo-600 text-white shadow-sm'
                   : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
@@ -201,7 +201,7 @@ export function ProjectDetailView({
             <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
               Status Overview
             </div>
-            <div className="space-y-1.5 text-xs">
+            <div className="space-y-1.5 text-sm">
               {statuses.map(st => {
                 const count = workItems.filter(
                   item => (item.status || 'todo').toLowerCase() === st.name.toLowerCase()

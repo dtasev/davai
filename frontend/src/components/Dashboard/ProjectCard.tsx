@@ -20,7 +20,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
               <FolderGit2 className="w-4 h-4" />
             </div>
             <div className="min-w-0">
-              <span className="font-mono text-xs font-bold text-indigo-400">
+              <span className="font-mono text-sm font-bold text-indigo-400">
                 {project.key}
               </span>
               <h3 className="font-bold text-sm sm:text-base text-zinc-100 group-hover:text-white transition truncate">
@@ -29,18 +29,18 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800/60 border border-zinc-800 text-xs text-zinc-300 shrink-0">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-zinc-800/60 border border-zinc-800 text-sm text-zinc-300 shrink-0">
             <ListTodo className="w-3.5 h-3.5 text-indigo-400" />
             <span>{project.item_count} items</span>
           </div>
         </div>
 
-        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed">
+        <p className="text-sm text-zinc-400 line-clamp-2 leading-relaxed">
           {project.description || 'No description provided for this project workspace.'}
         </p>
       </div>
 
-      <div className="pt-3.5 mt-3 border-t border-zinc-800/60 flex items-center justify-between text-xs text-zinc-500">
+      <div className="pt-3.5 mt-3 border-t border-zinc-800/60 flex items-center justify-between text-sm text-zinc-500">
         <div className="flex items-center gap-1 overflow-hidden">
           {project.statuses?.slice(0, 4).map(st => (
             <span
@@ -57,7 +57,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
           )}
         </div>
 
-        <div className="flex items-center gap-1 text-zinc-400 group-hover:text-indigo-400 font-medium transition text-xs">
+        <div className="flex items-center gap-1 text-zinc-400 group-hover:text-indigo-400 font-medium transition text-sm">
           <span>Open</span>
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </div>

@@ -98,7 +98,7 @@ export function ReleaseDetailModal({
                 disabled={isSaving}
                 onClick={handleCancelEdit}
                 data-testid="cancel-edit-release-button"
-                className="px-2 py-1 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition cursor-pointer"
+                className="px-2 py-1 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition cursor-pointer"
               >
                 Cancel
               </button>
@@ -107,7 +107,7 @@ export function ReleaseDetailModal({
                 disabled={isSaving || !editName.trim()}
                 onClick={handleSave}
                 data-testid="save-release-button"
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1 disabled:opacity-50 cursor-pointer shadow-sm"
+                className="px-2.5 py-1 rounded-lg text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1 disabled:opacity-50 cursor-pointer shadow-sm"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>{isSaving ? 'Saving...' : 'Save'}</span>
@@ -163,7 +163,7 @@ export function ReleaseDetailModal({
       <div className="space-y-3.5">
         {showDeleteConfirm && (
           <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2 text-rose-300 text-xs font-medium">
+            <div className="flex items-center gap-2 text-rose-300 text-sm font-medium">
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>Are you sure you want to delete this release? This cannot be undone.</span>
             </div>
@@ -172,7 +172,7 @@ export function ReleaseDetailModal({
                 type="button"
                 disabled={isDeleting}
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-xs text-zinc-300 transition"
+                className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-300 transition"
               >
                 Cancel
               </button>
@@ -189,7 +189,7 @@ export function ReleaseDetailModal({
                     setIsDeleting(false)
                   }
                 }}
-                className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-xs font-semibold text-white transition disabled:opacity-50 flex items-center gap-1"
+                className="px-2.5 py-1 rounded bg-rose-600 hover:bg-rose-500 text-sm font-semibold text-white transition disabled:opacity-50 flex items-center gap-1"
               >
                 {isDeleting ? 'Deleting...' : 'Confirm Delete'}
               </button>
@@ -197,7 +197,7 @@ export function ReleaseDetailModal({
           </div>
         )}
         {/* Date Strip */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-lg text-xs">
+        <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-lg text-sm">
           {isEditing ? (
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-1.5">
@@ -208,7 +208,7 @@ export function ReleaseDetailModal({
                   aria-label="Edit Release Start Date"
                   value={editStartDate}
                   onChange={e => setEditStartDate(e.target.value)}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-xs text-zinc-200 focus:outline-none"
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
                 />
               </div>
               <div className="flex items-center gap-1.5">
@@ -219,7 +219,7 @@ export function ReleaseDetailModal({
                   aria-label="Edit Release End Date"
                   value={editEndDate}
                   onChange={e => setEditEndDate(e.target.value)}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-xs text-zinc-200 focus:outline-none"
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
                 />
               </div>
             </div>
@@ -268,14 +268,14 @@ export function ReleaseDetailModal({
               onChange={e => setEditDescription(e.target.value)}
               placeholder="Enter release notes / scope..."
               rows={3}
-              className="w-full p-2.5 rounded-lg bg-zinc-950 border border-indigo-500 text-xs text-zinc-200 focus:outline-none resize-y leading-relaxed"
+              className="w-full p-2.5 rounded-lg bg-zinc-950 border border-indigo-500 text-sm text-zinc-200 focus:outline-none resize-y leading-relaxed"
             />
           ) : (
             <p
               onClick={() => onUpdate && setIsEditing(true)}
               title={onUpdate ? 'Click to edit release notes' : undefined}
               data-testid="release-description"
-              className={`p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-xs text-zinc-300 leading-relaxed ${
+              className={`p-2.5 rounded-lg bg-zinc-900/60 border border-zinc-800 text-sm text-zinc-300 leading-relaxed ${
                 onUpdate ? 'cursor-pointer hover:border-zinc-700 transition' : ''
               }`}
             >
@@ -303,7 +303,7 @@ export function ReleaseDetailModal({
                 <div
                   key={s.id}
                   onClick={() => onSelectSprint(s)}
-                  className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800 hover:border-amber-500/40 transition cursor-pointer flex items-center justify-between text-xs"
+                  className="p-2 rounded-lg bg-zinc-950/60 border border-zinc-800 hover:border-amber-500/40 transition cursor-pointer flex items-center justify-between text-sm"
                 >
                   <div className="flex items-center gap-1.5">
                     <Zap className="w-3 h-3 text-amber-400" />
@@ -326,7 +326,7 @@ export function ReleaseDetailModal({
           </div>
 
           {releaseItems.length === 0 ? (
-            <div className="text-center py-5 border border-dashed border-zinc-800 rounded-lg text-xs text-zinc-500">
+            <div className="text-center py-5 border border-dashed border-zinc-800 rounded-lg text-sm text-zinc-500">
               No work items directly tagged with this release yet.
             </div>
           ) : (
@@ -335,7 +335,7 @@ export function ReleaseDetailModal({
                 <div
                   key={item.key}
                   onClick={() => onSelectWorkItem(item)}
-                  className="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800/80 hover:border-indigo-500/40 transition cursor-pointer flex items-center justify-between gap-2.5 text-xs group"
+                  className="p-2.5 rounded-lg bg-zinc-950/60 border border-zinc-800/80 hover:border-indigo-500/40 transition cursor-pointer flex items-center justify-between gap-2.5 text-sm group"
                 >
                   <div className="flex items-center gap-2 truncate">
                     <span className="font-mono font-bold text-indigo-400">

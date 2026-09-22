@@ -139,7 +139,7 @@ export function WorkItemList({
           <div>
             <h3 className="font-bold text-sm text-zinc-100 flex items-center gap-1.5">
               <span>Work Items</span>
-              <span className="text-xs font-mono text-zinc-500 font-normal">
+              <span className="text-sm font-mono text-zinc-500 font-normal">
                 ({workItems.length})
               </span>
             </h3>
@@ -158,7 +158,7 @@ export function WorkItemList({
               placeholder="Search items..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-32 sm:w-44"
+              className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-32 sm:w-44"
             />
           </div>
 
@@ -169,7 +169,7 @@ export function WorkItemList({
             data-testid="filter-my-issues-button"
             aria-pressed={isMyIssuesOnly}
             title={isMyIssuesOnly ? 'Showing my issues (click to show all)' : 'Filter by issues assigned to me'}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition shrink-0 ${
+            className={`px-2.5 py-1.5 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition shrink-0 ${
               isMyIssuesOnly
                 ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300 shadow-sm'
                 : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
@@ -184,7 +184,7 @@ export function WorkItemList({
             <select
               value={filterStatus}
               onChange={e => setFilterStatus(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500"
+              className="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
             >
               <option value="ALL">All Statuses</option>
               {statuses.map(st => (
@@ -197,7 +197,7 @@ export function WorkItemList({
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1 transition shadow-sm"
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm"
             data-testid="create-work-item-button"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -208,7 +208,7 @@ export function WorkItemList({
 
       {/* Items List */}
       {filteredItems.length === 0 ? (
-        <div className="text-center py-8 border border-dashed border-zinc-800 rounded-xl text-xs text-zinc-500 bg-zinc-900/30">
+        <div className="text-center py-8 border border-dashed border-zinc-800 rounded-xl text-sm text-zinc-500 bg-zinc-900/30">
           {workItems.length === 0
             ? 'No work items created yet for this project.'
             : 'No work items match the search / filter criteria.'}
@@ -228,7 +228,7 @@ export function WorkItemList({
               >
                 <div className="space-y-1 flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-xs font-bold text-indigo-400 group-hover:text-indigo-300 transition">
+                    <span className="font-mono text-sm font-bold text-indigo-400 group-hover:text-indigo-300 transition">
                       {item.key}
                     </span>
 
@@ -255,7 +255,7 @@ export function WorkItemList({
                     )}
                   </div>
 
-                  <h4 className="font-medium text-xs sm:text-sm text-zinc-200 group-hover:text-white transition truncate">
+                  <h4 className="font-medium text-sm text-zinc-200 group-hover:text-white transition truncate">
                     {item.title}
                   </h4>
 
@@ -267,7 +267,7 @@ export function WorkItemList({
                 </div>
 
                 {/* Meta pills on right */}
-                <div className="flex items-center gap-2 self-start sm:self-center text-xs text-zinc-500 shrink-0">
+                <div className="flex items-center gap-2 self-start sm:self-center text-sm text-zinc-500 shrink-0">
                   {item.context && item.context.summary && (
                     <span
                       title="LLM Agent Context Documented"
@@ -325,7 +325,7 @@ export function WorkItemList({
               placeholder="e.g. Implement user authentication flow"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-200"
+              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-sm text-zinc-200"
             />
           </div>
 
@@ -338,7 +338,7 @@ export function WorkItemList({
               placeholder="Detailed description or requirements..."
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-200"
+              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-sm text-zinc-200"
             />
           </div>
 
@@ -350,7 +350,7 @@ export function WorkItemList({
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 {statuses.map(st => (
                   <option key={st.id} value={st.name}>
@@ -367,7 +367,7 @@ export function WorkItemList({
               <select
                 value={priority}
                 onChange={e => setPriority(e.target.value as any)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -384,7 +384,7 @@ export function WorkItemList({
               <select
                 value={sprintId}
                 onChange={e => setSprintId(e.target.value)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="">No Sprint (Backlog)</option>
                 {sprints.map(s => (
@@ -402,7 +402,7 @@ export function WorkItemList({
               <select
                 value={releaseId}
                 onChange={e => setReleaseId(e.target.value)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="">No Release Assigned</option>
                 {releases.map(r => (
@@ -423,7 +423,7 @@ export function WorkItemList({
               placeholder="e.g. DAV-1 (creates a subtask)"
               value={parentKey}
               onChange={e => setParentKey(e.target.value)}
-              className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-mono uppercase text-zinc-200"
+              className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono uppercase text-zinc-200"
             />
           </div>
 
@@ -431,14 +431,14 @@ export function WorkItemList({
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !title.trim()}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition disabled:opacity-50"
             >
               {submitting ? 'Creating...' : 'Create Item'}
             </button>

@@ -60,7 +60,7 @@ export function DashboardView({
               <Layers className="w-5 h-5 text-indigo-400" />
               <span>Projects Dashboard</span>
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
+            <p className="text-sm text-zinc-400 mt-0.5">
               Select a project to inspect its sprints, releases, and work items.
             </p>
           </div>
@@ -76,7 +76,7 @@ export function DashboardView({
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 transition shadow-sm"
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm flex items-center gap-1.5 transition shadow-sm"
               data-testid="create-project-button"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -89,12 +89,12 @@ export function DashboardView({
           <div className="text-center py-16 px-4 bg-zinc-900/30 border border-zinc-800/60 rounded-2xl">
             <FolderPlus className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
             <h3 className="text-sm font-semibold text-zinc-300">No Projects Found</h3>
-            <p className="text-xs text-zinc-500 max-w-sm mx-auto mt-1 mb-4">
+            <p className="text-sm text-zinc-500 max-w-sm mx-auto mt-1 mb-4">
               Get started by creating your first project workspace to track sprints, releases, and work items.
             </p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition inline-flex items-center gap-1.5"
+              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition inline-flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
               <span>Create Project</span>
@@ -128,7 +128,7 @@ export function DashboardView({
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
               Project Key (Prefix)
             </label>
             <input
@@ -146,7 +146,7 @@ export function DashboardView({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
               Project Name
             </label>
             <input
@@ -160,7 +160,7 @@ export function DashboardView({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
+            <label className="block text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-1.5">
               Description
             </label>
             <textarea
@@ -173,7 +173,7 @@ export function DashboardView({
           </div>
 
           {error && (
-            <div className="text-xs text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800/40">
+            <div className="text-sm text-rose-400 bg-rose-950/40 p-2.5 rounded-lg border border-rose-800/40">
               {error}
             </div>
           )}
@@ -182,14 +182,14 @@ export function DashboardView({
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-3.5 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+              className="px-3.5 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !key.trim() || !name.trim()}
-              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 transition disabled:opacity-50"
+              className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm flex items-center gap-1.5 transition disabled:opacity-50"
             >
               {submitting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
               <span>Create Project</span>

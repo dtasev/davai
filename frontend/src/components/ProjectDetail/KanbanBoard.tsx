@@ -218,7 +218,7 @@ export function KanbanBoard({
           <div>
             <h3 className="font-bold text-sm text-zinc-100 flex items-center gap-1.5">
               <span>Kanban Board</span>
-              <span className="text-xs font-mono text-zinc-500 font-normal">
+              <span className="text-sm font-mono text-zinc-500 font-normal">
                 ({filteredItems.length} items)
               </span>
             </h3>
@@ -237,7 +237,7 @@ export function KanbanBoard({
               placeholder="Search items..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-32 sm:w-44"
+              className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-32 sm:w-44"
             />
           </div>
 
@@ -248,7 +248,7 @@ export function KanbanBoard({
             data-testid="filter-my-issues-button"
             aria-pressed={isMyIssuesOnly}
             title={isMyIssuesOnly ? 'Showing my issues (click to show all)' : 'Filter by issues assigned to me'}
-            className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition shrink-0 ${
+            className={`px-2.5 py-1.5 rounded-lg border text-sm font-medium flex items-center gap-1.5 transition shrink-0 ${
               isMyIssuesOnly
                 ? 'bg-indigo-600/20 border-indigo-500/50 text-indigo-300 shadow-sm'
                 : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
@@ -265,7 +265,7 @@ export function KanbanBoard({
               <select
                 value={sprintFilter}
                 onChange={e => setSprintFilter(e.target.value)}
-                className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 focus:outline-none focus:border-indigo-500"
+                className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-300 focus:outline-none focus:border-indigo-500"
               >
                 <option value="ALL">All Sprints</option>
                 <option value="BACKLOG">Backlog (No Sprint)</option>
@@ -281,7 +281,7 @@ export function KanbanBoard({
           {onCreateWorkItem && (
             <button
               onClick={() => openCreateModalForStatus(effectiveStatuses[0]?.name || 'todo')}
-              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1 transition shadow-sm shrink-0"
+              className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm shrink-0"
               data-testid="kanban-create-item-button"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -317,7 +317,7 @@ export function KanbanBoard({
               <div className="p-3 border-b border-zinc-800/80 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <StatusBadge status={statusObj.name} />
-                  <span className="text-xs font-mono text-zinc-400 font-medium">
+                  <span className="text-sm font-mono text-zinc-400 font-medium">
                     {colItems.length}
                   </span>
                 </div>
@@ -355,7 +355,7 @@ export function KanbanBoard({
                       >
                         {/* Top: Key & Badges */}
                         <div className="flex items-center justify-between gap-1.5 flex-wrap">
-                          <span className="font-mono text-xs font-bold text-indigo-400 group-hover:text-indigo-300 transition">
+                          <span className="font-mono text-sm font-bold text-indigo-400 group-hover:text-indigo-300 transition">
                             {item.key}
                           </span>
 
@@ -365,7 +365,7 @@ export function KanbanBoard({
                         </div>
 
                         {/* Title */}
-                        <h4 className="font-medium text-xs text-zinc-200 group-hover:text-white leading-snug line-clamp-2">
+                        <h4 className="font-medium text-sm text-zinc-200 group-hover:text-white leading-snug line-clamp-2">
                           {item.title}
                         </h4>
 
@@ -461,7 +461,7 @@ export function KanbanBoard({
               placeholder="e.g. Implement user authentication flow"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-200"
+              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-sm text-zinc-200"
             />
           </div>
 
@@ -474,7 +474,7 @@ export function KanbanBoard({
               placeholder="Detailed description or requirements..."
               value={description}
               onChange={e => setDescription(e.target.value)}
-              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-200"
+              className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-sm text-zinc-200"
             />
           </div>
 
@@ -486,7 +486,7 @@ export function KanbanBoard({
               <select
                 value={status}
                 onChange={e => setStatus(e.target.value)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 {effectiveStatuses.map(st => (
                   <option key={st.id || st.name} value={st.name}>
@@ -503,7 +503,7 @@ export function KanbanBoard({
               <select
                 value={priority}
                 onChange={e => setPriority(e.target.value as any)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -520,7 +520,7 @@ export function KanbanBoard({
               <select
                 value={sprintId}
                 onChange={e => setSprintId(e.target.value)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="">No Sprint (Backlog)</option>
                 {sprints.map(s => (
@@ -538,7 +538,7 @@ export function KanbanBoard({
               <select
                 value={releaseId}
                 onChange={e => setReleaseId(e.target.value)}
-                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs text-zinc-200"
+                className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="">No Release Assigned</option>
                 {releases.map(r => (
@@ -559,7 +559,7 @@ export function KanbanBoard({
               placeholder="e.g. DAV-1 (creates a subtask)"
               value={parentKey}
               onChange={e => setParentKey(e.target.value)}
-              className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-xs font-mono uppercase text-zinc-200"
+              className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono uppercase text-zinc-200"
             />
           </div>
 
@@ -567,14 +567,14 @@ export function KanbanBoard({
             <button
               type="button"
               onClick={() => setIsModalOpen(false)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting || !title.trim()}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs transition disabled:opacity-50"
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition disabled:opacity-50"
             >
               {submitting ? 'Creating...' : 'Create Item'}
             </button>

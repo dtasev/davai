@@ -95,7 +95,7 @@ export function Header({
 
           {/* Breadcrumb if in project route */}
           {selectedProject && isProjectView && (
-            <div className="hidden lg:flex items-center gap-1.5 text-xs text-zinc-400 border-l border-zinc-800 pl-3.5 shrink-0">
+            <div className="hidden lg:flex items-center gap-1.5 text-sm text-zinc-400 border-l border-zinc-800 pl-3.5 shrink-0">
               <Link
                 to="/"
                 className="hover:text-zinc-200 transition"
@@ -117,7 +117,7 @@ export function Header({
           <nav className="flex items-center gap-1 bg-zinc-900/80 p-1 rounded-lg border border-zinc-800 shrink-0">
             <Link
               to="/"
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${isDashboard
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition ${isDashboard
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                 }`}
@@ -128,7 +128,7 @@ export function Header({
 
             <Link
               to="/settings"
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition ${isSettings
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition ${isSettings
                 ? 'bg-indigo-600 text-white shadow-sm'
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50'
                 }`}
@@ -146,7 +146,7 @@ export function Header({
             <div className="flex items-center gap-1.5">
               <div
                 onClick={() => navigate('/settings')}
-                className="cursor-pointer flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition text-xs"
+                className="cursor-pointer flex items-center gap-2 px-2.5 py-1 rounded-lg bg-zinc-900/90 border border-zinc-800 hover:border-zinc-700 transition text-sm"
                 title="Account Settings"
               >
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -171,7 +171,7 @@ export function Header({
           ) : (
             <button
               onClick={onLogin ? onLogin : () => navigate('/login')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-sm transition"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium shadow-sm transition"
               data-testid="login-button"
             >
               <LogIn className="w-3.5 h-3.5" />
@@ -184,7 +184,7 @@ export function Header({
             href="/graphql/"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"
             data-testid="graphql-link"
           >
             <Code2 className="w-3.5 h-3.5 text-pink-400" />
@@ -197,7 +197,7 @@ export function Header({
             href="/api/docs"
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700/60 transition"
             data-testid="swagger-link"
           >
             <Terminal className="w-3.5 h-3.5" />
