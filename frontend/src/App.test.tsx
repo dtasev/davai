@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor, act, within } from '@testing-librar
 import { createMemoryRouter } from 'react-router-dom'
 import App from './App'
 import { routes } from './routes/router'
+import { StatusBadge } from './components/Common/Badge'
 
 describe('Davai Frontend App with React Router', () => {
   let mockWorkItem: any
@@ -1395,6 +1396,41 @@ describe('Davai Frontend App with React Router', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('progress-entry-1')).not.toBeInTheDocument()
     })
+  })
+
+  it('renders "step completed" as yellow "In Progress" badge for tickets, and grey "Step Completed" for progress entries', () => {
+    const { rerender } = render(<StatusBadge status="step completed" />)
+    const ticketBadge = screen.getByText('In Progress')
+    expect(ticketBadge).toBeInTheDocument()
+    expect(ticketBadge.parentElement).toHaveClass('text-yellow-300')
+
+    rerender(<StatusBadge status="step completed" isProgressEntry />)
+    const progressBadge = screen.getByText('Step Completed')
+    expect(progressBadge).toBeInTheDocument()
+    expect(progressBadge.parentElement).toHaveClass('text-zinc-300')
+  })
+
+  it('displays status badge without status change dropdown in WorkItemDetailModal', async () => {
+    await renderWithRouter(['/projects/DAV'])
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    const workItemCard = screen.getByTestId('work-item-DAV-1')
+    await act(async () => {
+      fireEvent.click(workItemCard)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-detail-modal')).toBeInTheDocument()
+    })
+
+    // Priority and Assignee selects are present, but no work item status select
+    expect(screen.getByTestId('work-item-priority-select')).toBeInTheDocument()
+    expect(screen.queryByTestId('work-item-status-select')).not.toBeInTheDocument()
+    // The status label is followed by a badge, not a select
+    const statusLabel = screen.getByText('Status:')
+    expect(statusLabel.parentElement?.querySelector('select')).toBeNull()
   })
 })
 

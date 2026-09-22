@@ -26,7 +26,13 @@ export function formatStatus(status: string | null | undefined): string {
     .join(' ')
 }
 
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({
+  status,
+  isProgressEntry = false
+}: {
+  status: string
+  isProgressEntry?: boolean
+}) {
   const s = (status || 'todo').toLowerCase().replace(/_/g, ' ')
   let color = 'bg-zinc-800/60 text-zinc-300 border-zinc-800'
   let dot = 'bg-zinc-500'
@@ -35,11 +41,16 @@ export function StatusBadge({ status }: { status: string }) {
     color = 'bg-sky-950/40 text-sky-300 border-sky-800/40'
     dot = 'bg-sky-400'
   } else if (s === 'step completed' || s === 'completed') {
-    color = 'bg-teal-950/40 text-teal-300 border-teal-800/40'
-    dot = 'bg-teal-400'
+    if (isProgressEntry) {
+      color = 'bg-zinc-800/60 text-zinc-300 border-zinc-700/60'
+      dot = 'bg-zinc-400'
+    } else {
+      color = 'bg-yellow-950/40 text-yellow-300 border-yellow-800/40'
+      dot = 'bg-yellow-400'
+    }
   } else if (s === 'in progress') {
-    color = 'bg-amber-950/40 text-amber-300 border-amber-800/40'
-    dot = 'bg-amber-400'
+    color = 'bg-yellow-950/40 text-yellow-300 border-yellow-800/40'
+    dot = 'bg-yellow-400'
   } else if (s === 'blocked') {
     color = 'bg-orange-950/40 text-orange-300 border-orange-800/40'
     dot = 'bg-orange-400'
@@ -57,12 +68,17 @@ export function StatusBadge({ status }: { status: string }) {
     dot = 'bg-zinc-600'
   }
 
+  const label =
+    !isProgressEntry && (s === 'step completed' || s === 'completed' || s === 'in progress')
+      ? 'In Progress'
+      : formatStatus(status)
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border leading-none ${color}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`}></span>
-      <span>{formatStatus(status)}</span>
+      <span>{label}</span>
     </span>
   )
 }

@@ -324,12 +324,6 @@ export function WorkItemDetailModal({
   const sprint = sprints.find(s => s.id === item.sprint_id)
   const release = releases.find(r => r.id === item.release_id)
 
-  const handleStatusChange = async (e: ChangeEvent<HTMLSelectElement>) => {
-    const newStatus = e.target.value
-    if (onUpdateStatus) {
-      await onUpdateStatus(item.key, newStatus)
-    }
-  }
 
   const handleSaveContext = async () => {
     if (!onUpdateContext) return
@@ -500,42 +494,10 @@ export function WorkItemDetailModal({
         {/* Meta Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 bg-zinc-950/70 border border-zinc-800 rounded-lg">
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Status Dropdown */}
+            {/* Status */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-zinc-500">Status:</span>
-              {onUpdateStatus ? (
-                <select
-                  value={item.status || 'todo'}
-                  onChange={handleStatusChange}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500"
-                >
-                  {(statuses && statuses.length > 0
-                    ? statuses
-                    : [
-                        { id: 1, name: 'todo' },
-                        { id: 2, name: 'planned' },
-                        { id: 3, name: 'step completed' },
-                        { id: 4, name: 'blocked' },
-                        { id: 5, name: 'awaiting review' },
-                        { id: 6, name: 'done' },
-                        { id: 7, name: 'cancelled' },
-                      ]
-                  ).map(st => (
-                    <option key={st.id || st.name} value={st.name}>
-                      {formatStatus(st.name)}
-                    </option>
-                  ))}
-                  {item.status &&
-                    statuses &&
-                    !statuses.some(s => s.name.toLowerCase() === item.status.toLowerCase()) && (
-                      <option value={item.status}>
-                        {formatStatus(item.status)}
-                      </option>
-                    )}
-                </select>
-              ) : (
-                <StatusBadge status={item.status} />
-              )}
+              <StatusBadge status={item.status} />
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -1011,7 +973,7 @@ export function WorkItemDetailModal({
                   >
                     <div className="space-y-0.5 flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <StatusBadge status={p.status} />
+                        <StatusBadge status={p.status} isProgressEntry />
                         {p.proof && (
                           <span
                             data-testid={`progress-proof-${p.id}`}
