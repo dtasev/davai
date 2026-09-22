@@ -16,9 +16,9 @@ class TestDomainModels:
     def test_project_default_status_seeding(self):
         project = Project.objects.create(key="ALPHA", name="Alpha System", description="Alpha project")
         statuses = list(project.statuses.all())
-        assert len(statuses) == 6
+        assert len(statuses) == 7
         status_names = [s.name for s in statuses]
-        assert status_names == ["todo", "in progress", "review", "waiting", "done", "cancelled"]
+        assert status_names == ["todo", "planned", "step completed", "blocked", "awaiting review", "done", "cancelled"]
 
         default_status = project.get_default_status()
         assert default_status is not None
@@ -34,7 +34,7 @@ class TestDomainModels:
             created_by=test_user
         )
         assert item.status is not None
-        assert item.status.name == "todo"
+        assert item.status == "todo"
         assert item.description == "Human-readable description"
         assert str(item) == "DAV-200: Auto Status Item [todo]"
 
@@ -120,14 +120,16 @@ class TestDomainModels:
             created_by=test_user,
             summary="Drafted data models",
             proof="git:feature-models-branch",
-            status="COMPLETED"
+            status="step completed"
         )
+        assert item.status == "step completed"
+
         p2 = Progress.objects.create(
             work_item=item,
             created_by=test_user,
             summary="Encountered blocker on migrations",
             proof="https://github.com/org/repo/issues/9",
-            status="BLOCKED"
+            status="blocked"
         )
 
         entries = list(item.progress.all())
@@ -136,5 +138,6 @@ class TestDomainModels:
         assert entries[1] == p2
         assert entries[0].created_by == test_user
         assert entries[0].proof == "git:feature-models-branch"
-        assert entries[1].status == "BLOCKED"
+        assert entries[1].status == "blocked"
+        assert item.status == "blocked"
         assert str(p1).startswith(f"Progress for {item.key}")

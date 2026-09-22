@@ -46,7 +46,7 @@ describe('Davai Frontend App with React Router', () => {
           created_by: 'admin',
           summary: 'Completed models',
           proof: 'git:e93f18a',
-          status: 'COMPLETED',
+          status: 'step completed',
           created_at: '2026-09-20T00:00:00Z',
           updated_by: null,
           updated_at: null,
@@ -1351,7 +1351,7 @@ describe('Davai Frontend App with React Router', () => {
 
     fireEvent.change(summaryInput, { target: { value: 'Completed models and updated API' } })
     fireEvent.change(proofInput, { target: { value: 'git:e93f18b' } })
-    fireEvent.change(statusSelect, { target: { value: 'IN_PROGRESS' } })
+    fireEvent.change(statusSelect, { target: { value: 'planned' } })
 
     const saveBtn = screen.getByTestId('save-progress-1')
     await act(async () => {

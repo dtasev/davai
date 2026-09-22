@@ -17,9 +17,20 @@ import {
   Calendar
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus, UserSummary } from '../../types'
-import { PriorityBadge, StatusBadge } from '../Common/Badge'
+import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 import { apiFetch } from '../../utils/apiFetch'
+
+const PROGRESS_STATUS_OPTIONS = [
+  'step completed',
+  'planned',
+  'blocked',
+  'awaiting review',
+  'done',
+  'failed',
+  'cancelled',
+  'todo',
+]
 
 interface WorkItemDetailModalProps {
   item: WorkItem | null
@@ -118,14 +129,14 @@ export function WorkItemDetailModal({
   // Add progress state
   const [progressText, setProgressText] = useState('')
   const [progressProof, setProgressProof] = useState('')
-  const [progressStatus, setProgressStatus] = useState(item?.status || 'COMPLETED')
+  const [progressStatus, setProgressStatus] = useState('step completed')
   const [submittingProgress, setSubmittingProgress] = useState(false)
 
   // Edit / Delete progress state
   const [editingProgressId, setEditingProgressId] = useState<number | null>(null)
   const [editProgressSummary, setEditProgressSummary] = useState('')
   const [editProgressProof, setEditProgressProof] = useState('')
-  const [editProgressStatus, setEditProgressStatus] = useState('COMPLETED')
+  const [editProgressStatus, setEditProgressStatus] = useState('step completed')
   const [savingProgressId, setSavingProgressId] = useState<number | null>(null)
   const [deletingProgressId, setDeletingProgressId] = useState<number | null>(null)
   const [isDeletingProgress, setIsDeletingProgress] = useState(false)
@@ -134,7 +145,7 @@ export function WorkItemDetailModal({
     setEditingProgressId(p.id)
     setEditProgressSummary(p.summary)
     setEditProgressProof(p.proof || '')
-    setEditProgressStatus(p.status || 'COMPLETED')
+    setEditProgressStatus(p.status || 'step completed')
   }
 
   const cancelEditProgress = () => {
@@ -192,7 +203,7 @@ export function WorkItemDetailModal({
   useEffect(() => {
     if (item) {
       setContextInput(item.context?.summary || '')
-      setProgressStatus(item.status || 'COMPLETED')
+      setProgressStatus('step completed')
       setEditTitle(item.title)
       setEditDescription(item.description || '')
       setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
@@ -492,17 +503,35 @@ export function WorkItemDetailModal({
             {/* Status Dropdown */}
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-zinc-500">Status:</span>
-              {onUpdateStatus && statuses.length > 0 ? (
+              {onUpdateStatus ? (
                 <select
-                  value={item.status}
+                  value={item.status || 'todo'}
                   onChange={handleStatusChange}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 capitalize focus:outline-none focus:border-indigo-500"
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:outline-none focus:border-indigo-500"
                 >
-                  {statuses.map(st => (
-                    <option key={st.id} value={st.name}>
-                      {st.name}
+                  {(statuses && statuses.length > 0
+                    ? statuses
+                    : [
+                        { id: 1, name: 'todo' },
+                        { id: 2, name: 'planned' },
+                        { id: 3, name: 'step completed' },
+                        { id: 4, name: 'blocked' },
+                        { id: 5, name: 'awaiting review' },
+                        { id: 6, name: 'done' },
+                        { id: 7, name: 'cancelled' },
+                      ]
+                  ).map(st => (
+                    <option key={st.id || st.name} value={st.name}>
+                      {formatStatus(st.name)}
                     </option>
                   ))}
+                  {item.status &&
+                    statuses &&
+                    !statuses.some(s => s.name.toLowerCase() === item.status.toLowerCase()) && (
+                      <option value={item.status}>
+                        {formatStatus(item.status)}
+                      </option>
+                    )}
                 </select>
               ) : (
                 <StatusBadge status={item.status} />
@@ -889,10 +918,11 @@ export function WorkItemDetailModal({
                           data-testid={`edit-progress-status-${p.id}`}
                           className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-sm text-zinc-300"
                         >
-                          <option value="COMPLETED">COMPLETED</option>
-                          <option value="IN_PROGRESS">IN_PROGRESS</option>
-                          <option value="BLOCKED">BLOCKED</option>
-                          <option value="FAILED">FAILED</option>
+                          {PROGRESS_STATUS_OPTIONS.map(st => (
+                            <option key={st} value={st}>
+                              {formatStatus(st)}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -1076,10 +1106,11 @@ export function WorkItemDetailModal({
                   onChange={e => setProgressStatus(e.target.value)}
                   className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-sm text-zinc-300"
                 >
-                  <option value="COMPLETED">COMPLETED</option>
-                  <option value="IN_PROGRESS">IN_PROGRESS</option>
-                  <option value="BLOCKED">BLOCKED</option>
-                  <option value="FAILED">FAILED</option>
+                  {PROGRESS_STATUS_OPTIONS.map(st => (
+                    <option key={st} value={st}>
+                      {formatStatus(st)}
+                    </option>
+                  ))}
                 </select>
 
                 <button

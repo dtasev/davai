@@ -186,7 +186,7 @@ class DavaiClient:
         key: str,
         summary: str,
         proof: str = "",
-        status: str = "COMPLETED"
+        status: str = "step completed"
     ) -> Dict[str, Any]:
         """Log a progress step with optional git sha, feature branch, or artifact proof."""
         payload = {"summary": summary, "proof": proof, "status": status}

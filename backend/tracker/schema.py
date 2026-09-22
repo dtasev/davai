@@ -3,6 +3,8 @@ from typing import List, Optional, Any
 from asgiref.sync import sync_to_async
 from strawberry.permission import BasePermission
 from strawberry.types import Info
+from django.db.models import Subquery, OuterRef, Value
+from django.db.models.functions import Coalesce
 from tracker.auth import verify_api_key
 from tracker.models import (
     WorkItem as WorkItemModel,
@@ -154,7 +156,7 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
         parent_key=item.parent.key if item.parent else None,
         title=item.title,
         description=item.description or "",
-        status=item.status.name if item.status else "None",
+        status=item.status,
         priority=item.priority,
         project_key=item.project.key,
         active_assignee=item.active_assignee.username if item.active_assignee else None,
@@ -185,11 +187,16 @@ class Query:
     async def work_items(self, status: Optional[str] = None, project_key: Optional[str] = None) -> List[WorkItemType]:
         def _get():
             qs = WorkItemModel.objects.select_related(
-                "project", "parent", "status", "active_assignee", "created_by", "context"
+                "project", "parent", "active_assignee", "created_by", "context"
             ).prefetch_related("progress").all()
             if status:
-                normalized = status.strip().replace("_", " ")
-                qs = qs.filter(status__name__iexact=normalized)
+                normalized = status.strip().lower().replace("_", " ")
+                latest_status_subquery = Subquery(
+                    ProgressModel.objects.filter(work_item=OuterRef("pk")).order_by("-created_at", "-id").values("status")[:1]
+                )
+                qs = qs.annotate(
+                    latest_status=Coalesce(latest_status_subquery, Value("todo"))
+                ).filter(latest_status__iexact=normalized)
             if project_key:
                 qs = qs.filter(project__key=project_key.upper())
             return [_to_work_item_type(item) for item in qs]
@@ -199,7 +206,7 @@ class Query:
     async def work_item(self, key: str) -> Optional[WorkItemType]:
         def _get():
             item = WorkItemModel.objects.select_related(
-                "project", "parent", "status", "active_assignee", "created_by", "context"
+                "project", "parent", "active_assignee", "created_by", "context"
             ).prefetch_related("progress").filter(key=key.upper()).first()
             return _to_work_item_type(item) if item else None
         return await sync_to_async(_get)()

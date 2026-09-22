@@ -60,11 +60,12 @@ class ProjectStatus(models.Model):
 
 DEFAULT_PROJECT_STATUSES = [
     ("todo", True, 0),
-    ("in progress", False, 1),
-    ("review", False, 2),
-    ("waiting", False, 3),
-    ("done", False, 4),
-    ("cancelled", False, 5),
+    ("planned", False, 1),
+    ("step completed", False, 2),
+    ("blocked", False, 3),
+    ("awaiting review", False, 4),
+    ("done", False, 5),
+    ("cancelled", False, 6),
 ]
 
 
@@ -134,20 +135,23 @@ class WorkItem(models.Model):
     target_date = models.DateTimeField(null=True, blank=True)
     sprint = models.ForeignKey(Sprint, null=True, blank=True, on_delete=models.SET_NULL, related_name="work_items")
     release = models.ForeignKey(Release, null=True, blank=True, on_delete=models.SET_NULL, related_name="work_items")
-    status = models.ForeignKey(ProjectStatus, null=True, blank=True, on_delete=models.SET_NULL, related_name="work_items")
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default="MEDIUM")
 
     class Meta:
         ordering = ["id"]
 
-    def __str__(self):
-        status_name = self.status.name if self.status else "None"
-        return f"{self.key}: {self.title} [{status_name}]"
+    @property
+    def status(self) -> str:
+        if hasattr(self, "_prefetched_objects_cache") and "progress" in self._prefetched_objects_cache:
+            entries = self.progress.all()
+            if entries:
+                return entries[len(entries) - 1].status
+            return "todo"
+        latest = self.progress.order_by("-created_at", "-id").first()
+        return latest.status if latest else "todo"
 
-    def save(self, *args, **kwargs):
-        if not self.status and self.project:
-            self.status = self.project.get_default_status()
-        super().save(*args, **kwargs)
+    def __str__(self):
+        return f"{self.key}: {self.title} [{self.status}]"
 
 
 class Context(models.Model):
@@ -162,10 +166,14 @@ class Context(models.Model):
 
 class Progress(models.Model):
     STATUS_CHOICES = [
-        ("COMPLETED", "Completed"),
-        ("IN_PROGRESS", "In Progress"),
-        ("BLOCKED", "Blocked"),
-        ("FAILED", "Failed"),
+        ("todo", "Todo"),
+        ("planned", "Planned"),
+        ("step completed", "Step Completed"),
+        ("blocked", "Blocked"),
+        ("failed", "Failed"),
+        ("cancelled", "Cancelled"),
+        ("awaiting review", "Awaiting Review"),
+        ("done", "Done"),
     ]
 
     work_item = models.ForeignKey(WorkItem, on_delete=models.CASCADE, related_name="progress")
@@ -176,7 +184,7 @@ class Progress(models.Model):
         blank=True,
         help_text="If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact."
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="COMPLETED")
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="step completed")
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="updated_progress_entries")

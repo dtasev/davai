@@ -10,7 +10,7 @@ import {
   Filter
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus } from '../../types'
-import { PriorityBadge, StatusBadge } from '../Common/Badge'
+import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 
 interface KanbanBoardProps {
@@ -90,8 +90,11 @@ export function KanbanBoard({
     }
     return [
       { id: 1, name: 'todo', order: 1, is_default: true },
-      { id: 2, name: 'in progress', order: 2, is_default: false },
-      { id: 3, name: 'done', order: 3, is_default: false }
+      { id: 2, name: 'planned', order: 2, is_default: false },
+      { id: 3, name: 'step completed', order: 3, is_default: false },
+      { id: 4, name: 'blocked', order: 4, is_default: false },
+      { id: 5, name: 'awaiting review', order: 5, is_default: false },
+      { id: 6, name: 'done', order: 6, is_default: false }
     ]
   }, [statuses])
 
@@ -326,7 +329,7 @@ export function KanbanBoard({
                   <button
                     onClick={() => openCreateModalForStatus(statusObj.name)}
                     className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60 transition"
-                    title={`Add item to ${statusObj.name}`}
+                    title={`Add item to ${formatStatus(statusObj.name)}`}
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -337,7 +340,7 @@ export function KanbanBoard({
               <div className="p-2.5 flex-1 space-y-2.5 min-h-[120px] max-h-[calc(100vh-280px)] overflow-y-auto">
                 {colItems.length === 0 ? (
                   <div className="h-24 border border-dashed border-zinc-800/80 rounded-lg flex items-center justify-center text-[11px] text-zinc-600">
-                    No items in {statusObj.name}
+                    No items in {formatStatus(statusObj.name)}
                   </div>
                 ) : (
                   colItems.map(item => {
@@ -490,7 +493,7 @@ export function KanbanBoard({
               >
                 {effectiveStatuses.map(st => (
                   <option key={st.id || st.name} value={st.name}>
-                    {st.name}
+                    {formatStatus(st.name)}
                   </option>
                 ))}
               </select>

@@ -30,7 +30,7 @@ def list_work_items(status: Optional[str] = None, project_key: Optional[str] = N
     """
     List work items in Davai.
     Args:
-        status: Optional status filter ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
+        status: Optional status filter ('todo', 'planned', 'step completed', 'blocked', 'failed', 'cancelled', 'awaiting review', 'done').
         project_key: Optional project key filter (e.g. 'DAV').
     """
     return get_client().list_work_items(status=status, project_key=project_key)
@@ -71,7 +71,7 @@ def create_work_item(
         description: Original task requirements/description from human input.
         context: Optional initial technical context, analysis, or implementation plan deduced by the LLM agent (markdown supported).
         priority: Priority level ('LOW', 'MEDIUM', 'HIGH'). Defaults to 'MEDIUM'.
-        status: Status ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
+        status: Status ('todo', 'planned', 'step completed', 'blocked', 'failed', 'cancelled', 'awaiting review'). Defaults to 'todo'. Note: 'done' is not permitted via MCP.
         project_key: Target project key (defaults to 'DAV').
         active_assignee_username: Optional username of assigned user. Defaults to the current user (creator) if omitted. Pass empty string to leave unassigned.
         parent_key: Optional parent work item key for subtasks (e.g. 'DAV-1').
@@ -80,6 +80,12 @@ def create_work_item(
         start_date: Optional start date (YYYY-MM-DD or ISO format).
         target_date: Optional target completion date (YYYY-MM-DD or ISO format).
     """
+    if status is not None:
+        clean_status = status.strip().lower()
+        if clean_status == "done":
+            raise ValueError("The 'done' status can only be set by a human via the frontend.")
+        status = clean_status
+
     return get_client().create_work_item(
         title=title,
         description=description,
@@ -115,7 +121,7 @@ def update_work_item(
         key: Work item key (e.g. 'DAV-1').
         title: Optional new title.
         description: Optional new description.
-        status: Optional new status ('todo', 'in progress', 'review', 'waiting', 'done', 'cancelled').
+        status: Optional new status ('todo', 'planned', 'step completed', 'blocked', 'failed', 'cancelled', 'awaiting review'). Note: 'done' is not permitted via MCP.
         priority: Optional new priority ('LOW', 'MEDIUM', 'HIGH').
         active_assignee_username: Optional username to assign to. Pass empty string to unassign.
         parent_key: Optional parent key to reparent or nest this work item.
@@ -130,7 +136,10 @@ def update_work_item(
     if description is not None:
         kwargs["description"] = description
     if status is not None:
-        kwargs["status"] = status
+        clean_status = status.strip().lower()
+        if clean_status == "done":
+            raise ValueError("The 'done' status can only be set by a human via the frontend.")
+        kwargs["status"] = clean_status
     if priority is not None:
         kwargs["priority"] = priority
     if active_assignee_username is not None:
@@ -169,7 +178,7 @@ def log_work_item_progress(
     key: str,
     summary: str,
     proof: str = "",
-    status: str = "COMPLETED"
+    status: str = "step completed"
 ) -> Dict[str, Any]:
     """
     Log a progress step, decision, or completed milestone for a work item.
@@ -177,9 +186,12 @@ def log_work_item_progress(
         key: Work item key (e.g. 'DAV-1').
         summary: Summary of the step completed, decision made, or current obstacle.
         proof: If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact.
-        status: Step status ('COMPLETED', 'IN_PROGRESS', 'BLOCKED', 'FAILED').
+        status: Step status ('todo', 'planned', 'step completed', 'blocked', 'failed', 'cancelled', 'awaiting review'). Defaults to 'step completed'. Note: 'done' is reserved for human verification in the frontend and is refused by MCP.
     """
-    return get_client().log_work_item_progress(key=key, summary=summary, proof=proof, status=status)
+    clean_status = (status or "step completed").strip().lower()
+    if clean_status == "done":
+        raise ValueError("The 'done' status can only be set by a human via the frontend.")
+    return get_client().log_work_item_progress(key=key, summary=summary, proof=proof, status=clean_status)
 
 @mcp_server.tool()
 def update_work_item_progress(
@@ -196,7 +208,7 @@ def update_work_item_progress(
         progress_id: ID of the progress entry to update.
         summary: Optional new summary or description of the progress/step.
         proof: Optional new proof (git sha, feature branch, or artifact link).
-        status: Optional new status ('COMPLETED', 'IN_PROGRESS', 'BLOCKED', 'FAILED').
+        status: Optional new status ('todo', 'planned', 'step completed', 'blocked', 'failed', 'cancelled', 'awaiting review'). Note: 'done' is reserved for human verification in the frontend and is refused by MCP.
     """
     kwargs: Dict[str, Any] = {}
     if summary is not None:
@@ -204,7 +216,10 @@ def update_work_item_progress(
     if proof is not None:
         kwargs["proof"] = proof
     if status is not None:
-        kwargs["status"] = status
+        clean_status = status.strip().lower()
+        if clean_status == "done":
+            raise ValueError("The 'done' status can only be set by a human via the frontend.")
+        kwargs["status"] = clean_status
     return get_client().update_work_item_progress(key=key, progress_id=progress_id, **kwargs)
 
 @mcp_server.tool()

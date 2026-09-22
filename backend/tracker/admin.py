@@ -65,7 +65,7 @@ class ProgressInline(admin.TabularInline):
 @admin.register(WorkItem)
 class WorkItemAdmin(admin.ModelAdmin):
     list_display = ("key", "title", "project", "status", "priority", "active_assignee", "updated")
-    list_filter = ("status", "priority", "project", "sprint", "release")
+    list_filter = ("priority", "project", "sprint", "release")
     search_fields = ("key", "title", "description", "active_assignee__username")
     inlines = [ContextInline, ProgressInline]
 

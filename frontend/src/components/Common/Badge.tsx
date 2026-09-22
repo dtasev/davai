@@ -16,34 +16,53 @@ export function PriorityBadge({ priority }: { priority: string }) {
   )
 }
 
+export function formatStatus(status: string | null | undefined): string {
+  if (!status) return 'Todo'
+  return status
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .split(' ')
+    .map(word => (word ? word.charAt(0).toUpperCase() + word.slice(1) : ''))
+    .join(' ')
+}
+
 export function StatusBadge({ status }: { status: string }) {
-  const s = (status || 'todo').toLowerCase().replace('_', ' ')
+  const s = (status || 'todo').toLowerCase().replace(/_/g, ' ')
   let color = 'bg-zinc-800/60 text-zinc-300 border-zinc-800'
   let dot = 'bg-zinc-500'
 
-  if (s === 'in progress') {
+  if (s === 'planned') {
+    color = 'bg-sky-950/40 text-sky-300 border-sky-800/40'
+    dot = 'bg-sky-400'
+  } else if (s === 'step completed' || s === 'completed') {
+    color = 'bg-teal-950/40 text-teal-300 border-teal-800/40'
+    dot = 'bg-teal-400'
+  } else if (s === 'in progress') {
     color = 'bg-amber-950/40 text-amber-300 border-amber-800/40'
     dot = 'bg-amber-400'
+  } else if (s === 'blocked') {
+    color = 'bg-orange-950/40 text-orange-300 border-orange-800/40'
+    dot = 'bg-orange-400'
+  } else if (s === 'failed') {
+    color = 'bg-rose-950/40 text-rose-300 border-rose-800/40'
+    dot = 'bg-rose-500'
+  } else if (s === 'awaiting review' || s === 'review' || s === 'waiting') {
+    color = 'bg-purple-950/40 text-purple-300 border-purple-800/40'
+    dot = 'bg-purple-400'
   } else if (s === 'done') {
     color = 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40'
     dot = 'bg-emerald-400'
-  } else if (s === 'review') {
-    color = 'bg-indigo-950/40 text-indigo-300 border-indigo-800/40'
-    dot = 'bg-indigo-400'
-  } else if (s === 'waiting') {
-    color = 'bg-purple-950/40 text-purple-300 border-purple-800/40'
-    dot = 'bg-purple-400'
   } else if (s === 'cancelled') {
-    color = 'bg-rose-950/40 text-rose-300 border-rose-800/40'
-    dot = 'bg-rose-500'
+    color = 'bg-zinc-900 text-zinc-400 border-zinc-800'
+    dot = 'bg-zinc-600'
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border capitalize leading-none ${color}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border leading-none ${color}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${dot}`}></span>
-      <span>{s}</span>
+      <span>{formatStatus(status)}</span>
     </span>
   )
 }

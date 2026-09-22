@@ -6,6 +6,8 @@ import ninja
 from ninja import NinjaAPI, Schema, errors
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Subquery, OuterRef, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from tracker.models import (
     WorkItem,
@@ -223,7 +225,7 @@ class ProgressOut(Schema):
 class CreateProgressIn(Schema):
     summary: str
     proof: str = ""
-    status: str = "COMPLETED"
+    status: str = "step completed"
 
 
 class UpdateProgressIn(Schema):
@@ -262,7 +264,7 @@ class WorkItemOut(Schema):
 
     @staticmethod
     def resolve_status(obj: WorkItem) -> str:
-        return obj.status.name if obj.status else "None"
+        return obj.status
 
     @staticmethod
     def resolve_project_key(obj: WorkItem) -> str:
@@ -600,12 +602,17 @@ def _resolve_status(project: Project, status_val: Optional[str]) -> Optional[Pro
 @api.get("/work-items/preview", response=List[WorkItemOut], summary="Public Preview of Work Items", operation_id="tracker_api_list_work_items_preview")
 def list_work_items(request, status: Optional[str] = None, project_key: Optional[str] = None):
     qs = WorkItem.objects.select_related(
-        "project", "parent", "status", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
+        "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
     ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by").all()
 
     if status:
-        normalized = status.strip().replace("_", " ")
-        qs = qs.filter(status__name__iexact=normalized)
+        normalized = status.strip().lower().replace("_", " ")
+        latest_status_subquery = Subquery(
+            Progress.objects.filter(work_item=OuterRef("pk")).order_by("-created_at", "-id").values("status")[:1]
+        )
+        qs = qs.annotate(
+            latest_status=Coalesce(latest_status_subquery, Value("todo"))
+        ).filter(latest_status__iexact=normalized)
     if project_key:
         qs = qs.filter(project__key=project_key.upper())
     return qs
@@ -615,7 +622,7 @@ def list_work_items(request, status: Optional[str] = None, project_key: Optional
 def get_work_item(request, key: str):
     return get_object_or_404(
         WorkItem.objects.select_related(
-            "project", "parent", "status", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
+            "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
         ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by"),
         key=key.upper()
     )
@@ -651,7 +658,11 @@ def create_work_item(request, payload: CreateWorkItemIn):
     if payload.release_id:
         release = Release.objects.filter(id=payload.release_id, project=project).first()
 
-    status_obj = _resolve_status(project, payload.status)
+    clean_status = payload.status.strip().lower() if payload.status else None
+    if clean_status == "done":
+        user_agent = request.headers.get("User-Agent", "")
+        if "Davai-MCP" in user_agent:
+            raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
 
     with transaction.atomic():
         item = WorkItem.objects.create(
@@ -660,7 +671,6 @@ def create_work_item(request, payload: CreateWorkItemIn):
             key=item_key,
             title=payload.title,
             description=payload.description,
-            status=status_obj,
             priority=payload.priority.upper(),
             active_assignee=assignee,
             created_by=user,
@@ -670,6 +680,13 @@ def create_work_item(request, payload: CreateWorkItemIn):
             sprint=sprint,
             release=release
         )
+        if clean_status and clean_status != "todo":
+            Progress.objects.create(
+                work_item=item,
+                created_by=user,
+                summary=f"Initial status set to {clean_status}",
+                status=clean_status
+            )
         if payload.context:
             context_obj = Context.objects.create(work_item=item, user=user, summary=payload.context)
             item.context = context_obj
@@ -679,7 +696,7 @@ def create_work_item(request, payload: CreateWorkItemIn):
 @api.patch("/work-items/{key}", response=WorkItemOut, auth=api_key_auth, summary="Update Work Item")
 def update_work_item(request, key: str, payload: UpdateWorkItemIn):
     item = get_object_or_404(
-        WorkItem.objects.select_related("project", "status", "active_assignee", "created_by"),
+        WorkItem.objects.select_related("project", "active_assignee", "created_by"),
         key=key.upper()
     )
     user = request.auth
@@ -694,7 +711,17 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
         else:
             item.parent = WorkItem.objects.filter(key=payload.parent_key.upper()).first()
     if payload.status is not None:
-        item.status = _resolve_status(item.project, payload.status)
+        clean_status = payload.status.strip().lower()
+        if clean_status == "done":
+            user_agent = request.headers.get("User-Agent", "")
+            if "Davai-MCP" in user_agent:
+                raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
+        Progress.objects.create(
+            work_item=item,
+            created_by=user,
+            summary=f"Status updated to {clean_status}",
+            status=clean_status
+        )
     if payload.priority is not None:
         item.priority = payload.priority.upper()
     if "active_assignee_username" in payload.model_fields_set:
@@ -774,12 +801,17 @@ def log_work_item_progress(request, key: str, payload: CreateProgressIn):
     """
     user = request.auth
     item = get_object_or_404(WorkItem, key=key.upper())
+    clean_status = (payload.status or "step completed").strip().lower()
+    if clean_status == "done":
+        user_agent = request.headers.get("User-Agent", "")
+        if "Davai-MCP" in user_agent:
+            raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
     return Progress.objects.create(
         work_item=item,
         created_by=user,
         summary=payload.summary,
         proof=payload.proof,
-        status=payload.status.upper()
+        status=clean_status
     )
 
 
@@ -805,7 +837,12 @@ def update_work_item_progress(request, key: str, progress_id: int, payload: Upda
     if payload.proof is not None:
         progress.proof = payload.proof
     if payload.status is not None:
-        progress.status = payload.status.upper()
+        clean_status = payload.status.strip().lower()
+        if clean_status == "done":
+            user_agent = request.headers.get("User-Agent", "")
+            if "Davai-MCP" in user_agent:
+                raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
+        progress.status = clean_status
 
     progress.updated_by = user
     progress.save()

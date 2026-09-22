@@ -252,13 +252,13 @@ class TestNinjaAPI:
         assert res.status_code == 200
         proj_data = res.json()
         assert proj_data["key"] == "CORE"
-        assert len(proj_data["statuses"]) == 6
+        assert len(proj_data["statuses"]) == 7
 
         # Fetch statuses
         statuses_res = ninja_client.get("/projects/CORE/statuses")
         assert statuses_res.status_code == 200
         statuses = statuses_res.json()
-        assert [s["name"] for s in statuses] == ["todo", "in progress", "review", "waiting", "done", "cancelled"]
+        assert [s["name"] for s in statuses] == ["todo", "planned", "step completed", "blocked", "awaiting review", "done", "cancelled"]
 
     def test_sprint_and_release_endpoints(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
@@ -374,7 +374,7 @@ class TestNinjaAPI:
             json={
                 "summary": "Implemented models and ran migrations",
                 "proof": "git:8f3a9e2",
-                "status": "COMPLETED"
+                "status": "step completed"
             },
             headers={"X-API-Key": raw_key}
         )
@@ -382,7 +382,7 @@ class TestNinjaAPI:
         prog_data = prog_res.json()
         assert prog_data["summary"] == "Implemented models and ran migrations"
         assert prog_data["proof"] == "git:8f3a9e2"
-        assert prog_data["status"] == "COMPLETED"
+        assert prog_data["status"] == "step completed"
         assert prog_data["created_by"] == test_user.username
         assert "created_at" in prog_data
         assert prog_data["updated_by"] is None
@@ -562,7 +562,7 @@ class TestNinjaAPI:
         # 2. PATCH progress entry (happy path)
         patch_res = ninja_client.patch(
             f"/work-items/{item_key}/progress/{prog_id}",
-            json={"summary": "Updated step", "proof": "git:def2", "status": "COMPLETED"},
+            json={"summary": "Updated step", "proof": "git:def2", "status": "step completed"},
             headers={"X-API-Key": raw_key}
         )
         assert patch_res.status_code == 200
@@ -570,7 +570,7 @@ class TestNinjaAPI:
         assert updated["id"] == prog_id
         assert updated["summary"] == "Updated step"
         assert updated["proof"] == "git:def2"
-        assert updated["status"] == "COMPLETED"
+        assert updated["status"] == "step completed"
         assert updated["created_by"] == test_user.username
         assert updated["updated_by"] == test_user.username
         assert updated["updated_at"] is not None
@@ -807,6 +807,110 @@ class TestNinjaAPI:
                 f"Expected 401 Unauthorized for unauthenticated {method.upper()} {path}, "
                 f"got {res.status_code}: {res.content}"
             )
+
+    def test_done_status_restricted_from_mcp_and_allowed_for_humans(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+
+        # Create a work item
+        create_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Done Status Test Item", "project_key": test_project.key},
+            headers={"X-API-Key": raw_key}
+        )
+        assert create_res.status_code == 200
+        item_key = create_res.json()["key"]
+        assert create_res.json()["status"] == "todo"
+
+        # 1. MCP client attempts to log progress with status="done" -> 400 Refused
+        mcp_headers = {"X-API-Key": raw_key, "User-Agent": "Davai-MCP-Client/1.0"}
+        res_mcp = ninja_client.post(
+            f"/work-items/{item_key}/progress",
+            json={"summary": "Agent thinks it is done", "status": "done"},
+            headers=mcp_headers
+        )
+        assert res_mcp.status_code == 400
+        assert "only be set by a human via the frontend" in res_mcp.json()["detail"]
+
+        # 2. MCP client attempts PATCH work-item with status="done" -> 400 Refused
+        res_patch_mcp = ninja_client.patch(
+            f"/work-items/{item_key}",
+            json={"status": "done"},
+            headers=mcp_headers
+        )
+        assert res_patch_mcp.status_code == 400
+        assert "only be set by a human via the frontend" in res_patch_mcp.json()["detail"]
+
+        # 3. Human / browser client logs progress with status="done" -> 200 OK
+        human_headers = {"X-API-Key": raw_key, "User-Agent": "Mozilla/5.0"}
+        res_human = ninja_client.post(
+            f"/work-items/{item_key}/progress",
+            json={"summary": "Human verified and completed", "status": "done"},
+            headers=human_headers
+        )
+        assert res_human.status_code == 200
+        assert res_human.json()["status"] == "done"
+
+        # Verify work item status is now "done"
+        get_res = ninja_client.get(f"/work-items/{item_key}")
+        assert get_res.status_code == 200
+        assert get_res.json()["status"] == "done"
+
+    def test_work_item_status_derived_and_filtering(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+
+        # Item 1: No progress entries -> defaults to "todo"
+        item1_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Item Todo Only", "project_key": test_project.key},
+            headers={"X-API-Key": raw_key}
+        )
+        key1 = item1_res.json()["key"]
+        assert item1_res.json()["status"] == "todo"
+
+        # Item 2: Progress entry with "planned"
+        item2_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Item Planned", "project_key": test_project.key},
+            headers={"X-API-Key": raw_key}
+        )
+        key2 = item2_res.json()["key"]
+        ninja_client.post(
+            f"/work-items/{key2}/progress",
+            json={"summary": "Plan ready", "status": "planned"},
+            headers={"X-API-Key": raw_key}
+        )
+
+        # Item 3: Progress entry with "step completed"
+        item3_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Item Step Completed", "project_key": test_project.key},
+            headers={"X-API-Key": raw_key}
+        )
+        key3 = item3_res.json()["key"]
+        ninja_client.post(
+            f"/work-items/{key3}/progress",
+            json={"summary": "Step 1 done", "status": "step completed"},
+            headers={"X-API-Key": raw_key}
+        )
+
+        # Filter by status=todo
+        todo_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=todo")
+        todo_keys = [i["key"] for i in todo_res.json()]
+        assert key1 in todo_keys
+        assert key2 not in todo_keys
+        assert key3 not in todo_keys
+
+        # Filter by status=planned
+        planned_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=planned")
+        planned_keys = [i["key"] for i in planned_res.json()]
+        assert key2 in planned_keys
+        assert key1 not in planned_keys
+
+        # Filter by status=step completed
+        step_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=step completed")
+        step_keys = [i["key"] for i in step_res.json()]
+        assert key3 in step_keys
+        assert key1 not in step_keys
 
 
 

@@ -101,9 +101,12 @@ class TestMCPWithApiClient:
         assert fetched["priority"] == "HIGH"
         assert fetched["description"] == "Created through MCP API Client"
 
-        # 4. Update item via MCP tool
-        updated = update_work_item(key=item_key, status="done")
-        assert updated["status"] == "done"
+        # 4. Update item via MCP tool (rejects 'done', accepts valid progress statuses)
+        with pytest.raises(ValueError, match="The 'done' status can only be set by a human"):
+            update_work_item(key=item_key, status="done")
+
+        updated = update_work_item(key=item_key, status="planned")
+        assert updated["status"] == "planned"
 
         # 5. Set technical context via MCP tool (contract verification)
         assert "NO VERSIONING" in set_work_item_context.__doc__
@@ -126,26 +129,32 @@ class TestMCPWithApiClient:
         assert fetched_after_ctx["context"]["updated_by"] == test_user.username
         assert "timestamp" in fetched_after_ctx["context"]
 
-        # 6. Log progress with proof via MCP tool
-        prog = log_work_item_progress(key=item_key, summary="Shipped MCP integration", proof="git:sha-987abc", status="COMPLETED")
+        # 6. Log progress with proof via MCP tool (rejects 'done', accepts valid lowercase)
+        with pytest.raises(ValueError, match="The 'done' status can only be set by a human"):
+            log_work_item_progress(key=item_key, summary="Try done", status="done")
+
+        prog = log_work_item_progress(key=item_key, summary="Shipped MCP integration", proof="git:sha-987abc", status="step completed")
         assert prog["summary"] == "Shipped MCP integration"
         assert prog["proof"] == "git:sha-987abc"
-        assert prog["status"] == "COMPLETED"
+        assert prog["status"] == "step completed"
         assert prog["created_by"] == test_user.username
         assert "created_at" in prog
         prog_id = prog["id"]
 
         # Update progress entry via MCP tool
+        with pytest.raises(ValueError, match="The 'done' status can only be set by a human"):
+            update_work_item_progress(key=item_key, progress_id=prog_id, status="done")
+
         updated_prog = update_work_item_progress(
             key=item_key,
             progress_id=prog_id,
             summary="Shipped MCP integration with tests",
             proof="git:sha-final",
-            status="DONE"
+            status="awaiting review"
         )
         assert updated_prog["summary"] == "Shipped MCP integration with tests"
         assert updated_prog["proof"] == "git:sha-final"
-        assert updated_prog["status"] == "DONE"
+        assert updated_prog["status"] == "awaiting review"
         assert updated_prog["created_by"] == test_user.username
         assert updated_prog["updated_by"] == test_user.username
         assert updated_prog["updated_at"] is not None
@@ -154,9 +163,14 @@ class TestMCPWithApiClient:
         del_prog = delete_work_item_progress(key=item_key, progress_id=prog_id)
         assert del_prog["success"] is True
 
-        # Verify get_work_item has 0 progress entries now
+        # Clear any remaining progress entries and verify work item reverts to 'todo'
+        for remaining in get_work_item(key=item_key)["progress"]:
+            delete_work_item_progress(key=item_key, progress_id=remaining["id"])
+
+        # Verify get_work_item has 0 progress entries and status is 'todo'
         fetched_after_del = get_work_item(key=item_key)
         assert len(fetched_after_del["progress"]) == 0
+        assert fetched_after_del["status"] == "todo"
 
         # 7. List items via MCP tool
         items = list_work_items(project_key=test_project.key)
@@ -165,6 +179,11 @@ class TestMCPWithApiClient:
         # 8. Create a Release and a Sprint, associate item
         rel = Release.objects.create(project=test_project, name="v1.0.0", description="First stable release")
         sp = Sprint.objects.create(project=test_project, release=rel, name="Sprint 1", description="Initial sprint")
+        # Human verifies and sets item to done via progress
+        from tracker.models import Progress as ProgressModel, WorkItem as WorkItemModel
+        item_obj = WorkItemModel.objects.get(key=item_key)
+        ProgressModel.objects.create(work_item=item_obj, summary="Human verified and closed", status="done", created_by=test_user)
+
         update_work_item(key=item_key, sprint_id=sp.id, release_id=rel.id)
 
         # Create work item directly with sprint_id and release_id

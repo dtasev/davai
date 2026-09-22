@@ -44,13 +44,24 @@ export interface ContextData {
   timestamp: string
 }
 
+export type ProgressStatus =
+  | 'todo'
+  | 'planned'
+  | 'step completed'
+  | 'blocked'
+  | 'failed'
+  | 'cancelled'
+  | 'awaiting review'
+  | 'done'
+  | string
+
 export interface ProgressEntry {
   id: number
   work_item_key: string
   created_by: string | null
   summary: string
   proof: string
-  status: 'COMPLETED' | 'IN_PROGRESS' | 'BLOCKED' | 'FAILED' | string
+  status: ProgressStatus
   created_at: string
   updated_at?: string | null
   updated_by?: string | null
@@ -62,7 +73,7 @@ export interface WorkItem {
   parent_key: string | null
   title: string
   description: string
-  status: string
+  status: ProgressStatus
   priority: 'LOW' | 'MEDIUM' | 'HIGH'
   project_key: string
   active_assignee: string | null

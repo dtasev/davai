@@ -52,7 +52,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
         created_by=test_user,
         summary="GraphQL Progress Summary",
         proof="git:sha123",
-        status="IN_PROGRESS"
+        status="step completed"
     )
 
     query = """
@@ -99,12 +99,12 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
     assert any(i["key"] == f"{test_project.key}-100" for i in res.data["workItems"])
     assert res.data["workItem"]["title"] == "GraphQL Test Item"
     assert res.data["workItem"]["description"] == "Created for testing GraphQL schema"
-    assert res.data["workItem"]["status"] == "todo"
+    assert res.data["workItem"]["status"] == "step completed"
     assert res.data["workItem"]["context"]["summary"] == "GraphQL Context Summary"
     assert len(res.data["workItem"]["progress"]) == 1
     assert res.data["workItem"]["progress"][0]["summary"] == "GraphQL Progress Summary"
     assert res.data["workItem"]["progress"][0]["proof"] == "git:sha123"
-    assert res.data["workItem"]["progress"][0]["status"] == "IN_PROGRESS"
+    assert res.data["workItem"]["progress"][0]["status"] == "step completed"
     assert res.data["workItem"]["progress"][0]["createdBy"] == test_user.username
     assert res.data["workItem"]["progress"][0]["createdAt"] is not None
     assert res.data["workItem"]["progress"][0]["updatedBy"] is None

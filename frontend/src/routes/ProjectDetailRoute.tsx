@@ -205,6 +205,11 @@ export function ProjectDetailRoute() {
     }
   }
 
+  const getEffectiveStatus = (progress: ProgressEntry[] | undefined): string => {
+    if (!progress || progress.length === 0) return 'todo'
+    return progress[progress.length - 1].status || 'todo'
+  }
+
   const handleAddProgress = async (
     key: string,
     entry: { summary: string; proof: string; status: string }
@@ -220,11 +225,15 @@ export function ProjectDetailRoute() {
     if (res.ok) {
       const newProgress = await res.json()
       setWorkItems(prev =>
-        prev.map(item =>
-          item.key === key
-            ? { ...item, progress: [...(item.progress || []), newProgress] }
-            : item
-        )
+        prev.map(item => {
+          if (item.key !== key) return item
+          const updatedList = [...(item.progress || []), newProgress]
+          return {
+            ...item,
+            status: getEffectiveStatus(updatedList),
+            progress: updatedList
+          }
+        })
       )
     }
   }
@@ -245,16 +254,17 @@ export function ProjectDetailRoute() {
     if (res.ok) {
       const updatedProgress: ProgressEntry = await res.json()
       setWorkItems(prev =>
-        prev.map(item =>
-          item.key === key
-            ? {
-                ...item,
-                progress: (item.progress || []).map(p =>
-                  p.id === progressId ? updatedProgress : p
-                )
-              }
-            : item
-        )
+        prev.map(item => {
+          if (item.key !== key) return item
+          const updatedList = (item.progress || []).map(p =>
+            p.id === progressId ? updatedProgress : p
+          )
+          return {
+            ...item,
+            status: getEffectiveStatus(updatedList),
+            progress: updatedList
+          }
+        })
       )
       return updatedProgress
     } else {
@@ -271,14 +281,15 @@ export function ProjectDetailRoute() {
 
     if (res.ok) {
       setWorkItems(prev =>
-        prev.map(item =>
-          item.key === key
-            ? {
-                ...item,
-                progress: (item.progress || []).filter(p => p.id !== progressId)
-              }
-            : item
-        )
+        prev.map(item => {
+          if (item.key !== key) return item
+          const updatedList = (item.progress || []).filter(p => p.id !== progressId)
+          return {
+            ...item,
+            status: getEffectiveStatus(updatedList),
+            progress: updatedList
+          }
+        })
       )
     } else {
       const err = await res.json().catch(() => ({}))
