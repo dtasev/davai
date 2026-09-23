@@ -317,14 +317,14 @@ class TestNinjaAPI:
                 "description": "Child subtask",
                 "parent_key": parent_key,
                 "project_key": test_project.key,
-                "status": "in progress"
+                "status": "planned"
             },
             headers={"X-API-Key": raw_key}
         )
         assert child_res.status_code == 200
         child = child_res.json()
         assert child["parent_key"] == parent_key
-        assert child["status"] == "in progress"
+        assert child["status"] == "planned"
         child_key = child["key"]
 
         # 3. Update child item
@@ -550,7 +550,7 @@ class TestNinjaAPI:
         # 1. Log initial progress
         post_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
-            json={"summary": "Initial step", "proof": "git:abc1", "status": "IN_PROGRESS"},
+            json={"summary": "Initial step", "proof": "git:abc1", "status": "planned"},
             headers={"X-API-Key": raw_key}
         )
         assert post_res.status_code == 200
@@ -932,7 +932,7 @@ class TestNinjaAPI:
         # Add a progress entry
         prog_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
-            json={"summary": "Progress entry 1", "status": "in progress"},
+            json={"summary": "Progress entry 1", "status": "step completed"},
             headers={"X-API-Key": raw_key},
         )
         assert prog_res.status_code == 200
@@ -956,6 +956,65 @@ class TestNinjaAPI:
         assert detail["context"]["summary"] == "Full technical plan markdown"
         assert len(detail["progress"]) == 1
         assert detail["progress"][0]["summary"] == "Progress entry 1"
+
+    def test_invalid_status_rejected_across_api(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+
+        # 1. Create work item with invalid status -> 400
+        res = ninja_client.post(
+            "/work-items",
+            json={"title": "Invalid Status", "project_key": test_project.key, "status": "completed"},
+            headers=headers
+        )
+        assert res.status_code == 400
+        assert "Invalid status 'completed'" in res.json()["detail"]
+
+        # Valid create
+        res = ninja_client.post(
+            "/work-items",
+            json={"title": "Valid Item", "project_key": test_project.key},
+            headers=headers
+        )
+        assert res.status_code == 200
+        key = res.json()["key"]
+
+        # 2. Update work item with invalid status -> 400
+        patch_res = ninja_client.patch(
+            f"/work-items/{key}",
+            json={"status": "completed"},
+            headers=headers
+        )
+        assert patch_res.status_code == 400
+        assert "Invalid status 'completed'" in patch_res.json()["detail"]
+
+        # 3. Log progress with invalid status -> 400
+        prog_res = ninja_client.post(
+            f"/work-items/{key}/progress",
+            json={"summary": "Invalid progress", "status": "completed"},
+            headers=headers
+        )
+        assert prog_res.status_code == 400
+        assert "Invalid status 'completed'" in prog_res.json()["detail"]
+
+        # Valid progress log
+        prog_valid = ninja_client.post(
+            f"/work-items/{key}/progress",
+            json={"summary": "Valid progress", "status": "step completed"},
+            headers=headers
+        )
+        assert prog_valid.status_code == 200
+        prog_id = prog_valid.json()["id"]
+
+        # 4. Update progress with invalid status -> 400
+        prog_patch = ninja_client.patch(
+            f"/work-items/{key}/progress/{prog_id}",
+            json={"status": "in_progress"},
+            headers=headers
+        )
+        assert prog_patch.status_code == 400
+        assert "Invalid status 'in_progress'" in prog_patch.json()["detail"]
+
 
 
 

@@ -25,6 +25,16 @@ def set_client(client: DavaiClient):
     global _client
     _client = client
 
+MCP_ALLOWED_STATUSES = (
+    "todo",
+    "planned",
+    "step completed",
+    "blocked",
+    "awaiting review",
+    "cancelled",
+    "failed",
+)
+
 @mcp_server.tool()
 def list_work_items(status: Optional[str] = None, project_key: Optional[str] = None) -> List[Dict[str, Any]]:
     """
@@ -85,6 +95,8 @@ def create_work_item(
         clean_status = status.strip().lower()
         if clean_status == "done":
             raise ValueError("The 'done' status can only be set by a human via the frontend.")
+        if clean_status not in MCP_ALLOWED_STATUSES:
+            raise ValueError(f"Invalid status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_STATUSES)}.")
         status = clean_status
 
     return get_client().create_work_item(
@@ -140,6 +152,8 @@ def update_work_item(
         clean_status = status.strip().lower()
         if clean_status == "done":
             raise ValueError("The 'done' status can only be set by a human via the frontend.")
+        if clean_status not in MCP_ALLOWED_STATUSES:
+            raise ValueError(f"Invalid status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_STATUSES)}.")
         kwargs["status"] = clean_status
     if priority is not None:
         kwargs["priority"] = priority
@@ -192,6 +206,8 @@ def log_work_item_progress(
     clean_status = (status or "step completed").strip().lower()
     if clean_status == "done":
         raise ValueError("The 'done' status can only be set by a human via the frontend.")
+    if clean_status not in MCP_ALLOWED_STATUSES:
+        raise ValueError(f"Invalid status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_STATUSES)}.")
     return get_client().log_work_item_progress(key=key, summary=summary, proof=proof, status=clean_status)
 
 @mcp_server.tool()
@@ -220,6 +236,8 @@ def update_work_item_progress(
         clean_status = status.strip().lower()
         if clean_status == "done":
             raise ValueError("The 'done' status can only be set by a human via the frontend.")
+        if clean_status not in MCP_ALLOWED_STATUSES:
+            raise ValueError(f"Invalid status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_STATUSES)}.")
         kwargs["status"] = clean_status
     return get_client().update_work_item_progress(key=key, progress_id=progress_id, **kwargs)
 

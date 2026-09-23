@@ -101,9 +101,11 @@ class TestMCPWithApiClient:
         assert fetched["priority"] == "HIGH"
         assert fetched["description"] == "Created through MCP API Client"
 
-        # 4. Update item via MCP tool (rejects 'done', accepts valid progress statuses)
+        # 4. Update item via MCP tool (rejects 'done' and invalid statuses, accepts valid progress statuses)
         with pytest.raises(ValueError, match="The 'done' status can only be set by a human"):
             update_work_item(key=item_key, status="done")
+        with pytest.raises(ValueError, match="Invalid status 'completed'"):
+            update_work_item(key=item_key, status="completed")
 
         updated = update_work_item(key=item_key, status="planned")
         assert updated["status"] == "planned"
@@ -129,9 +131,11 @@ class TestMCPWithApiClient:
         assert fetched_after_ctx["context"]["updated_by"] == test_user.username
         assert "timestamp" in fetched_after_ctx["context"]
 
-        # 6. Log progress with proof via MCP tool (rejects 'done', accepts valid lowercase)
+        # 6. Log progress with proof via MCP tool (rejects 'done' and invalid statuses, accepts valid lowercase)
         with pytest.raises(ValueError, match="The 'done' status can only be set by a human"):
             log_work_item_progress(key=item_key, summary="Try done", status="done")
+        with pytest.raises(ValueError, match="Invalid status 'completed'"):
+            log_work_item_progress(key=item_key, summary="Try completed", status="completed")
 
         prog = log_work_item_progress(key=item_key, summary="Shipped MCP integration", proof="git:sha-987abc", status="step completed")
         assert prog["summary"] == "Shipped MCP integration"
@@ -144,6 +148,8 @@ class TestMCPWithApiClient:
         # Update progress entry via MCP tool
         with pytest.raises(ValueError, match="The 'done' status can only be set by a human"):
             update_work_item_progress(key=item_key, progress_id=prog_id, status="done")
+        with pytest.raises(ValueError, match="Invalid status 'in_progress'"):
+            update_work_item_progress(key=item_key, progress_id=prog_id, status="in_progress")
 
         updated_prog = update_work_item_progress(
             key=item_key,

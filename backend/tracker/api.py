@@ -20,6 +20,7 @@ from tracker.models import (
     Progress,
     APIKey,
     WorkItemEmbedding,
+    ALL_PROGRESS_STATUSES,
 )
 from tracker.auth import api_key_auth, generate_api_key
 
@@ -950,10 +951,13 @@ def create_work_item(request, payload: CreateWorkItemIn):
         release = Release.objects.filter(id=payload.release_id, project=project).first()
 
     clean_status = payload.status.strip().lower() if payload.status else None
-    if clean_status == "done":
-        user_agent = request.headers.get("User-Agent", "")
-        if "Davai-MCP" in user_agent:
-            raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
+    if clean_status:
+        if clean_status not in ALL_PROGRESS_STATUSES:
+            raise errors.HttpError(400, f"Invalid status '{payload.status}'. Allowed statuses are: {', '.join(ALL_PROGRESS_STATUSES)}.")
+        if clean_status == "done":
+            user_agent = request.headers.get("User-Agent", "")
+            if "Davai-MCP" in user_agent:
+                raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
 
     with transaction.atomic():
         item = WorkItem.objects.create(
@@ -1003,6 +1007,8 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
             item.parent = WorkItem.objects.filter(key=payload.parent_key.upper()).first()
     if payload.status is not None:
         clean_status = payload.status.strip().lower()
+        if clean_status not in ALL_PROGRESS_STATUSES:
+            raise errors.HttpError(400, f"Invalid status '{payload.status}'. Allowed statuses are: {', '.join(ALL_PROGRESS_STATUSES)}.")
         if clean_status == "done":
             user_agent = request.headers.get("User-Agent", "")
             if "Davai-MCP" in user_agent:
@@ -1093,6 +1099,8 @@ def log_work_item_progress(request, key: str, payload: CreateProgressIn):
     user = request.auth
     item = get_object_or_404(WorkItem, key=key.upper())
     clean_status = (payload.status or "step completed").strip().lower()
+    if clean_status not in ALL_PROGRESS_STATUSES:
+        raise errors.HttpError(400, f"Invalid status '{payload.status}'. Allowed statuses are: {', '.join(ALL_PROGRESS_STATUSES)}.")
     if clean_status == "done":
         user_agent = request.headers.get("User-Agent", "")
         if "Davai-MCP" in user_agent:
@@ -1129,6 +1137,8 @@ def update_work_item_progress(request, key: str, progress_id: int, payload: Upda
         progress.proof = payload.proof
     if payload.status is not None:
         clean_status = payload.status.strip().lower()
+        if clean_status not in ALL_PROGRESS_STATUSES:
+            raise errors.HttpError(400, f"Invalid status '{payload.status}'. Allowed statuses are: {', '.join(ALL_PROGRESS_STATUSES)}.")
         if clean_status == "done":
             user_agent = request.headers.get("User-Agent", "")
             if "Davai-MCP" in user_agent:
