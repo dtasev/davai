@@ -18,7 +18,7 @@ describe('Davai Frontend App with React Router', () => {
       parent_key: null,
       title: 'Build AI-Native Data Models',
       description: 'Django ORM schema and models',
-      status: 'done',
+      status: 'in progress',
       priority: 'HIGH',
       project_key: 'DAV',
       active_assignee: 'admin',
@@ -1204,6 +1204,7 @@ describe('Davai Frontend App with React Router', () => {
   })
 
   it('renders left sidebar menu and toggles between list view and kanban board view', async () => {
+    mockWorkItem.status = 'done'
     await renderWithRouter(['/projects/DAV'])
 
     await waitFor(() => {
@@ -1281,6 +1282,7 @@ describe('Davai Frontend App with React Router', () => {
   })
 
   it('supports drag-and-drop between kanban columns to update status', async () => {
+    mockWorkItem.status = 'done'
     await renderWithRouter(['/projects/DAV?view=board'])
 
     await waitFor(() => {

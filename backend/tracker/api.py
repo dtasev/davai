@@ -615,7 +615,7 @@ def list_work_items(request, status: Optional[str] = None, project_key: Optional
         ).filter(latest_status__iexact=normalized)
     if project_key:
         qs = qs.filter(project__key=project_key.upper())
-    return qs
+    return qs.order_by("-created", "-id")
 
 
 @api.get("/work-items/{key}", response=WorkItemOut, summary="Get Single Work Item")

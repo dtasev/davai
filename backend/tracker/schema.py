@@ -199,7 +199,7 @@ class Query:
                 ).filter(latest_status__iexact=normalized)
             if project_key:
                 qs = qs.filter(project__key=project_key.upper())
-            return [_to_work_item_type(item) for item in qs]
+            return [_to_work_item_type(item) for item in qs.order_by("-created", "-id")]
         return await sync_to_async(_get)()
 
     @strawberry.field(permission_classes=[HasApiKey])
