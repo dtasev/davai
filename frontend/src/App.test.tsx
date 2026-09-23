@@ -4,6 +4,8 @@ import { createMemoryRouter } from 'react-router-dom'
 import App from './App'
 import { routes } from './routes/router'
 import { StatusBadge } from './components/Common/Badge'
+import { WorkItemDetailModal } from './components/Modals/WorkItemDetailModal'
+import { WorkItem } from './types'
 
 describe('Davai Frontend App with React Router', () => {
   let mockWorkItem: any
@@ -1433,6 +1435,78 @@ describe('Davai Frontend App with React Router', () => {
     // The status label is followed by a badge, not a select
     const statusLabel = screen.getByText('Status:')
     expect(statusLabel.parentElement?.querySelector('select')).toBeNull()
+  })
+
+  it('renders progress entries sorted newest-first, formatted as YYYY-MM-DD HH:MM, and respects saved height in localStorage', () => {
+    localStorage.setItem('davai_progress_list_height', '450')
+    const itemWithProgress: WorkItem = {
+      id: 1,
+      key: 'DAV-1',
+      parent_key: null,
+      title: 'Task With Multiple Progress',
+      description: 'Desc',
+      status: 'step completed',
+      priority: 'MEDIUM',
+      project_key: 'DAV',
+      active_assignee: null,
+      created_by: 'admin',
+      updated_by: null,
+      assigned: [],
+      watching: [],
+      source: '',
+      start_date: null,
+      target_date: null,
+      sprint_id: null,
+      release_id: null,
+      created: '2026-09-01T00:00:00Z',
+      updated: '2026-09-20T00:00:00Z',
+      context: null,
+      progress: [
+        {
+          id: 1,
+          work_item_key: 'DAV-1',
+          created_by: 'admin',
+          summary: 'Old progress update',
+          proof: 'git:old',
+          status: 'step completed',
+          created_at: '2026-09-10T08:30:00Z',
+          updated_by: null,
+          updated_at: null
+        },
+        {
+          id: 2,
+          work_item_key: 'DAV-1',
+          created_by: 'admin',
+          summary: 'New progress update',
+          proof: 'git:new',
+          status: 'step completed',
+          created_at: '2026-09-20T14:45:00Z',
+          updated_by: null,
+          updated_at: null
+        }
+      ]
+    }
+
+    render(
+      <WorkItemDetailModal
+        item={itemWithProgress}
+        sprints={[]}
+        releases={[]}
+        onClose={() => {}}
+      />
+    )
+
+    // Check localStorage height applied
+    const listContainer = screen.getByTestId('progress-entry-2').parentElement
+    expect(listContainer).toHaveStyle({ height: '450px' })
+
+    // Check newest first: progress-entry-2 should appear before progress-entry-1
+    const entries = screen.getAllByTestId(/^progress-entry-/)
+    expect(entries[0]).toHaveAttribute('data-testid', 'progress-entry-2')
+    expect(entries[1]).toHaveAttribute('data-testid', 'progress-entry-1')
+
+    // Check date + time formatted as YYYY-MM-DD HH:MM
+    expect(screen.getAllByText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/).length).toBe(2)
   })
 })
 

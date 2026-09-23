@@ -1,4 +1,4 @@
-import { useState, useEffect, ChangeEvent, FormEvent } from 'react'
+import { useState, useEffect, useRef, useMemo, ChangeEvent, FormEvent } from 'react'
 import {
   ListTodo,
   User as UserIcon,
@@ -20,6 +20,25 @@ import { WorkItem, Sprint, Release, ProjectStatus, UserSummary, PROGRESS_STATUS_
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 import { apiFetch } from '../../utils/apiFetch'
+
+const PROGRESS_LIST_HEIGHT_KEY = 'davai_progress_list_height'
+const DEFAULT_PROGRESS_HEIGHT = 320
+
+function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day} ${hours}:${minutes}`
+  } catch {
+    return dateStr
+  }
+}
 
 interface WorkItemDetailModalProps {
   item: WorkItem | null
@@ -127,6 +146,62 @@ export function WorkItemDetailModal({
   const [savingProgressId, setSavingProgressId] = useState<number | null>(null)
   const [deletingProgressId, setDeletingProgressId] = useState<number | null>(null)
   const [isDeletingProgress, setIsDeletingProgress] = useState(false)
+
+  // Progress list height & resizing state with localStorage persistence
+  const [progressListHeight, setProgressListHeight] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(PROGRESS_LIST_HEIGHT_KEY)
+      if (saved) {
+        const parsed = parseInt(saved, 10)
+        if (!isNaN(parsed) && parsed >= 120 && parsed <= 1200) {
+          return parsed
+        }
+      }
+    } catch {}
+    return DEFAULT_PROGRESS_HEIGHT
+  })
+  const progressListRef = useRef<HTMLDivElement>(null)
+  const hasProgress = Boolean(item?.progress && item.progress.length > 0)
+
+  useEffect(() => {
+    const el = progressListRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+
+    let timeoutId: ReturnType<typeof setTimeout>
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const newHeight = Math.round(entry.borderBoxSize?.[0]?.blockSize ?? el.clientHeight)
+        clearTimeout(timeoutId)
+        timeoutId = setTimeout(() => {
+          if (newHeight >= 120 && newHeight <= 1200) {
+            try {
+              localStorage.setItem(PROGRESS_LIST_HEIGHT_KEY, String(newHeight))
+            } catch {}
+            setProgressListHeight(newHeight)
+          }
+        }, 100)
+      }
+    })
+
+    observer.observe(el)
+    return () => {
+      clearTimeout(timeoutId)
+      observer.disconnect()
+    }
+  }, [hasProgress])
+
+  // Sort progress by newest created first
+  const sortedProgress = useMemo(() => {
+    if (!item?.progress) return []
+    return [...item.progress].sort((a, b) => {
+      const timeA = new Date(a.created_at).getTime()
+      const timeB = new Date(b.created_at).getTime()
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+        return timeB - timeA // newest first
+      }
+      return (b.id || 0) - (a.id || 0)
+    })
+  }, [item?.progress])
 
   const startEditProgress = (p: { id: number; summary: string; proof?: string; status: string }) => {
     setEditingProgressId(p.id)
@@ -848,8 +923,12 @@ export function WorkItemDetailModal({
 
           {/* Progress list */}
           {item.progress && item.progress.length > 0 ? (
-            <div className="space-y-2 max-h-44 md:max-h-64 overflow-y-auto pr-1">
-              {item.progress.map((p, idx) => {
+            <div
+              ref={progressListRef}
+              style={{ height: `${progressListHeight}px`, resize: 'vertical' }}
+              className="space-y-2 overflow-y-auto pr-1 min-h-[160px] max-h-[70vh] border border-zinc-800/40 rounded-lg p-1.5"
+            >
+              {sortedProgress.map((p, idx) => {
                 if (editingProgressId === p.id) {
                   return (
                     <div
@@ -984,11 +1063,11 @@ export function WorkItemDetailModal({
                     <div className="flex items-center gap-2.5 text-[10px] text-zinc-500 shrink-0 self-start sm:self-center">
                       <div className="flex items-center gap-1.5 whitespace-nowrap">
                         {p.created_by && <span>by {p.created_by}</span>}
-                        <span>{new Date(p.created_at).toLocaleDateString()}</span>
+                        <span>{formatDateTime(p.created_at)}</span>
                         {p.updated_by && (
                           <span
                             className="text-zinc-500 italic"
-                            title={`Edited ${p.updated_at ? new Date(p.updated_at).toLocaleString() : ''}${
+                            title={`Edited ${p.updated_at ? formatDateTime(p.updated_at) : ''}${
                               p.updated_by ? ` by ${p.updated_by}` : ''
                             }`}
                           >
