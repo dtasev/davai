@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Pre-download and bake default embedding model into the image
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5')"
+
 COPY . .
 
 EXPOSE 8000

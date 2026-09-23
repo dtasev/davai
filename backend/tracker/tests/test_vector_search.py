@@ -7,10 +7,11 @@ from tracker.embedding import (
     compute_content_hash,
     index_work_item,
     MockEmbeddingProvider,
+    flush_indexing_queue,
 )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestVectorSearchAndEmbedding:
     def test_format_work_item_text_and_hash(self, test_project, test_user):
         item = WorkItem.objects.create(
@@ -64,7 +65,9 @@ class TestVectorSearchAndEmbedding:
             created_by=test_user,
         )
 
-        # WorkItem signal auto-created embedding
+        # Wait for background queue to complete
+        flush_indexing_queue()
+        item.refresh_from_db()
         assert hasattr(item, "embedding")
         original_hash = item.embedding.content_hash
         assert len(item.embedding.embedding) == 384
@@ -72,6 +75,7 @@ class TestVectorSearchAndEmbedding:
         # Updating non-embedded metadata field (e.g. source) shouldn't change text hash if empty
         item.source = "https://example.com/tickets/1"
         item.save()
+        flush_indexing_queue()
         item.refresh_from_db()
         assert item.embedding.content_hash == original_hash
 
@@ -82,6 +86,7 @@ class TestVectorSearchAndEmbedding:
             summary="Added pgbouncer config file",
             status="step completed",
         )
+        flush_indexing_queue()
         item.refresh_from_db()
         assert item.embedding.content_hash != original_hash
 
@@ -103,6 +108,7 @@ class TestVectorSearchAndEmbedding:
             priority="LOW",
             created_by=test_user,
         )
+        flush_indexing_queue()
 
         # 1. Search with semantic query in project
         res = ninja_client.get(f"/projects/{test_project.key}/search?q=k8s+cluster+networking")

@@ -221,30 +221,31 @@ class WorkItemEmbedding(models.Model):
 @receiver(post_save, sender=WorkItem)
 def handle_work_item_saved(sender, instance, created, **kwargs):
     try:
-        from tracker.embedding import index_work_item
-        index_work_item(instance)
+        from tracker.embedding import schedule_work_item_indexing
+        schedule_work_item_indexing(instance.id)
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("Failed to auto-index work item %s: %s", instance.key, e)
+        logging.getLogger(__name__).warning("Failed to schedule auto-indexing for work item %s: %s", instance.key, e)
 
 
 @receiver([post_save, post_delete], sender=Context)
 def handle_context_changed(sender, instance, **kwargs):
     try:
-        from tracker.embedding import index_work_item
-        if getattr(instance, "work_item", None):
-            index_work_item(instance.work_item)
+        if getattr(instance, "work_item_id", None):
+            from tracker.embedding import schedule_work_item_indexing
+            schedule_work_item_indexing(instance.work_item_id)
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("Failed to re-index work item on context change: %s", e)
+        logging.getLogger(__name__).warning("Failed to schedule re-indexing on context change: %s", e)
 
 
 @receiver([post_save, post_delete], sender=Progress)
 def handle_progress_changed(sender, instance, **kwargs):
     try:
-        from tracker.embedding import index_work_item
-        if getattr(instance, "work_item", None):
-            index_work_item(instance.work_item)
+        if getattr(instance, "work_item_id", None):
+            from tracker.embedding import schedule_work_item_indexing
+            schedule_work_item_indexing(instance.work_item_id)
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("Failed to re-index work item on progress change: %s", e)
+        logging.getLogger(__name__).warning("Failed to schedule re-indexing on progress change: %s", e)
+

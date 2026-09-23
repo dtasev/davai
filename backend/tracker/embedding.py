@@ -94,9 +94,11 @@ class FastEmbedProvider(BaseEmbeddingProvider):
 
     def _get_model(self):
         if FastEmbedProvider._model is None:
+            os.environ.setdefault("OMP_NUM_THREADS", "1")
+            os.environ.setdefault("ONNX_NUM_THREADS", "1")
             from fastembed import TextEmbedding
-            logger.info("Initializing FastEmbed model: %s", self.model_name)
-            FastEmbedProvider._model = TextEmbedding(model_name=self.model_name)
+            logger.info("Initializing FastEmbed model: %s (threads=1)", self.model_name)
+            FastEmbedProvider._model = TextEmbedding(model_name=self.model_name, threads=1)
         return FastEmbedProvider._model
 
     def embed_query(self, text: str) -> List[float]:
@@ -151,17 +153,86 @@ def index_work_item(work_item, force: bool = False):
     provider = get_embedding_provider()
     vec = provider.embed_query(text)
 
-    if embedding_obj:
-        embedding_obj.embedding = vec
-        embedding_obj.content_hash = content_hash
-        embedding_obj.embedded_text = text
-        embedding_obj.save(update_fields=["embedding", "content_hash", "embedded_text", "updated_at"])
-    else:
-        embedding_obj = WorkItemEmbedding.objects.create(
-            work_item=work_item,
-            embedding=vec,
-            content_hash=content_hash,
-            embedded_text=text,
+    try:
+        if embedding_obj:
+            embedding_obj.embedding = vec
+            embedding_obj.content_hash = content_hash
+            embedding_obj.embedded_text = text
+            embedding_obj.save(update_fields=["embedding", "content_hash", "embedded_text", "updated_at"])
+        else:
+            embedding_obj = WorkItemEmbedding.objects.create(
+                work_item=work_item,
+                embedding=vec,
+                content_hash=content_hash,
+                embedded_text=text,
+            )
+    except Exception as e:
+        logger.warning(
+            "Could not persist embedding for item %s (item may have been deleted): %s",
+            getattr(work_item, "key", work_item),
+            e,
         )
+        return None
 
     return embedding_obj
+
+
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from django.db import transaction
+
+_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="emb_indexing")
+_pending_item_ids = set()
+_pending_lock = threading.Lock()
+
+
+def queue_work_item_indexing(work_item_id: int):
+    """
+    Submits a background task to index the work item.
+    Deduplicates requests so multiple signals for the same work item ID
+    within a short window only execute one embedding computation.
+    """
+    with _pending_lock:
+        if work_item_id in _pending_item_ids:
+            return None
+        _pending_item_ids.add(work_item_id)
+
+    def _worker():
+        try:
+            from tracker.models import WorkItem
+            item = (
+                WorkItem.objects.select_related("project", "context")
+                .prefetch_related("progress")
+                .filter(id=work_item_id)
+                .first()
+            )
+            if item:
+                index_work_item(item)
+        except Exception as e:
+            logger.warning("Background indexing failed for work item %s: %s", work_item_id, e)
+        finally:
+            with _pending_lock:
+                _pending_item_ids.discard(work_item_id)
+
+    return _executor.submit(_worker)
+
+
+def flush_indexing_queue():
+    """Waits for pending indexing tasks to complete (useful in tests or shutdown)."""
+    global _executor
+    _executor.shutdown(wait=True)
+    _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="emb_indexing")
+
+
+def schedule_work_item_indexing(work_item_id: int):
+    """
+    Schedules indexing after the current database transaction commits.
+    If not in an atomic block, queues immediately.
+    """
+    from django.db import connection
+    if connection.in_atomic_block:
+        transaction.on_commit(lambda: queue_work_item_indexing(work_item_id))
+    else:
+        queue_work_item_indexing(work_item_id)
+
+
