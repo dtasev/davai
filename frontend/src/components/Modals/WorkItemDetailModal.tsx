@@ -820,98 +820,6 @@ export function WorkItemDetailModal({
           )}
         </div>
 
-        {/* LLM / Agent Context Section */}
-        <div className="space-y-2 border-t border-zinc-800/80 pt-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
-                  LLM Agent Context (SKILL.md)
-                </h4>
-              </div>
-              <span className="text-[10px] text-zinc-500 font-sans hidden sm:inline">
-                · Unversioned, latest facts only
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {item.context && item.context.timestamp && (
-                <span
-                  data-testid="context-staleness"
-                  className="text-[10px] text-zinc-500 font-mono flex items-center gap-1"
-                  title={`Last updated: ${new Date(item.context.timestamp).toLocaleString()}${
-                    item.context.updated_by || item.context.user ? ` by ${item.context.updated_by || item.context.user}` : ''
-                  }`}
-                >
-                  <Clock className="w-3 h-3 text-zinc-500" />
-                  <span>
-                    Updated {new Date(item.context.timestamp).toLocaleDateString()}
-                    {(item.context.updated_by || item.context.user) && ` by ${item.context.updated_by || item.context.user}`}
-                  </span>
-                </span>
-              )}
-              {onUpdateContext && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setContextInput(item.context?.summary || '')
-                    setIsEditingContext(!isEditingContext)
-                  }}
-                  className="text-[11px] text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium transition cursor-pointer"
-                >
-                  <Edit3 className="w-3 h-3" />
-                  <span>{isEditingContext ? 'Cancel' : 'Edit Context'}</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {isEditingContext ? (
-            <div className="space-y-2">
-              <textarea
-                rows={3}
-                value={contextInput}
-                onChange={e => setContextInput(e.target.value)}
-                placeholder="Agent context, instructions, or technical specifications (unversioned, overwrites previous context)..."
-                className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-purple-500 focus:outline-none font-mono text-sm text-zinc-200"
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-zinc-500">
-                  Overwrites existing context. Latest facts only.
-                </span>
-                <button
-                  type="button"
-                  onClick={handleSaveContext}
-                  disabled={savingContext}
-                  className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition disabled:opacity-50 cursor-pointer"
-                >
-                  {savingContext ? 'Saving...' : 'Save Context'}
-                </button>
-              </div>
-            </div>
-          ) : item.context && item.context.summary ? (
-            <div className="space-y-1.5">
-              <div className="p-3 rounded-lg bg-purple-950/10 border border-purple-900/30 text-sm font-mono text-purple-200 whitespace-pre-wrap leading-relaxed">
-                {item.context.summary}
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-zinc-500 px-1 font-mono">
-                <span>SKILL.md style · State only (no changelog)</span>
-                {item.context.timestamp && (
-                  <span>
-                    Last updated: {new Date(item.context.timestamp).toLocaleDateString()}
-                    {(item.context.updated_by || item.context.user) && ` by ${item.context.updated_by || item.context.user}`}
-                  </span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="text-[11px] text-zinc-500 italic p-2.5 bg-zinc-950/40 rounded-lg border border-zinc-900">
-              No technical or LLM agent context has been attached to this work item yet.
-            </div>
-          )}
-        </div>
-
         {/* Progress & Milestones Timeline */}
         <div className="space-y-2.5 border-t border-zinc-800/80 pt-3">
           <div className="flex items-center gap-1.5">
@@ -1164,6 +1072,98 @@ export function WorkItemDetailModal({
                 </div>
               </div>
             </form>
+          )}
+        </div>
+
+        {/* LLM / Agent Context Section */}
+        <div className="space-y-2 border-t border-zinc-800/80 pt-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
+                  LLM Agent Context (SKILL.md)
+                </h4>
+              </div>
+              <span className="text-[10px] text-zinc-500 font-sans hidden sm:inline">
+                · Unversioned, latest facts only
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {item.context && item.context.timestamp && (
+                <span
+                  data-testid="context-staleness"
+                  className="text-[10px] text-zinc-500 font-mono flex items-center gap-1"
+                  title={`Last updated: ${new Date(item.context.timestamp).toLocaleString()}${
+                    item.context.updated_by || item.context.user ? ` by ${item.context.updated_by || item.context.user}` : ''
+                  }`}
+                >
+                  <Clock className="w-3 h-3 text-zinc-500" />
+                  <span>
+                    Updated {new Date(item.context.timestamp).toLocaleDateString()}
+                    {(item.context.updated_by || item.context.user) && ` by ${item.context.updated_by || item.context.user}`}
+                  </span>
+                </span>
+              )}
+              {onUpdateContext && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setContextInput(item.context?.summary || '')
+                    setIsEditingContext(!isEditingContext)
+                  }}
+                  className="text-[11px] text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium transition cursor-pointer"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  <span>{isEditingContext ? 'Cancel' : 'Edit Context'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {isEditingContext ? (
+            <div className="space-y-2">
+              <textarea
+                rows={3}
+                value={contextInput}
+                onChange={e => setContextInput(e.target.value)}
+                placeholder="Agent context, instructions, or technical specifications (unversioned, overwrites previous context)..."
+                className="w-full p-2.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-purple-500 focus:outline-none font-mono text-sm text-zinc-200"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-zinc-500">
+                  Overwrites existing context. Latest facts only.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleSaveContext}
+                  disabled={savingContext}
+                  className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-sm font-medium transition disabled:opacity-50 cursor-pointer"
+                >
+                  {savingContext ? 'Saving...' : 'Save Context'}
+                </button>
+              </div>
+            </div>
+          ) : item.context && item.context.summary ? (
+            <div className="space-y-1.5">
+              <div className="p-3 rounded-lg bg-purple-950/10 border border-purple-900/30 text-sm font-mono text-purple-200 whitespace-pre-wrap leading-relaxed">
+                {item.context.summary}
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-zinc-500 px-1 font-mono">
+                <span>SKILL.md style · State only (no changelog)</span>
+                {item.context.timestamp && (
+                  <span>
+                    Last updated: {new Date(item.context.timestamp).toLocaleDateString()}
+                    {(item.context.updated_by || item.context.user) && ` by ${item.context.updated_by || item.context.user}`}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-zinc-500 italic p-2.5 bg-zinc-950/40 rounded-lg border border-zinc-900">
+              No technical or LLM agent context has been attached to this work item yet.
+            </div>
           )}
         </div>
       </div>
