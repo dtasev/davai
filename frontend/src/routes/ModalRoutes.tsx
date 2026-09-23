@@ -108,30 +108,32 @@ export function WorkItemModalRoute() {
     handleUpdateWorkItemDetails
   } = useOutletContext<ProjectDetailOutletContext>()
 
-  const [standaloneItem, setStandaloneItem] = useState<WorkItem | null>(null)
+  const [detailItem, setDetailItem] = useState<WorkItem | null>(null)
 
   const foundItem =
-    workItems.find(w => w.key.toUpperCase() === itemKey?.toUpperCase()) || standaloneItem
+    workItems.find(w => w.key.toUpperCase() === itemKey?.toUpperCase())
+  const activeItem = (detailItem && detailItem.key.toUpperCase() === itemKey?.toUpperCase())
+    ? detailItem
+    : ((foundItem as unknown as WorkItem) || null)
 
   useEffect(() => {
-    // If not found in loaded work items, fetch single work item directly
-    if (!foundItem && itemKey) {
+    if (itemKey) {
       apiFetch(`/api/work-items/${itemKey}`)
         .then(res => (res.ok ? res.json() : null))
         .then(data => {
-          if (data) setStandaloneItem(data)
+          if (data) setDetailItem(data)
         })
         .catch(() => { })
     }
-  }, [foundItem, itemKey])
+  }, [itemKey])
 
-  const handleDelete = (foundItem || itemKey) ? async () => {
-    const keyToDelete = foundItem?.key || itemKey!
+  const handleDelete = (activeItem || itemKey) ? async () => {
+    const keyToDelete = activeItem?.key || itemKey!
     await handleDeleteWorkItem(keyToDelete)
     navigate(`/projects/${projectKey}${location.search}`)
   } : undefined
 
-  const handleUpdateDetails = (foundItem || itemKey) ? async (data: {
+  const handleUpdateDetails = (activeItem || itemKey) ? async (data: {
     title?: string
     description?: string
     priority?: 'LOW' | 'MEDIUM' | 'HIGH' | string
@@ -141,24 +143,57 @@ export function WorkItemModalRoute() {
     target_date?: string | null
     active_assignee_username?: string | null
   }) => {
-    const keyToUpdate = foundItem?.key || itemKey!
+    const keyToUpdate = activeItem?.key || itemKey!
     const updated = await handleUpdateWorkItemDetails(keyToUpdate, data)
-    if (standaloneItem) setStandaloneItem(updated)
+    if (updated) setDetailItem(updated)
   } : undefined
 
   return (
     <WorkItemDetailModal
-      item={foundItem}
+      item={activeItem}
       projectKey={projectKey}
       sprints={sprints}
       releases={releases}
       statuses={project?.statuses || []}
       onClose={() => navigate(`/projects/${projectKey}${location.search}`)}
-      onUpdateStatus={handleUpdateStatus}
-      onUpdateContext={handleUpdateContext}
-      onAddProgress={handleAddProgress}
-      onUpdateProgress={handleUpdateProgress}
-      onDeleteProgress={handleDeleteProgress}
+      onUpdateStatus={async (key, status) => {
+        await handleUpdateStatus(key, status)
+        setDetailItem(prev => prev && prev.key.toUpperCase() === key.toUpperCase() ? { ...prev, status: status as any } : prev)
+      }}
+      onUpdateContext={async (key, text) => {
+        await handleUpdateContext(key, text)
+        setDetailItem(prev => prev && prev.key.toUpperCase() === key.toUpperCase() ? {
+          ...prev,
+          context: {
+            id: prev.context?.id || 0,
+            work_item_key: key,
+            user: prev.context?.user || '',
+            summary: text,
+            timestamp: new Date().toISOString()
+          }
+        } : prev)
+      }}
+      onAddProgress={async (key, entry) => {
+        await handleAddProgress(key, entry)
+        apiFetch(`/api/work-items/${key}`)
+          .then(res => (res.ok ? res.json() : null))
+          .then(data => { if (data) setDetailItem(data) })
+          .catch(() => {})
+      }}
+      onUpdateProgress={async (key, id, entry) => {
+        await handleUpdateProgress(key, id, entry)
+        apiFetch(`/api/work-items/${key}`)
+          .then(res => (res.ok ? res.json() : null))
+          .then(data => { if (data) setDetailItem(data) })
+          .catch(() => {})
+      }}
+      onDeleteProgress={async (key, id) => {
+        await handleDeleteProgress(key, id)
+        apiFetch(`/api/work-items/${key}`)
+          .then(res => (res.ok ? res.json() : null))
+          .then(data => { if (data) setDetailItem(data) })
+          .catch(() => {})
+      }}
       onDelete={handleDelete}
       onUpdateDetails={handleUpdateDetails}
     />

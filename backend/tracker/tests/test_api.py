@@ -912,6 +912,52 @@ class TestNinjaAPI:
         assert key3 in step_keys
         assert key1 not in step_keys
 
+    def test_work_items_list_omits_details_and_detail_endpoint_includes_them(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+
+        # Create work item with description and context
+        res = ninja_client.post(
+            "/work-items",
+            json={
+                "title": "Item With Details",
+                "description": "Full description markdown text",
+                "context": "Full technical plan markdown",
+                "project_key": test_project.key,
+            },
+            headers={"X-API-Key": raw_key},
+        )
+        assert res.status_code == 200
+        item_key = res.json()["key"]
+
+        # Add a progress entry
+        prog_res = ninja_client.post(
+            f"/work-items/{item_key}/progress",
+            json={"summary": "Progress entry 1", "status": "in progress"},
+            headers={"X-API-Key": raw_key},
+        )
+        assert prog_res.status_code == 200
+
+        # Verify GET /work-items omits description, context, and progress
+        list_res = ninja_client.get(f"/work-items?project_key={test_project.key}")
+        assert list_res.status_code == 200
+        items = list_res.json()
+        target = next(i for i in items if i["key"] == item_key)
+        assert "description" not in target
+        assert "context" not in target
+        assert "progress" not in target
+        assert target["title"] == "Item With Details"
+
+        # Verify GET /work-items/{key} includes full details
+        detail_res = ninja_client.get(f"/work-items/{item_key}")
+        assert detail_res.status_code == 200
+        detail = detail_res.json()
+        assert detail["description"] == "Full description markdown text"
+        assert detail["context"] is not None
+        assert detail["context"]["summary"] == "Full technical plan markdown"
+        assert len(detail["progress"]) == 1
+        assert detail["progress"][0]["summary"] == "Progress entry 1"
+
+
 
 
 

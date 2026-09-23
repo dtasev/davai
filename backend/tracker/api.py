@@ -238,12 +238,11 @@ class UpdateProgressIn(Schema):
     status: Optional[str] = None
 
 
-class WorkItemOut(Schema):
+class WorkItemListOut(Schema):
     id: int
     key: str
     parent_key: Optional[str] = None
     title: str
-    description: str
     status: str
     priority: str
     project_key: str
@@ -259,8 +258,6 @@ class WorkItemOut(Schema):
     release_id: Optional[int] = None
     created: str
     updated: str
-    context: Optional[ContextOut] = None
-    progress: List[ProgressOut]
 
     @staticmethod
     def resolve_parent_key(obj: WorkItem) -> Optional[str]:
@@ -309,6 +306,12 @@ class WorkItemOut(Schema):
     @staticmethod
     def resolve_updated(obj: WorkItem) -> str:
         return obj.updated.isoformat()
+
+
+class WorkItemOut(WorkItemListOut):
+    description: str
+    context: Optional[ContextOut] = None
+    progress: List[ProgressOut]
 
     @staticmethod
     def resolve_context(obj: WorkItem) -> Optional[Context]:
@@ -886,12 +889,12 @@ def search_work_items(
     )
 
 
-@api.get("/work-items", response=List[WorkItemOut], summary="List Work Items")
-@api.get("/work-items/preview", response=List[WorkItemOut], summary="Public Preview of Work Items", operation_id="tracker_api_list_work_items_preview")
+@api.get("/work-items", response=List[WorkItemListOut], summary="List Work Items")
+@api.get("/work-items/preview", response=List[WorkItemListOut], summary="Public Preview of Work Items", operation_id="tracker_api_list_work_items_preview")
 def list_work_items(request, status: Optional[str] = None, project_key: Optional[str] = None):
     qs = WorkItem.objects.select_related(
-        "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
-    ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by").all()
+        "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release"
+    ).prefetch_related("assigned", "watching").all()
 
     if status:
         normalized = status.strip().lower().replace("_", " ")

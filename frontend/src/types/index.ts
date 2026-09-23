@@ -96,7 +96,7 @@ export interface WorkItem {
   key: string
   parent_key: string | null
   title: string
-  description: string
+  description?: string
   status: ProgressStatus
   priority: 'LOW' | 'MEDIUM' | 'HIGH'
   project_key: string
@@ -112,8 +112,8 @@ export interface WorkItem {
   release_id: number | null
   created: string
   updated: string
-  context: ContextData | null
-  progress: ProgressEntry[]
+  context?: ContextData | null
+  progress?: ProgressEntry[]
 }
 
 export interface UserSummary {

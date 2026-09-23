@@ -611,10 +611,6 @@ export function WorkItemList({
                       <span className="text-zinc-500 mr-1.5">Snippet:</span>
                       {searchResultMap.get(item.key)!.snippet}
                     </p>
-                  ) : item.description ? (
-                    <p className="text-[11px] text-zinc-400 line-clamp-1">
-                      {item.description}
-                    </p>
                   ) : null}
                 </div>
 

@@ -71,7 +71,7 @@ class DavaiClient:
         status: Optional[str] = None,
         project_key: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """List work items, optionally filtered by status and project."""
+        """List work items, optionally filtered by status and project. Omits description, context, and progress."""
         params = {}
         if status:
             params["status"] = status

@@ -172,9 +172,13 @@ class TestMCPWithApiClient:
         assert len(fetched_after_del["progress"]) == 0
         assert fetched_after_del["status"] == "todo"
 
-        # 7. List items via MCP tool
+        # 7. List items via MCP tool (omits description, context, and progress)
         items = list_work_items(project_key=test_project.key)
         assert any(i["key"] == item_key for i in items)
+        for item in items:
+            assert "description" not in item
+            assert "context" not in item
+            assert "progress" not in item
 
         # 8. Create a Release and a Sprint, associate item
         rel = Release.objects.create(project=test_project, name="v1.0.0", description="First stable release")

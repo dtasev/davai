@@ -29,6 +29,7 @@ def set_client(client: DavaiClient):
 def list_work_items(status: Optional[str] = None, project_key: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     List work items in Davai.
+    Omits description, context, and progress entries for brevity (use get_work_item to fetch complete details for a specific item).
     Args:
         status: Optional status filter ('todo', 'planned', 'step completed', 'blocked', 'failed', 'cancelled', 'awaiting review', 'done').
         project_key: Optional project key filter (e.g. 'DAV').
