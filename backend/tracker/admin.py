@@ -8,6 +8,7 @@ from tracker.models import (
     WorkItem,
     Context,
     Progress,
+    WorkItemEmbedding,
 )
 
 
@@ -81,3 +82,10 @@ class ProgressAdmin(admin.ModelAdmin):
     list_display = ("work_item", "created_by", "status", "proof", "created_at", "updated_at")
     list_filter = ("status", "created_at", "updated_at")
     search_fields = ("work_item__key", "summary", "proof")
+
+
+@admin.register(WorkItemEmbedding)
+class WorkItemEmbeddingAdmin(admin.ModelAdmin):
+    list_display = ("work_item", "content_hash", "updated_at")
+    search_fields = ("work_item__key", "content_hash", "embedded_text")
+    readonly_fields = ("content_hash", "embedded_text", "updated_at")

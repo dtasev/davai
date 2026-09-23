@@ -4,6 +4,7 @@ import { ReleaseList } from './ReleaseList'
 import { WorkItemList } from './WorkItemList'
 
 interface ProjectListViewProps {
+  projectKey?: string
   sprints: Sprint[]
   releases: Release[]
   workItems: WorkItem[]
@@ -39,6 +40,7 @@ interface ProjectListViewProps {
 }
 
 export function ProjectListView({
+  projectKey,
   sprints,
   releases,
   workItems,
@@ -77,6 +79,7 @@ export function ProjectListView({
       {/* 3. BOTTOM: List of Work Items */}
       <section data-testid="work-item-list-section">
         <WorkItemList
+          projectKey={projectKey}
           workItems={workItems}
           sprints={sprints}
           releases={releases}

@@ -1,8 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from pgvector.django import VectorField, HnswIndex
 
 
 class APIKey(models.Model):
@@ -193,3 +194,57 @@ class Progress(models.Model):
 
     def __str__(self):
         return f"Progress for {self.work_item.key} at {self.created_at.isoformat()}"
+
+
+class WorkItemEmbedding(models.Model):
+    work_item = models.OneToOneField(WorkItem, on_delete=models.CASCADE, related_name="embedding")
+    embedding = VectorField(dimensions=384)
+    content_hash = models.CharField(max_length=64, db_index=True)
+    embedded_text = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            HnswIndex(
+                name="work_item_vec_hnsw_idx",
+                fields=["embedding"],
+                m=16,
+                ef_construction=64,
+                opclasses=["vector_cosine_ops"],
+            )
+        ]
+
+    def __str__(self):
+        return f"Embedding for {self.work_item.key}"
+
+
+@receiver(post_save, sender=WorkItem)
+def handle_work_item_saved(sender, instance, created, **kwargs):
+    try:
+        from tracker.embedding import index_work_item
+        index_work_item(instance)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to auto-index work item %s: %s", instance.key, e)
+
+
+@receiver([post_save, post_delete], sender=Context)
+def handle_context_changed(sender, instance, **kwargs):
+    try:
+        from tracker.embedding import index_work_item
+        if getattr(instance, "work_item", None):
+            index_work_item(instance.work_item)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to re-index work item on context change: %s", e)
+
+
+@receiver([post_save, post_delete], sender=Progress)
+def handle_progress_changed(sender, instance, **kwargs):
+    try:
+        from tracker.embedding import index_work_item
+        if getattr(instance, "work_item", None):
+            index_work_item(instance.work_item)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to re-index work item on progress change: %s", e)

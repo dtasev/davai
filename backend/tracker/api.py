@@ -1,12 +1,13 @@
 import sys
+import logging
 from typing import List, Optional
 from datetime import datetime
 import django
 import ninja
 from ninja import NinjaAPI, Schema, errors
 from django.contrib.auth.models import User
-from django.db import transaction
-from django.db.models import Subquery, OuterRef, Value
+from django.db import transaction, connection
+from django.db.models import Subquery, OuterRef, Value, Q
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from tracker.models import (
@@ -18,8 +19,11 @@ from tracker.models import (
     Context,
     Progress,
     APIKey,
+    WorkItemEmbedding,
 )
 from tracker.auth import api_key_auth, generate_api_key
+
+logger = logging.getLogger(__name__)
 
 api = NinjaAPI(
     title="Davai API",
@@ -315,6 +319,23 @@ class WorkItemOut(Schema):
         return list(obj.progress.all())
 
 
+class SearchItemResultOut(Schema):
+    work_item: WorkItemOut
+    score: float
+    vector_distance: Optional[float] = None
+    rank_vector: Optional[int] = None
+    rank_keyword: Optional[int] = None
+    match_type: str
+    snippet: str
+
+
+class SearchResponseOut(Schema):
+    query: str
+    mode: str
+    total: int
+    results: List[SearchItemResultOut]
+
+
 class CreateWorkItemIn(Schema):
     title: str
     description: str = ""
@@ -596,6 +617,273 @@ def _resolve_status(project: Project, status_val: Optional[str]) -> Optional[Pro
     if not status_obj:
         status_obj = project.get_default_status()
     return status_obj
+
+
+def _extract_snippet(item: WorkItem, query: str) -> str:
+    """Extracts a short contextual snippet matching the query or item summary."""
+    q_lower = query.lower().strip()
+    if not q_lower:
+        return item.title
+
+    if q_lower in item.title.lower():
+        return item.title
+
+    if item.description and q_lower in item.description.lower():
+        idx = item.description.lower().find(q_lower)
+        start = max(0, idx - 40)
+        end = min(len(item.description), idx + len(q_lower) + 60)
+        prefix = "..." if start > 0 else ""
+        suffix = "..." if end < len(item.description) else ""
+        return prefix + item.description[start:end].strip() + suffix
+
+    if hasattr(item, "context") and item.context and item.context.summary:
+        if q_lower in item.context.summary.lower():
+            idx = item.context.summary.lower().find(q_lower)
+            start = max(0, idx - 40)
+            end = min(len(item.context.summary), idx + len(q_lower) + 60)
+            prefix = "..." if start > 0 else ""
+            suffix = "..." if end < len(item.context.summary) else ""
+            return prefix + item.context.summary[start:end].strip() + suffix
+
+    for p in item.progress.all()[:3]:
+        if q_lower in p.summary.lower():
+            return f"[{p.status}] {p.summary}"
+
+    desc_snip = (item.description[:100] + "...") if len(item.description) > 100 else item.description
+    return f"{item.title}: {desc_snip}" if desc_snip else item.title
+
+
+def perform_work_item_search(
+    q: str,
+    project_key: Optional[str] = None,
+    mode: str = "hybrid",
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    sprint_id: Optional[int] = None,
+    release_id: Optional[int] = None,
+    assignee: Optional[str] = None,
+    limit: int = 20,
+) -> dict:
+    mode = mode.lower().strip() if mode else "hybrid"
+    if mode not in ("hybrid", "vector", "keyword"):
+        mode = "hybrid"
+
+    base_qs = WorkItem.objects.select_related(
+        "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
+    ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by")
+
+    if project_key and project_key.upper() != "ALL":
+        base_qs = base_qs.filter(project__key=project_key.upper())
+
+    if priority:
+        base_qs = base_qs.filter(priority__iexact=priority)
+
+    if sprint_id:
+        base_qs = base_qs.filter(sprint_id=sprint_id)
+
+    if release_id:
+        base_qs = base_qs.filter(release_id=release_id)
+
+    if assignee:
+        base_qs = base_qs.filter(active_assignee__username__iexact=assignee)
+
+    if status:
+        normalized = status.strip().lower().replace("_", " ")
+        latest_status_subquery = Subquery(
+            Progress.objects.filter(work_item=OuterRef("pk")).order_by("-created_at", "-id").values("status")[:1]
+        )
+        base_qs = base_qs.annotate(
+            latest_status=Coalesce(latest_status_subquery, Value("todo"))
+        ).filter(latest_status__iexact=normalized)
+
+    clean_query = q.strip()
+    if not clean_query:
+        items = list(base_qs.order_by("-created", "-id")[:limit])
+        return {
+            "query": q,
+            "mode": mode,
+            "total": len(items),
+            "results": [
+                {
+                    "work_item": item,
+                    "score": 1.0,
+                    "vector_distance": None,
+                    "rank_vector": None,
+                    "rank_keyword": None,
+                    "match_type": "exact",
+                    "snippet": _extract_snippet(item, clean_query),
+                }
+                for item in items
+            ],
+        }
+
+    vector_rank_map = {}
+    if mode in ("hybrid", "vector"):
+        try:
+            from tracker.embedding import get_embedding_provider
+            provider = get_embedding_provider()
+            q_vec = provider.embed_query(clean_query)
+
+            if connection.vendor == "postgresql":
+                from pgvector.django import CosineDistance
+                vec_candidates = list(
+                    base_qs.filter(embedding__isnull=False)
+                    .annotate(distance=CosineDistance("embedding__embedding", q_vec))
+                    .order_by("distance")[: limit * 3]
+                )
+                for rank, item in enumerate(vec_candidates, start=1):
+                    vector_rank_map[item.id] = (rank, float(item.distance), item)
+            else:
+                candidates = list(base_qs.filter(embedding__isnull=False).select_related("embedding"))
+                scored = []
+                for it in candidates:
+                    vec = getattr(it, "embedding", None)
+                    if vec and vec.embedding is not None:
+                        it_vec = list(vec.embedding)
+                        dot = sum(x * y for x, y in zip(q_vec, it_vec))
+                        norm_a = sum(x * x for x in q_vec) ** 0.5
+                        norm_b = sum(x * x for x in it_vec) ** 0.5
+                        sim = dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
+                        dist = max(0.0, 1.0 - sim)
+                        scored.append((dist, it))
+                scored.sort(key=lambda x: x[0])
+                for rank, (dist, item) in enumerate(scored[: limit * 3], start=1):
+                    vector_rank_map[item.id] = (rank, float(dist), item)
+        except Exception as e:
+            logger.warning("Vector candidate search failed: %s", e)
+
+    keyword_rank_map = {}
+    if mode in ("hybrid", "keyword"):
+        kw_candidates = list(
+            base_qs.filter(
+                Q(key__icontains=clean_query)
+                | Q(title__icontains=clean_query)
+                | Q(description__icontains=clean_query)
+                | Q(context__summary__icontains=clean_query)
+            )[: limit * 3]
+        )
+        for rank, item in enumerate(kw_candidates, start=1):
+            keyword_rank_map[item.id] = (rank, item)
+
+    candidate_ids = set(vector_rank_map.keys()) | set(keyword_rank_map.keys())
+    if not candidate_ids:
+        return {"query": q, "mode": mode, "total": 0, "results": []}
+
+    item_lookup = {}
+    for iid, val in vector_rank_map.items():
+        item_lookup[iid] = val[2]
+    for iid, val in keyword_rank_map.items():
+        item_lookup[iid] = val[1]
+
+    scored_results = []
+    for iid in candidate_ids:
+        item = item_lookup[iid]
+        r_vec_info = vector_rank_map.get(iid)
+        r_kw_info = keyword_rank_map.get(iid)
+
+        r_vec = r_vec_info[0] if r_vec_info else None
+        v_dist = r_vec_info[1] if r_vec_info else None
+        r_kw = r_kw_info[0] if r_kw_info else None
+
+        rrf = 0.0
+        if r_vec is not None and mode in ("hybrid", "vector"):
+            rrf += 1.0 / (60.0 + r_vec)
+        if r_kw is not None and mode in ("hybrid", "keyword"):
+            rrf += 1.0 / (60.0 + r_kw)
+
+        if r_vec is not None and r_kw is not None:
+            match_type = "hybrid"
+        elif r_vec is not None:
+            match_type = "vector"
+        else:
+            match_type = "keyword"
+
+        scored_results.append({
+            "work_item": item,
+            "rrf_raw": rrf,
+            "vector_distance": v_dist,
+            "rank_vector": r_vec,
+            "rank_keyword": r_kw,
+            "match_type": match_type,
+            "snippet": _extract_snippet(item, clean_query),
+        })
+
+    scored_results.sort(key=lambda x: x["rrf_raw"], reverse=True)
+    top_results = scored_results[:limit]
+    max_rrf = top_results[0]["rrf_raw"] if top_results else 1.0
+
+    final_results = []
+    for res in top_results:
+        norm_score = round(res["rrf_raw"] / max_rrf, 3) if max_rrf > 0 else 0.0
+        final_results.append({
+            "work_item": res["work_item"],
+            "score": norm_score,
+            "vector_distance": round(res["vector_distance"], 4) if res["vector_distance"] is not None else None,
+            "rank_vector": res["rank_vector"],
+            "rank_keyword": res["rank_keyword"],
+            "match_type": res["match_type"],
+            "snippet": res["snippet"],
+        })
+
+    return {
+        "query": q,
+        "mode": mode,
+        "total": len(final_results),
+        "results": final_results,
+    }
+
+
+@api.get("/projects/{project_key}/search", response=SearchResponseOut, summary="Search Work Items in Project")
+def search_project_work_items(
+    request,
+    project_key: str,
+    q: str = "",
+    mode: str = "hybrid",
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    sprint_id: Optional[int] = None,
+    release_id: Optional[int] = None,
+    assignee: Optional[str] = None,
+    limit: int = 20,
+):
+    project = get_object_or_404(Project, key=project_key.upper())
+    return perform_work_item_search(
+        q=q,
+        project_key=project.key,
+        mode=mode,
+        status=status,
+        priority=priority,
+        sprint_id=sprint_id,
+        release_id=release_id,
+        assignee=assignee,
+        limit=limit,
+    )
+
+
+@api.get("/search", response=SearchResponseOut, summary="Global Search Work Items")
+def search_work_items(
+    request,
+    q: str = "",
+    project_key: Optional[str] = None,
+    mode: str = "hybrid",
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    sprint_id: Optional[int] = None,
+    release_id: Optional[int] = None,
+    assignee: Optional[str] = None,
+    limit: int = 20,
+):
+    return perform_work_item_search(
+        q=q,
+        project_key=project_key,
+        mode=mode,
+        status=status,
+        priority=priority,
+        sprint_id=sprint_id,
+        release_id=release_id,
+        assignee=assignee,
+        limit=limit,
+    )
 
 
 @api.get("/work-items", response=List[WorkItemOut], summary="List Work Items")

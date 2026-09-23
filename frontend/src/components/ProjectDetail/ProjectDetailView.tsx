@@ -222,6 +222,7 @@ export function ProjectDetailView({
         <main className="flex-1 min-w-0 w-full">
           {activeView === 'list' ? (
             <ProjectListView
+              projectKey={project.key}
               sprints={sprints}
               releases={releases}
               workItems={workItems}

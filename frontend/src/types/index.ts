@@ -144,3 +144,20 @@ export interface BackendInfo {
   database?: string
   ingress_port?: number
 }
+
+export interface SearchItemResult {
+  work_item: WorkItem
+  score: number
+  vector_distance: number | null
+  rank_vector: number | null
+  rank_keyword: number | null
+  match_type: 'hybrid' | 'vector' | 'keyword' | 'exact'
+  snippet: string
+}
+
+export interface SearchResponse {
+  query: string
+  mode: 'hybrid' | 'vector' | 'keyword'
+  total: number
+  results: SearchItemResult[]
+}

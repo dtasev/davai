@@ -322,4 +322,55 @@ describe('WorkItemList - Sorting and Multi-Select Status Filter', () => {
     expect(dropdownBtn).toHaveTextContent('No Statuses')
     expect(screen.getByText('No work items match the search / filter criteria.')).toBeInTheDocument()
   })
+
+  it('supports toggling semantic search mode and filtering by keyword', async () => {
+    const items: WorkItem[] = [
+      {
+        ...baseWorkItem,
+        id: 1,
+        key: 'DAV-1',
+        title: 'Kubernetes ingress networking',
+        status: 'todo',
+        created: '2026-09-01T10:00:00Z'
+      },
+      {
+        ...baseWorkItem,
+        id: 2,
+        key: 'DAV-2',
+        title: 'React dashboard button styling',
+        status: 'todo',
+        created: '2026-09-02T10:00:00Z'
+      }
+    ]
+
+    render(
+      <WorkItemList
+        workItems={items}
+        sprints={[]}
+        releases={[]}
+        statuses={mockStatuses}
+        onSelectWorkItem={vi.fn()}
+        onCreateWorkItem={vi.fn()}
+      />
+    )
+
+    const toggleBtn = screen.getByTestId('search-mode-toggle')
+    expect(toggleBtn).toHaveTextContent('Semantic')
+
+    // Toggle to keyword
+    await act(async () => {
+      fireEvent.click(toggleBtn)
+    })
+    expect(toggleBtn).toHaveTextContent('Keyword')
+
+    // Filter using keyword
+    const searchInput = screen.getByPlaceholderText('Search items...')
+    await act(async () => {
+      fireEvent.change(searchInput, { target: { value: 'ingress' } })
+    })
+
+    expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('work-item-DAV-2')).not.toBeInTheDocument()
+  })
 })
+
