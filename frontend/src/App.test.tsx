@@ -1571,6 +1571,111 @@ describe('Davai Frontend App with React Router', () => {
     fireEvent.click(parentLink)
     expect(onSelectWorkItemMock).toHaveBeenCalledWith('DAV-99')
   })
+
+  it('places the progress update entry widget above the list of progress entries in WorkItemDetailModal', () => {
+    const itemWithProgress: WorkItem = {
+      ...mockWorkItem,
+      progress: [
+        {
+          id: 1,
+          work_item_key: 'DAV-1',
+          created_by: 'tester',
+          summary: 'Existing progress',
+          proof: '',
+          status: 'step completed',
+          created_at: '2026-09-20T10:00:00Z',
+          updated_by: null,
+          updated_at: null
+        }
+      ]
+    }
+
+    render(
+      <WorkItemDetailModal
+        item={itemWithProgress}
+        sprints={[]}
+        releases={[]}
+        onClose={() => {}}
+        onAddProgress={vi.fn()}
+      />
+    )
+
+    const form = screen.getByTestId('add-progress-form')
+    const progressEntry = screen.getByTestId('progress-entry-1')
+
+    // form should precede progressEntry in the DOM
+    expect(form.compareDocumentPosition(progressEntry) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('supports marking a ticket as Done directly with confirmation via the green checkbox', async () => {
+    const onAddProgressMock = vi.fn().mockResolvedValue(undefined)
+    const itemNotDone: WorkItem = {
+      ...mockWorkItem,
+      status: 'in progress'
+    }
+
+    const { rerender } = render(
+      <WorkItemDetailModal
+        item={itemNotDone}
+        sprints={[]}
+        releases={[]}
+        onClose={() => {}}
+        onAddProgress={onAddProgressMock}
+      />
+    )
+
+    const checkbox = screen.getByTestId('mark-done-checkbox') as HTMLInputElement
+    expect(checkbox.checked).toBe(false)
+    expect(screen.getByTestId('mark-done-checkbox-label')).toHaveTextContent('Mark Done')
+
+    // Confirmation banner is initially not shown
+    expect(screen.queryByTestId('mark-done-confirm')).not.toBeInTheDocument()
+
+    // Clicking checkbox opens confirmation banner
+    fireEvent.click(checkbox)
+    expect(screen.getByTestId('mark-done-confirm')).toBeInTheDocument()
+    expect(screen.getByText(/Are you sure you want to mark this work item as Done/)).toBeInTheDocument()
+
+    // Clicking Cancel closes confirmation banner without calling onAddProgress
+    fireEvent.click(screen.getByTestId('cancel-mark-done-button'))
+    expect(screen.queryByTestId('mark-done-confirm')).not.toBeInTheDocument()
+    expect(onAddProgressMock).not.toHaveBeenCalled()
+
+    // Clicking checkbox again and confirming logs "Done" entry with status "done"
+    fireEvent.click(checkbox)
+    expect(screen.getByTestId('mark-done-confirm')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('confirm-mark-done-button'))
+    })
+
+    expect(onAddProgressMock).toHaveBeenCalledWith('DAV-1', {
+      summary: 'Done',
+      proof: '',
+      status: 'done'
+    })
+    expect(screen.queryByTestId('mark-done-confirm')).not.toBeInTheDocument()
+
+    // When item status is updated to 'done'
+    const itemDone: WorkItem = {
+      ...mockWorkItem,
+      status: 'done'
+    }
+    rerender(
+      <WorkItemDetailModal
+        item={itemDone}
+        sprints={[]}
+        releases={[]}
+        onClose={() => {}}
+        onAddProgress={onAddProgressMock}
+      />
+    )
+
+    const doneCheckbox = screen.getByTestId('mark-done-checkbox') as HTMLInputElement
+    expect(doneCheckbox.checked).toBe(true)
+    expect(doneCheckbox).toBeDisabled()
+    expect(screen.getByTestId('mark-done-checkbox-label')).toHaveTextContent('Done')
+  })
 })
 
 

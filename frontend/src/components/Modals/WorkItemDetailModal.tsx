@@ -91,6 +91,8 @@ export function WorkItemDetailModal({
 }: WorkItemDetailModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [showDoneConfirm, setShowDoneConfirm] = useState(false)
+  const [isMarkingDone, setIsMarkingDone] = useState(false)
 
   // Edit details (title, description, priority, sprint, release, start_date & target_date) state
   const [isEditingDetails, setIsEditingDetails] = useState(false)
@@ -268,6 +270,8 @@ export function WorkItemDetailModal({
 
   useEffect(() => {
     if (item) {
+      setShowDoneConfirm(false)
+      setShowDeleteConfirm(false)
       setContextInput(item.context?.summary || '')
       setProgressStatus('step completed')
       setEditTitle(item.title)
@@ -417,6 +421,23 @@ export function WorkItemDetailModal({
       setProgressProof('')
     } finally {
       setSubmittingProgress(false)
+    }
+  }
+
+  const handleConfirmMarkDone = async () => {
+    if (!onAddProgress || !item) return
+    setIsMarkingDone(true)
+    try {
+      await onAddProgress(item.key, {
+        summary: 'Done',
+        proof: '',
+        status: 'done'
+      })
+      setShowDoneConfirm(false)
+    } catch (err) {
+      console.error('Failed to mark work item as done', err)
+    } finally {
+      setIsMarkingDone(false)
     }
   }
 
@@ -570,6 +591,37 @@ export function WorkItemDetailModal({
             </div>
           </div>
         )}
+        {showDoneConfirm && (
+          <div
+            data-testid="mark-done-confirm"
+            className="p-3 bg-emerald-950/40 border border-emerald-800/60 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5"
+          >
+            <div className="flex items-center gap-2 text-emerald-300 text-sm font-medium">
+              <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Are you sure you want to mark this work item as Done?</span>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <button
+                type="button"
+                disabled={isMarkingDone}
+                onClick={() => setShowDoneConfirm(false)}
+                data-testid="cancel-mark-done-button"
+                className="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-sm text-zinc-300 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isMarkingDone}
+                data-testid="confirm-mark-done-button"
+                onClick={handleConfirmMarkDone}
+                className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-sm font-semibold text-white transition disabled:opacity-50 flex items-center gap-1 cursor-pointer"
+              >
+                {isMarkingDone ? 'Marking Done...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        )}
         {/* Meta Bar */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 p-3 bg-zinc-950/70 border border-zinc-800 rounded-lg">
           <div className="flex items-center gap-2.5 flex-wrap">
@@ -577,6 +629,33 @@ export function WorkItemDetailModal({
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-zinc-500">Status:</span>
               <StatusBadge status={item.status} />
+              {onAddProgress && (
+                <label
+                  data-testid="mark-done-checkbox-label"
+                  title={item.status?.toLowerCase() === 'done' ? 'Work item is Done' : 'Mark ticket as Done directly'}
+                  onClick={e => {
+                    if (item.status?.toLowerCase() !== 'done') {
+                      e.preventDefault()
+                      setShowDoneConfirm(prev => !prev)
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1.5 text-xs font-medium ml-1.5 select-none transition ${
+                    item.status?.toLowerCase() === 'done'
+                      ? 'text-emerald-400 cursor-default'
+                      : 'text-emerald-400 hover:text-emerald-300 cursor-pointer'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={item.status?.toLowerCase() === 'done'}
+                    disabled={item.status?.toLowerCase() === 'done' || isMarkingDone}
+                    onChange={() => {}}
+                    data-testid="mark-done-checkbox"
+                    className="w-3.5 h-3.5 rounded border-emerald-600 bg-zinc-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500 disabled:opacity-80 disabled:cursor-default"
+                  />
+                  <span>{item.status?.toLowerCase() === 'done' ? 'Done' : 'Mark Done'}</span>
+                </label>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -880,12 +959,95 @@ export function WorkItemDetailModal({
 
         {/* Progress & Milestones Timeline */}
         <div className="space-y-2.5 border-t border-zinc-800/80 pt-3">
-          <div className="flex items-center gap-1.5">
-            <GitCommit className="w-3.5 h-3.5 text-emerald-400" />
-            <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
-              Progress &amp; Git Proofs ({item.progress?.length || 0})
-            </h4>
+          <div className="flex items-center justify-between gap-1.5">
+            <div className="flex items-center gap-1.5">
+              <GitCommit className="w-3.5 h-3.5 text-emerald-400" />
+              <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
+                Progress &amp; Git Proofs ({item.progress?.length || 0})
+              </h4>
+            </div>
+
+            {onAddProgress && (
+              <label
+                data-testid="progress-mark-done-checkbox-label"
+                title={item.status?.toLowerCase() === 'done' ? 'Work item is Done' : 'Mark ticket as Done directly'}
+                onClick={e => {
+                  if (item.status?.toLowerCase() !== 'done') {
+                    e.preventDefault()
+                    setShowDoneConfirm(prev => !prev)
+                  }
+                }}
+                className={`inline-flex items-center gap-1.5 text-xs font-medium select-none transition ${
+                  item.status?.toLowerCase() === 'done'
+                    ? 'text-emerald-400 cursor-default'
+                    : 'text-emerald-400 hover:text-emerald-300 cursor-pointer'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={item.status?.toLowerCase() === 'done'}
+                  disabled={item.status?.toLowerCase() === 'done' || isMarkingDone}
+                  onChange={() => {}}
+                  data-testid="progress-mark-done-checkbox"
+                  className="w-3.5 h-3.5 rounded border-emerald-600 bg-zinc-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500 disabled:opacity-80 disabled:cursor-default"
+                />
+                <span>{item.status?.toLowerCase() === 'done' ? 'Done' : 'Mark Done'}</span>
+              </label>
+            )}
           </div>
+
+          {/* Add Progress form */}
+          {onAddProgress && (
+            <form onSubmit={handleAddProgress} className="space-y-2 pb-1" data-testid="add-progress-form">
+              <textarea
+                required
+                placeholder="Progress update summary..."
+                value={progressText}
+                onChange={e => setProgressText(e.target.value)}
+                onKeyDown={e => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddProgress(e)
+                  }
+                }}
+                rows={2}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 resize-y leading-relaxed"
+              />
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+                <input
+                  type="text"
+                  placeholder="Git SHA / Proof"
+                  value={progressProof}
+                  onChange={e => setProgressProof(e.target.value)}
+                  className="sm:w-64 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                />
+
+                <div className="flex items-center justify-between sm:justify-end gap-2">
+                  <select
+                    value={progressStatus}
+                    onChange={e => setProgressStatus(e.target.value)}
+                    className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-sm text-zinc-300"
+                  >
+                    {PROGRESS_STATUS_OPTIONS.map(st => (
+                      <option key={st} value={st}>
+                        {formatStatus(st)}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="submit"
+                    disabled={submittingProgress || !progressText.trim()}
+                    className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium flex items-center gap-1 transition disabled:opacity-50"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>Log Update</span>
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
 
           {/* Progress list */}
           {item.progress && item.progress.length > 0 ? (
@@ -1077,59 +1239,6 @@ export function WorkItemDetailModal({
             <div className="text-[11px] text-zinc-500 italic">
               No progress logs recorded yet.
             </div>
-          )}
-
-          {/* Add Progress form */}
-          {onAddProgress && (
-            <form onSubmit={handleAddProgress} className="space-y-2 pt-1 border-t border-zinc-800/50">
-              <textarea
-                required
-                placeholder="Progress update summary..."
-                value={progressText}
-                onChange={e => setProgressText(e.target.value)}
-                onKeyDown={e => {
-                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault()
-                    handleAddProgress(e)
-                  }
-                }}
-                rows={2}
-                className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 resize-y leading-relaxed"
-              />
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                <input
-                  type="text"
-                  placeholder="Git SHA / Proof"
-                  value={progressProof}
-                  onChange={e => setProgressProof(e.target.value)}
-                  className="sm:w-64 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
-                />
-
-                <div className="flex items-center justify-between sm:justify-end gap-2">
-                  <select
-                    value={progressStatus}
-                    onChange={e => setProgressStatus(e.target.value)}
-                    className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-800 text-sm text-zinc-300"
-                  >
-                    {PROGRESS_STATUS_OPTIONS.map(st => (
-                      <option key={st} value={st}>
-                        {formatStatus(st)}
-                      </option>
-                    ))}
-                  </select>
-
-                  <button
-                    type="submit"
-                    disabled={submittingProgress || !progressText.trim()}
-                    className="px-3 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium flex items-center gap-1 transition disabled:opacity-50"
-                  >
-                    <Send className="w-3 h-3" />
-                    <span>Log Update</span>
-                  </button>
-                </div>
-              </div>
-            </form>
           )}
         </div>
 
