@@ -273,7 +273,7 @@ export function WorkItemDetailModal({
       setShowDoneConfirm(false)
       setShowDeleteConfirm(false)
       setContextInput(item.context?.summary || '')
-      setProgressStatus('step completed')
+      setProgressStatus('in progress')
       setEditTitle(item.title)
       setEditDescription(item.description || '')
       setEditPriority((item.priority as 'LOW' | 'MEDIUM' | 'HIGH') || 'MEDIUM')
@@ -473,33 +473,25 @@ export function WorkItemDetailModal({
             </>
           )}
           {onAddProgress && (
-            <label
-              data-testid="mark-done-button"
-              title={item.status?.toLowerCase() === 'done' ? 'Work item is Done' : 'Mark as Done'}
-              onClick={e => {
+            <button
+              type="button"
+              disabled={isMarkingDone || item.status?.toLowerCase() === 'done'}
+              onClick={() => {
                 if (item.status?.toLowerCase() !== 'done') {
-                  e.preventDefault()
                   setShowDoneConfirm(prev => !prev)
                 }
               }}
-              className={`px-2 py-1 rounded-lg flex items-center gap-1.5 text-xs font-medium select-none transition ${
+              title={item.status?.toLowerCase() === 'done' ? 'Work item is Done' : 'Mark work item as Done'}
+              aria-label={item.status?.toLowerCase() === 'done' ? 'Work item is Done' : 'Mark work item as Done'}
+              data-testid="mark-done-button"
+              className={`p-1.5 rounded-lg transition ${
                 item.status?.toLowerCase() === 'done'
-                  ? 'text-emerald-400 bg-emerald-950/20 border border-emerald-800/30 cursor-default'
-                  : 'text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800 border border-emerald-800/40 bg-emerald-950/20 cursor-pointer'
+                  ? 'text-emerald-400 cursor-default'
+                  : 'text-zinc-500 hover:text-emerald-400 hover:bg-zinc-800 cursor-pointer'
               }`}
             >
-              <input
-                type="checkbox"
-                checked={item.status?.toLowerCase() === 'done'}
-                disabled={item.status?.toLowerCase() === 'done' || isMarkingDone}
-                onChange={() => {}}
-                data-testid="mark-done-checkbox"
-                className="w-3.5 h-3.5 rounded border-emerald-600 bg-zinc-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500 disabled:opacity-80 disabled:cursor-default"
-              />
-              <span data-testid="mark-done-checkbox-label">
-                {item.status?.toLowerCase() === 'done' ? 'Done' : 'Mark Done'}
-              </span>
-            </label>
+              <Check className="w-4 h-4" />
+            </button>
           )}
           <button
             type="button"

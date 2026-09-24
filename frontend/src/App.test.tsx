@@ -1612,7 +1612,7 @@ describe('Davai Frontend App with React Router', () => {
     expect(form.compareDocumentPosition(progressEntry) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('supports marking a ticket as Done directly with confirmation via the green checkbox', async () => {
+  it('supports marking a ticket as Done directly with confirmation via the check icon button', async () => {
     const onAddProgressMock = vi.fn().mockResolvedValue(undefined)
     const itemNotDone: WorkItem = {
       ...mockWorkItem,
@@ -1629,20 +1629,21 @@ describe('Davai Frontend App with React Router', () => {
       />
     )
 
-    const checkbox = screen.getByTestId('mark-done-checkbox') as HTMLInputElement
-    expect(checkbox.checked).toBe(false)
-    expect(screen.getByTestId('mark-done-checkbox-label')).toHaveTextContent('Mark Done')
+    const markDoneBtn = screen.getByTestId('mark-done-button')
+    // Greyed out check icon when not done
+    expect(markDoneBtn).not.toBeDisabled()
+    expect(markDoneBtn.className).toContain('text-zinc-500')
+    expect(markDoneBtn).toHaveAttribute('title', 'Mark work item as Done')
 
     // Mark done button is on the left of the Copy work item details button
-    const markDoneBtn = screen.getByTestId('mark-done-button')
     const copyBtn = screen.getByTestId('copy-work-item-button')
     expect(markDoneBtn.nextElementSibling).toBe(copyBtn)
 
     // Confirmation banner is initially not shown
     expect(screen.queryByTestId('mark-done-confirm')).not.toBeInTheDocument()
 
-    // Clicking checkbox opens confirmation banner
-    fireEvent.click(checkbox)
+    // Clicking button opens confirmation banner
+    fireEvent.click(markDoneBtn)
     expect(screen.getByTestId('mark-done-confirm')).toBeInTheDocument()
     expect(screen.getByText(/Are you sure you want to mark this work item as Done/)).toBeInTheDocument()
 
@@ -1651,8 +1652,8 @@ describe('Davai Frontend App with React Router', () => {
     expect(screen.queryByTestId('mark-done-confirm')).not.toBeInTheDocument()
     expect(onAddProgressMock).not.toHaveBeenCalled()
 
-    // Clicking checkbox again and confirming logs "Done" entry with status "done"
-    fireEvent.click(checkbox)
+    // Clicking button again and confirming logs "Done" entry with status "done"
+    fireEvent.click(markDoneBtn)
     expect(screen.getByTestId('mark-done-confirm')).toBeInTheDocument()
 
     await act(async () => {
@@ -1681,10 +1682,11 @@ describe('Davai Frontend App with React Router', () => {
       />
     )
 
-    const doneCheckbox = screen.getByTestId('mark-done-checkbox') as HTMLInputElement
-    expect(doneCheckbox.checked).toBe(true)
-    expect(doneCheckbox).toBeDisabled()
-    expect(screen.getByTestId('mark-done-checkbox-label')).toHaveTextContent('Done')
+    const doneBtn = screen.getByTestId('mark-done-button')
+    // Green check icon and disabled when done
+    expect(doneBtn).toBeDisabled()
+    expect(doneBtn.className).toContain('text-emerald-400')
+    expect(doneBtn).toHaveAttribute('title', 'Work item is Done')
   })
 })
 
