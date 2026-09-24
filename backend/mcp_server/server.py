@@ -39,6 +39,7 @@ MCP_ALLOWED_STATUSES = (
 def list_work_items(status: Optional[str] = None, project_key: Optional[str] = None) -> List[Dict[str, Any]]:
     """
     List work items in Davai.
+    Includes key, title, status, priority, assignees, subtasks list (key and title), and metadata.
     Omits description, context, and progress entries for brevity (use get_work_item to fetch complete details for a specific item).
     Args:
         status: Optional status filter ('todo', 'planned', 'step completed', 'blocked', 'failed', 'cancelled', 'awaiting review', 'done').
@@ -49,7 +50,7 @@ def list_work_items(status: Optional[str] = None, project_key: Optional[str] = N
 @mcp_server.tool()
 def get_work_item(key: str) -> Dict[str, Any]:
     """
-    Retrieve details of a specific work item by key (e.g. 'DAV-1'), including subtasks, context, and progress entries.
+    Retrieve details of a specific work item by key (e.g. 'DAV-1'), including subtasks (key and title), context, and progress entries.
     Args:
         key: The work item key or ID.
     """

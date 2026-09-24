@@ -1508,6 +1508,69 @@ describe('Davai Frontend App with React Router', () => {
     // Check date + time formatted as YYYY-MM-DD HH:MM
     expect(screen.getAllByText(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}/).length).toBe(2)
   })
+
+  it('displays sub-tasks as a list view with only key and title in WorkItemDetailModal and handles clicks', async () => {
+    const onSelectWorkItemMock = vi.fn()
+    const itemWithSubtasks: WorkItem = {
+      ...mockWorkItem,
+      subtasks: [
+        { key: 'DAV-10', title: 'First Subtask Item' },
+        { key: 'DAV-11', title: 'Second Subtask Item' }
+      ]
+    }
+
+    render(
+      <WorkItemDetailModal
+        item={itemWithSubtasks}
+        sprints={[]}
+        releases={[]}
+        onClose={() => {}}
+        onSelectWorkItem={onSelectWorkItemMock}
+      />
+    )
+
+    // Verify sub-tasks list container
+    expect(screen.getByTestId('work-item-subtasks-list')).toBeInTheDocument()
+    expect(screen.getByText('Sub-tasks (2)')).toBeInTheDocument()
+
+    // Verify list view contains only key and title
+    expect(screen.getByText('DAV-10')).toBeInTheDocument()
+    expect(screen.getByText('First Subtask Item')).toBeInTheDocument()
+    expect(screen.getByText('DAV-11')).toBeInTheDocument()
+    expect(screen.getByText('Second Subtask Item')).toBeInTheDocument()
+
+    // Clicking a subtask calls onSelectWorkItem
+    fireEvent.click(screen.getByTestId('subtask-item-DAV-10'))
+    expect(onSelectWorkItemMock).toHaveBeenCalledWith('DAV-10')
+  })
+
+  it('displays empty state when work item has no sub-tasks, and parent link is clickable', async () => {
+    const onSelectWorkItemMock = vi.fn()
+    const itemChild: WorkItem = {
+      ...mockWorkItem,
+      parent_key: 'DAV-99',
+      subtasks: []
+    }
+
+    render(
+      <WorkItemDetailModal
+        item={itemChild}
+        sprints={[]}
+        releases={[]}
+        onClose={() => {}}
+        onSelectWorkItem={onSelectWorkItemMock}
+      />
+    )
+
+    // Verify empty state
+    expect(screen.getByTestId('no-subtasks-message')).toHaveTextContent('No sub-tasks attached to this work item.')
+
+    // Verify clickable parent link
+    const parentLink = screen.getByTestId('parent-work-item-link')
+    expect(parentLink).toHaveTextContent('Subtask of DAV-99')
+    fireEvent.click(parentLink)
+    expect(onSelectWorkItemMock).toHaveBeenCalledWith('DAV-99')
+  })
 })
 
 

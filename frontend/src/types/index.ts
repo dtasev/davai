@@ -91,6 +91,11 @@ export interface ProgressEntry {
   updated_by?: string | null
 }
 
+export interface SubtaskSummary {
+  key: string
+  title: string
+}
+
 export interface WorkItem {
   id: number | string
   key: string
@@ -114,6 +119,7 @@ export interface WorkItem {
   updated: string
   context?: ContextData | null
   progress?: ProgressEntry[]
+  subtasks?: SubtaskSummary[]
 }
 
 export interface UserSummary {

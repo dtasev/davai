@@ -54,6 +54,13 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
         proof="git:sha123",
         status="step completed"
     )
+    await sync_to_async(WorkItem.objects.create)(
+        project=test_project,
+        parent=item,
+        key=f"{test_project.key}-101",
+        title="GraphQL Child Subtask",
+        created_by=test_user
+    )
 
     query = """
     query {
@@ -68,12 +75,20 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
             status
             priority
             projectKey
+            subtasks {
+                key
+                title
+            }
         }
         workItem(key: "DAV-100") {
             key
             title
             description
             status
+            subtasks {
+                key
+                title
+            }
             context {
                 summary
             }
@@ -98,6 +113,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
     assert any(p["key"] == test_project.key for p in res.data["projects"])
     assert any(i["key"] == f"{test_project.key}-100" for i in res.data["workItems"])
     assert res.data["workItem"]["title"] == "GraphQL Test Item"
+    assert res.data["workItem"]["subtasks"] == [{"key": f"{test_project.key}-101", "title": "GraphQL Child Subtask"}]
     assert res.data["workItem"]["description"] == "Created for testing GraphQL schema"
     assert res.data["workItem"]["status"] == "step completed"
     assert res.data["workItem"]["context"]["summary"] == "GraphQL Context Summary"

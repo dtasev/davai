@@ -156,6 +156,7 @@ export function WorkItemModalRoute() {
       releases={releases}
       statuses={project?.statuses || []}
       onClose={() => navigate(`/projects/${projectKey}${location.search}`)}
+      onSelectWorkItem={(itemKeyToOpen) => navigate(`/projects/${projectKey}/items/${itemKeyToOpen}${location.search}`)}
       onUpdateStatus={async (key, status) => {
         await handleUpdateStatus(key, status)
         setDetailItem(prev => prev && prev.key.toUpperCase() === key.toUpperCase() ? { ...prev, status: status as any } : prev)

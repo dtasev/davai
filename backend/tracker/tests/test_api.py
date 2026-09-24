@@ -338,6 +338,26 @@ class TestNinjaAPI:
         assert updated["status"] == "done"
         assert updated["priority"] == "LOW"
 
+        # 4. Fetch parent item - verify subtasks are included as a list view with key and title
+        get_parent = ninja_client.get(f"/work-items/{parent_key}")
+        assert get_parent.status_code == 200
+        parent_data = get_parent.json()
+        assert "subtasks" in parent_data
+        assert parent_data["subtasks"] == [{"key": child_key, "title": "Subtask 1"}]
+
+        # 5. Fetch child item - verify child has empty subtasks list
+        get_child = ninja_client.get(f"/work-items/{child_key}")
+        assert get_child.status_code == 200
+        child_data = get_child.json()
+        assert child_data["subtasks"] == []
+
+        # 6. List work items - verify subtasks are present in list results
+        list_res = ninja_client.get(f"/work-items?project_key={test_project.key}")
+        assert list_res.status_code == 200
+        items_map = {item["key"]: item for item in list_res.json()}
+        assert items_map[parent_key]["subtasks"] == [{"key": child_key, "title": "Subtask 1"}]
+        assert items_map[child_key]["subtasks"] == []
+
     def test_context_and_progress_flow(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
 

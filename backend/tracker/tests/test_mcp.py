@@ -100,6 +100,22 @@ class TestMCPWithApiClient:
         assert fetched["key"] == item_key
         assert fetched["priority"] == "HIGH"
         assert fetched["description"] == "Created through MCP API Client"
+        assert fetched["subtasks"] == []
+
+        # 3b. Create subtask via MCP tool and verify parent's subtasks list
+        child_item = create_work_item(
+            title="MCP Child Subtask",
+            parent_key=item_key,
+            project_key=test_project.key
+        )
+        assert child_item["parent_key"] == item_key
+        fetched_parent = get_work_item(item_key)
+        assert len(fetched_parent["subtasks"]) == 1
+        assert fetched_parent["subtasks"][0] == {"key": child_item["key"], "title": "MCP Child Subtask"}
+
+        mcp_items = list_work_items(project_key=test_project.key)
+        parent_mcp = next(i for i in mcp_items if i["key"] == item_key)
+        assert parent_mcp["subtasks"] == [{"key": child_item["key"], "title": "MCP Child Subtask"}]
 
         # 4. Update item via MCP tool (rejects 'done' and invalid statuses, accepts valid progress statuses)
         with pytest.raises(ValueError, match="The 'done' status can only be set by a human"):

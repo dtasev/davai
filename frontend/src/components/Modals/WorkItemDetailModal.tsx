@@ -14,7 +14,9 @@ import {
   AlertTriangle,
   Check,
   Copy,
-  Calendar
+  Calendar,
+  ListTree,
+  ChevronRight
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus, UserSummary, PROGRESS_STATUS_OPTIONS } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
@@ -47,6 +49,7 @@ interface WorkItemDetailModalProps {
   releases: Release[]
   statuses?: ProjectStatus[]
   onClose: () => void
+  onSelectWorkItem?: (key: string) => void
   onUpdateStatus?: (key: string, newStatus: string) => Promise<void>
   onUpdateContext?: (key: string, contextText: string) => Promise<void>
   onAddProgress?: (
@@ -78,6 +81,7 @@ export function WorkItemDetailModal({
   sprints,
   releases,
   onClose,
+  onSelectWorkItem,
   onUpdateContext,
   onAddProgress,
   onUpdateProgress,
@@ -485,10 +489,23 @@ export function WorkItemDetailModal({
                 {item.key}
               </span>
               {item.parent_key && (
-                <span className="flex items-center gap-1 text-[10px] font-mono text-zinc-500 leading-none">
-                  <CornerDownRight className="w-2.5 h-2.5" />
-                  <span>Subtask of {item.parent_key}</span>
-                </span>
+                onSelectWorkItem ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelectWorkItem(item.parent_key!)}
+                    data-testid="parent-work-item-link"
+                    title={`Go to parent work item ${item.parent_key}`}
+                    className="flex items-center gap-1 text-[10px] font-mono text-zinc-500 hover:text-indigo-400 leading-none cursor-pointer transition"
+                  >
+                    <CornerDownRight className="w-2.5 h-2.5" />
+                    <span>Subtask of {item.parent_key}</span>
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1 text-[10px] font-mono text-zinc-500 leading-none">
+                    <CornerDownRight className="w-2.5 h-2.5" />
+                    <span>Subtask of {item.parent_key}</span>
+                  </span>
+                )
               )}
             </div>
             {isEditingDetails ? (
@@ -816,6 +833,47 @@ export function WorkItemDetailModal({
               }`}
             >
               {item.description || 'No description provided for this work item.'}
+            </div>
+          )}
+        </div>
+
+        {/* Sub-tasks Section */}
+        <div className="space-y-2 border-t border-zinc-800/80 pt-3">
+          <div className="flex items-center gap-1.5">
+            <ListTree className="w-3.5 h-3.5 text-indigo-400" />
+            <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
+              Sub-tasks ({item.subtasks?.length || 0})
+            </h4>
+          </div>
+
+          {item.subtasks && item.subtasks.length > 0 ? (
+            <div className="space-y-1.5" data-testid="work-item-subtasks-list">
+              {item.subtasks.map(subtask => (
+                <div
+                  key={subtask.key}
+                  data-testid={`subtask-item-${subtask.key}`}
+                  onClick={() => onSelectWorkItem?.(subtask.key)}
+                  className={`p-2 rounded-lg bg-zinc-950/60 border border-zinc-800/80 flex items-center justify-between gap-2.5 text-sm group ${
+                    onSelectWorkItem ? 'hover:border-indigo-500/40 hover:bg-zinc-900/40 cursor-pointer transition' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="font-mono font-bold text-xs sm:text-sm text-indigo-400 shrink-0">
+                      {subtask.key}
+                    </span>
+                    <span className="text-zinc-200 group-hover:text-white transition text-xs sm:text-sm truncate">
+                      {subtask.title}
+                    </span>
+                  </div>
+                  {onSelectWorkItem && (
+                    <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:text-zinc-300 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-[11px] text-zinc-500 italic p-2.5 bg-zinc-950/40 rounded-lg border border-zinc-900" data-testid="no-subtasks-message">
+              No sub-tasks attached to this work item.
             </div>
           )}
         </div>

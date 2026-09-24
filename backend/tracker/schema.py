@@ -107,6 +107,12 @@ class ProgressType:
 
 
 @strawberry.type
+class SubtaskSummaryType:
+    key: str
+    title: str
+
+
+@strawberry.type
 class WorkItemType:
     id: int
     key: str
@@ -122,6 +128,7 @@ class WorkItemType:
     updated: str
     context: Optional[ContextType]
     progress: List[ProgressType]
+    subtasks: List[SubtaskSummaryType]
 
 
 def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
@@ -150,6 +157,11 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
         for p in item.progress.all()
     ]
 
+    subtasks_list = [
+        SubtaskSummaryType(key=st.key, title=st.title)
+        for st in item.subtasks.all()
+    ]
+
     return WorkItemType(
         id=item.id,
         key=item.key,
@@ -165,6 +177,7 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
         updated=item.updated.isoformat(),
         context=ctx,
         progress=progress_list,
+        subtasks=subtasks_list,
     )
 
 
@@ -188,7 +201,7 @@ class Query:
         def _get():
             qs = WorkItemModel.objects.select_related(
                 "project", "parent", "active_assignee", "created_by", "context"
-            ).prefetch_related("progress").all()
+            ).prefetch_related("progress", "subtasks").all()
             if status:
                 normalized = status.strip().lower().replace("_", " ")
                 latest_status_subquery = Subquery(
@@ -207,7 +220,7 @@ class Query:
         def _get():
             item = WorkItemModel.objects.select_related(
                 "project", "parent", "active_assignee", "created_by", "context"
-            ).prefetch_related("progress").filter(key=key.upper()).first()
+            ).prefetch_related("progress", "subtasks").filter(key=key.upper()).first()
             return _to_work_item_type(item) if item else None
         return await sync_to_async(_get)()
 

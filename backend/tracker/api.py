@@ -239,6 +239,11 @@ class UpdateProgressIn(Schema):
     status: Optional[str] = None
 
 
+class SubtaskSummaryOut(Schema):
+    key: str
+    title: str
+
+
 class WorkItemListOut(Schema):
     id: int
     key: str
@@ -259,6 +264,11 @@ class WorkItemListOut(Schema):
     release_id: Optional[int] = None
     created: str
     updated: str
+    subtasks: List[SubtaskSummaryOut] = []
+
+    @staticmethod
+    def resolve_subtasks(obj: WorkItem) -> List[SubtaskSummaryOut]:
+        return [SubtaskSummaryOut(key=s.key, title=s.title) for s in obj.subtasks.all()]
 
     @staticmethod
     def resolve_parent_key(obj: WorkItem) -> Optional[str]:
@@ -895,7 +905,7 @@ def search_work_items(
 def list_work_items(request, status: Optional[str] = None, project_key: Optional[str] = None):
     qs = WorkItem.objects.select_related(
         "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release"
-    ).prefetch_related("assigned", "watching").all()
+    ).prefetch_related("assigned", "watching", "subtasks").all()
 
     if status:
         normalized = status.strip().lower().replace("_", " ")
@@ -915,7 +925,7 @@ def get_work_item(request, key: str):
     return get_object_or_404(
         WorkItem.objects.select_related(
             "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
-        ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by"),
+        ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by", "subtasks"),
         key=key.upper()
     )
 
