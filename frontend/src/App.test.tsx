@@ -335,19 +335,40 @@ describe('Davai Frontend App with React Router', () => {
     return { ...result, router: memoryRouter }
   }
 
-  it('renders the header brand and external links (GraphQL and Swagger)', async () => {
+  it('renders the header brand, github repo link, and menu with GraphQL and Swagger links', async () => {
     await renderWithRouter(['/'])
     expect(screen.getByText('Davai')).toBeInTheDocument()
     expect(screen.getByText('Tracker')).toBeInTheDocument()
 
+    // GitHub repository link
+    const githubLink = screen.getByTestId('github-link')
+    expect(githubLink).toBeInTheDocument()
+    expect(githubLink).toHaveAttribute('href', 'https://github.com/dtasev/davai')
+    expect(githubLink).toHaveAttribute('target', '_blank')
+
+    // Menu button (triple horizontal bar)
+    const menuButton = screen.getByTestId('nav-menu-button')
+    expect(menuButton).toBeInTheDocument()
+    expect(screen.queryByTestId('graphql-link')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('swagger-link')).not.toBeInTheDocument()
+
+    // Open menu
+    fireEvent.click(menuButton)
+
     const graphqlLink = screen.getByTestId('graphql-link')
     expect(graphqlLink).toBeInTheDocument()
     expect(graphqlLink).toHaveAttribute('href', '/graphql/')
+    expect(graphqlLink).toHaveAttribute('target', '_blank')
 
     const swaggerLink = screen.getByTestId('swagger-link')
     expect(swaggerLink).toBeInTheDocument()
     expect(swaggerLink).toHaveAttribute('href', '/api/docs')
     expect(swaggerLink).toHaveAttribute('target', '_blank')
+
+    // Close menu with Escape
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByTestId('graphql-link')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('swagger-link')).not.toBeInTheDocument()
   })
 
   it('renders the Dashboard at "/" with project cards and navigates on click to "/projects/DAV"', async () => {
