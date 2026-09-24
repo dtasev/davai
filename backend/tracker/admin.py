@@ -27,7 +27,8 @@ class ProjectStatusInline(admin.TabularInline):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("key", "name", "created_at")
+    list_display = ("key", "name", "last_work_item_number", "created_at")
+    readonly_fields = ("last_work_item_number",)
     search_fields = ("key", "name")
     inlines = [ProjectStatusInline]
 

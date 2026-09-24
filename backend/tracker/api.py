@@ -935,10 +935,6 @@ def create_work_item(request, payload: CreateWorkItemIn):
     user = request.auth
     project = get_object_or_404(Project, key=payload.project_key.upper())
 
-    last_item = WorkItem.objects.filter(project=project).order_by("-id").first()
-    next_num = (last_item.id + 1) if last_item else 1
-    item_key = f"{project.key}-{next_num}"
-
     parent = None
     if payload.parent_key:
         parent = WorkItem.objects.filter(key=payload.parent_key.upper()).first()
@@ -970,6 +966,7 @@ def create_work_item(request, payload: CreateWorkItemIn):
                 raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
 
     with transaction.atomic():
+        item_key = project.generate_next_work_item_key()
         item = WorkItem.objects.create(
             project=project,
             parent=parent,

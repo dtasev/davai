@@ -1035,6 +1035,34 @@ class TestNinjaAPI:
         assert prog_patch.status_code == 400
         assert "Invalid status 'in_progress'" in prog_patch.json()["detail"]
 
+    def test_sequential_work_item_creation_across_projects(self, ninja_client, test_user, test_api_key):
+        from tracker.models import Project
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+
+        p1 = Project.objects.create(key="PRJA", name="Project A")
+        p2 = Project.objects.create(key="PRJB", name="Project B")
+
+        # Create 3 items in Project A
+        res_a1 = ninja_client.post("/work-items", json={"title": "A1", "project_key": p1.key}, headers=headers)
+        res_a2 = ninja_client.post("/work-items", json={"title": "A2", "project_key": p1.key}, headers=headers)
+        res_a3 = ninja_client.post("/work-items", json={"title": "A3", "project_key": p1.key}, headers=headers)
+        assert res_a1.json()["key"] == "PRJA-1"
+        assert res_a2.json()["key"] == "PRJA-2"
+        assert res_a3.json()["key"] == "PRJA-3"
+
+        # Create 2 items in Project B
+        res_b1 = ninja_client.post("/work-items", json={"title": "B1", "project_key": p2.key}, headers=headers)
+        res_b2 = ninja_client.post("/work-items", json={"title": "B2", "project_key": p2.key}, headers=headers)
+        assert res_b1.json()["key"] == "PRJB-1"
+        assert res_b2.json()["key"] == "PRJB-2"
+
+        # Interleaved creation in Project A and Project B
+        res_a4 = ninja_client.post("/work-items", json={"title": "A4", "project_key": p1.key}, headers=headers)
+        res_b3 = ninja_client.post("/work-items", json={"title": "B3", "project_key": p2.key}, headers=headers)
+        assert res_a4.json()["key"] == "PRJA-4"
+        assert res_b3.json()["key"] == "PRJB-3"
+
 
 
 

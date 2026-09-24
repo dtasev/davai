@@ -141,3 +141,23 @@ class TestDomainModels:
         assert entries[1].status == "blocked"
         assert item.status == "blocked"
         assert str(p1).startswith(f"Progress for {item.key}")
+
+    def test_sequential_work_item_key_generation(self, test_user):
+        proj = Project.objects.create(key="SEQ", name="Sequential Project")
+        assert proj.last_work_item_number == 0
+
+        # Create items via generate_next_work_item_key / auto-key in save
+        item1 = WorkItem.objects.create(project=proj, title="Task 1", created_by=test_user)
+        assert item1.key == "SEQ-1"
+        assert proj.last_work_item_number == 1
+
+        item2 = WorkItem.objects.create(project=proj, title="Task 2", created_by=test_user)
+        assert item2.key == "SEQ-2"
+        assert proj.last_work_item_number == 2
+
+        # Manually create SEQ-3
+        WorkItem.objects.create(project=proj, key="SEQ-3", title="Task 3 Manual", created_by=test_user)
+
+        # Next auto key skips SEQ-3 to avoid collision
+        item4 = WorkItem.objects.create(project=proj, title="Task 4", created_by=test_user)
+        assert item4.key == "SEQ-4"

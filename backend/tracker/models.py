@@ -29,6 +29,10 @@ class Project(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    last_work_item_number = models.PositiveIntegerField(
+        default=0,
+        help_text="Counter for sequential work item keys within this project",
+    )
 
     class Meta:
         ordering = ["key"]
@@ -43,6 +47,22 @@ class Project(models.Model):
         if not status:
             status = self.statuses.first()
         return status
+
+    def generate_next_work_item_key(self) -> str:
+        """
+        Atomically generates and reserves the next sequential work item key for this project.
+        """
+        from django.db import transaction
+        with transaction.atomic():
+            proj = Project.objects.select_for_update().get(pk=self.pk)
+            while True:
+                proj.last_work_item_number += 1
+                candidate_key = f"{proj.key}-{proj.last_work_item_number}"
+                if not self.work_items.filter(key=candidate_key).exists():
+                    break
+            proj.save(update_fields=["last_work_item_number"])
+            self.last_work_item_number = proj.last_work_item_number
+            return candidate_key
 
 
 class ProjectStatus(models.Model):
@@ -157,6 +177,11 @@ class WorkItem(models.Model):
             return "todo"
         latest = self.progress.order_by("-created_at", "-id").first()
         return latest.status if latest else "todo"
+
+    def save(self, *args, **kwargs):
+        if not self.key and self.project_id:
+            self.key = self.project.generate_next_work_item_key()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.key}: {self.title} [{self.status}]"
