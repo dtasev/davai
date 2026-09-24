@@ -258,7 +258,7 @@ class TestNinjaAPI:
         statuses_res = ninja_client.get("/projects/CORE/statuses")
         assert statuses_res.status_code == 200
         statuses = statuses_res.json()
-        assert [s["name"] for s in statuses] == ["todo", "planned", "step completed", "blocked", "awaiting review", "done", "cancelled"]
+        assert [s["name"] for s in statuses] == ["todo", "planned", "in progress", "blocked", "review", "done", "cancelled"]
 
     def test_sprint_and_release_endpoints(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
@@ -394,7 +394,7 @@ class TestNinjaAPI:
             json={
                 "summary": "Implemented models and ran migrations",
                 "proof": "git:8f3a9e2",
-                "status": "step completed"
+                "status": "in progress"
             },
             headers={"X-API-Key": raw_key}
         )
@@ -402,7 +402,7 @@ class TestNinjaAPI:
         prog_data = prog_res.json()
         assert prog_data["summary"] == "Implemented models and ran migrations"
         assert prog_data["proof"] == "git:8f3a9e2"
-        assert prog_data["status"] == "step completed"
+        assert prog_data["status"] == "in progress"
         assert prog_data["created_by"] == test_user.username
         assert "created_at" in prog_data
         assert prog_data["updated_by"] is None
@@ -582,7 +582,7 @@ class TestNinjaAPI:
         # 2. PATCH progress entry (happy path)
         patch_res = ninja_client.patch(
             f"/work-items/{item_key}/progress/{prog_id}",
-            json={"summary": "Updated step", "proof": "git:def2", "status": "step completed"},
+            json={"summary": "Updated step", "proof": "git:def2", "status": "in progress"},
             headers={"X-API-Key": raw_key}
         )
         assert patch_res.status_code == 200
@@ -590,7 +590,7 @@ class TestNinjaAPI:
         assert updated["id"] == prog_id
         assert updated["summary"] == "Updated step"
         assert updated["proof"] == "git:def2"
-        assert updated["status"] == "step completed"
+        assert updated["status"] == "in progress"
         assert updated["created_by"] == test_user.username
         assert updated["updated_by"] == test_user.username
         assert updated["updated_at"] is not None
@@ -900,16 +900,16 @@ class TestNinjaAPI:
             headers={"X-API-Key": raw_key}
         )
 
-        # Item 3: Progress entry with "step completed"
+        # Item 3: Progress entry with "in progress"
         item3_res = ninja_client.post(
             "/work-items",
-            json={"title": "Item Step Completed", "project_key": test_project.key},
+            json={"title": "Item In Progress", "project_key": test_project.key},
             headers={"X-API-Key": raw_key}
         )
         key3 = item3_res.json()["key"]
         ninja_client.post(
             f"/work-items/{key3}/progress",
-            json={"summary": "Step 1 done", "status": "step completed"},
+            json={"summary": "Step 1 done", "status": "in progress"},
             headers={"X-API-Key": raw_key}
         )
 
@@ -926,8 +926,8 @@ class TestNinjaAPI:
         assert key2 in planned_keys
         assert key1 not in planned_keys
 
-        # Filter by status=step completed
-        step_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=step completed")
+        # Filter by status=in progress
+        step_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=in progress")
         step_keys = [i["key"] for i in step_res.json()]
         assert key3 in step_keys
         assert key1 not in step_keys
@@ -952,7 +952,7 @@ class TestNinjaAPI:
         # Add a progress entry
         prog_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
-            json={"summary": "Progress entry 1", "status": "step completed"},
+            json={"summary": "Progress entry 1", "status": "in progress"},
             headers={"X-API-Key": raw_key},
         )
         assert prog_res.status_code == 200
@@ -1020,7 +1020,7 @@ class TestNinjaAPI:
         # Valid progress log
         prog_valid = ninja_client.post(
             f"/work-items/{key}/progress",
-            json={"summary": "Valid progress", "status": "step completed"},
+            json={"summary": "Valid progress", "status": "in progress"},
             headers=headers
         )
         assert prog_valid.status_code == 200

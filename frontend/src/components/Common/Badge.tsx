@@ -28,7 +28,7 @@ export function formatStatus(status: string | null | undefined): string {
 
 export function StatusBadge({
   status,
-  isProgressEntry = false
+  isProgressEntry: _isProgressEntry = false
 }: {
   status: string
   isProgressEntry?: boolean
@@ -40,24 +40,13 @@ export function StatusBadge({
   if (s === 'planned') {
     color = 'bg-sky-950/40 text-sky-300 border-sky-800/40'
     dot = 'bg-sky-400'
-  } else if (s === 'step completed' || s === 'completed') {
-    if (isProgressEntry) {
-      color = 'bg-zinc-800/60 text-zinc-300 border-zinc-700/60'
-      dot = 'bg-zinc-400'
-    } else {
-      color = 'bg-yellow-950/40 text-yellow-300 border-yellow-800/40'
-      dot = 'bg-yellow-400'
-    }
-  } else if (s === 'in progress') {
+  } else if (s === 'in progress' || s === 'step completed' || s === 'completed') {
     color = 'bg-yellow-950/40 text-yellow-300 border-yellow-800/40'
     dot = 'bg-yellow-400'
   } else if (s === 'blocked') {
     color = 'bg-orange-950/40 text-orange-300 border-orange-800/40'
     dot = 'bg-orange-400'
-  } else if (s === 'failed') {
-    color = 'bg-rose-950/40 text-rose-300 border-rose-800/40'
-    dot = 'bg-rose-500'
-  } else if (s === 'awaiting review' || s === 'review' || s === 'waiting') {
+  } else if (s === 'review' || s === 'awaiting review' || s === 'waiting') {
     color = 'bg-purple-950/40 text-purple-300 border-purple-800/40'
     dot = 'bg-purple-400'
   } else if (s === 'done') {
@@ -69,8 +58,10 @@ export function StatusBadge({
   }
 
   const label =
-    !isProgressEntry && (s === 'step completed' || s === 'completed' || s === 'in progress')
+    s === 'step completed' || s === 'completed' || s === 'in progress'
       ? 'In Progress'
+      : s === 'awaiting review' || s === 'review'
+      ? 'Review'
       : formatStatus(status)
 
   return (

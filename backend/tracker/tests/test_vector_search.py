@@ -31,7 +31,7 @@ class TestVectorSearchAndEmbedding:
             work_item=item,
             created_by=test_user,
             summary="Configured authorization endpoint",
-            status="step completed"
+            status="in progress"
         )
 
         formatted = format_work_item_text(item)
@@ -84,7 +84,7 @@ class TestVectorSearchAndEmbedding:
             work_item=item,
             created_by=test_user,
             summary="Added pgbouncer config file",
-            status="step completed",
+            status="in progress",
         )
         flush_indexing_queue()
         item.refresh_from_db()

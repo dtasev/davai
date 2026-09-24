@@ -62,14 +62,14 @@ class ProjectStatus(models.Model):
 STANDARD_STATUSES = (
     "todo",
     "planned",
-    "step completed",
+    "in progress",
     "blocked",
-    "awaiting review",
+    "review",
     "done",
     "cancelled",
 )
 
-ALL_PROGRESS_STATUSES = STANDARD_STATUSES + ("failed",)
+ALL_PROGRESS_STATUSES = STANDARD_STATUSES
 
 DEFAULT_PROJECT_STATUSES = [
     (name, name == "todo", order)
@@ -183,7 +183,7 @@ class Progress(models.Model):
         blank=True,
         help_text="If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact."
     )
-    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="step completed")
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="in progress")
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
     updated_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="updated_progress_entries")

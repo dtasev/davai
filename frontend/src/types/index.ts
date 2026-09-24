@@ -47,20 +47,19 @@ export interface ContextData {
 export const STANDARD_STATUSES = [
   'todo',
   'planned',
-  'step completed',
+  'in progress',
   'blocked',
-  'awaiting review',
+  'review',
   'done',
   'cancelled'
 ] as const
 
 export const ALL_PROGRESS_STATUSES = [
-  'step completed',
+  'in progress',
   'planned',
   'blocked',
-  'awaiting review',
+  'review',
   'done',
-  'failed',
   'cancelled',
   'todo'
 ] as const

@@ -230,7 +230,7 @@ class ProgressOut(Schema):
 class CreateProgressIn(Schema):
     summary: str
     proof: str = ""
-    status: str = "step completed"
+    status: str = "in progress"
 
 
 class UpdateProgressIn(Schema):
@@ -1108,7 +1108,7 @@ def log_work_item_progress(request, key: str, payload: CreateProgressIn):
     """
     user = request.auth
     item = get_object_or_404(WorkItem, key=key.upper())
-    clean_status = (payload.status or "step completed").strip().lower()
+    clean_status = (payload.status or "in progress").strip().lower()
     if clean_status not in ALL_PROGRESS_STATUSES:
         raise errors.HttpError(400, f"Invalid status '{payload.status}'. Allowed statuses are: {', '.join(ALL_PROGRESS_STATUSES)}.")
     if clean_status == "done":

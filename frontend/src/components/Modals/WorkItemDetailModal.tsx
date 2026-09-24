@@ -141,14 +141,14 @@ export function WorkItemDetailModal({
   // Add progress state
   const [progressText, setProgressText] = useState('')
   const [progressProof, setProgressProof] = useState('')
-  const [progressStatus, setProgressStatus] = useState('step completed')
+  const [progressStatus, setProgressStatus] = useState('in progress')
   const [submittingProgress, setSubmittingProgress] = useState(false)
 
   // Edit / Delete progress state
   const [editingProgressId, setEditingProgressId] = useState<number | null>(null)
   const [editProgressSummary, setEditProgressSummary] = useState('')
   const [editProgressProof, setEditProgressProof] = useState('')
-  const [editProgressStatus, setEditProgressStatus] = useState('step completed')
+  const [editProgressStatus, setEditProgressStatus] = useState('in progress')
   const [savingProgressId, setSavingProgressId] = useState<number | null>(null)
   const [deletingProgressId, setDeletingProgressId] = useState<number | null>(null)
   const [isDeletingProgress, setIsDeletingProgress] = useState(false)
@@ -213,7 +213,7 @@ export function WorkItemDetailModal({
     setEditingProgressId(p.id)
     setEditProgressSummary(p.summary)
     setEditProgressProof(p.proof || '')
-    setEditProgressStatus(p.status || 'step completed')
+    setEditProgressStatus(p.status || 'in progress')
   }
 
   const cancelEditProgress = () => {

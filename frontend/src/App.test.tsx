@@ -49,7 +49,7 @@ describe('Davai Frontend App with React Router', () => {
           created_by: 'admin',
           summary: 'Completed models',
           proof: 'git:e93f18a',
-          status: 'step completed',
+          status: 'in progress',
           created_at: '2026-09-20T00:00:00Z',
           updated_by: null,
           updated_at: null,
@@ -1402,16 +1402,21 @@ describe('Davai Frontend App with React Router', () => {
     })
   })
 
-  it('renders "step completed" as yellow "In Progress" badge for tickets, and grey "Step Completed" for progress entries', () => {
-    const { rerender } = render(<StatusBadge status="step completed" />)
+  it('renders "in progress" and "step completed" as yellow "In Progress" badge, and "review" as purple "Review" badge', () => {
+    const { rerender } = render(<StatusBadge status="in progress" />)
     const ticketBadge = screen.getByText('In Progress')
     expect(ticketBadge).toBeInTheDocument()
     expect(ticketBadge.parentElement).toHaveClass('text-yellow-300')
 
     rerender(<StatusBadge status="step completed" isProgressEntry />)
-    const progressBadge = screen.getByText('Step Completed')
-    expect(progressBadge).toBeInTheDocument()
-    expect(progressBadge.parentElement).toHaveClass('text-zinc-300')
+    const legacyBadge = screen.getByText('In Progress')
+    expect(legacyBadge).toBeInTheDocument()
+    expect(legacyBadge.parentElement).toHaveClass('text-yellow-300')
+
+    rerender(<StatusBadge status="review" />)
+    const reviewBadge = screen.getByText('Review')
+    expect(reviewBadge).toBeInTheDocument()
+    expect(reviewBadge.parentElement).toHaveClass('text-purple-300')
   })
 
   it('displays status badge without status change dropdown in WorkItemDetailModal', async () => {
@@ -1445,7 +1450,7 @@ describe('Davai Frontend App with React Router', () => {
       parent_key: null,
       title: 'Task With Multiple Progress',
       description: 'Desc',
-      status: 'step completed',
+      status: 'in progress',
       priority: 'MEDIUM',
       project_key: 'DAV',
       active_assignee: null,
@@ -1468,7 +1473,7 @@ describe('Davai Frontend App with React Router', () => {
           created_by: 'admin',
           summary: 'Old progress update',
           proof: 'git:old',
-          status: 'step completed',
+          status: 'in progress',
           created_at: '2026-09-10T08:30:00Z',
           updated_by: null,
           updated_at: null
@@ -1479,7 +1484,7 @@ describe('Davai Frontend App with React Router', () => {
           created_by: 'admin',
           summary: 'New progress update',
           proof: 'git:new',
-          status: 'step completed',
+          status: 'in progress',
           created_at: '2026-09-20T14:45:00Z',
           updated_by: null,
           updated_at: null
@@ -1582,7 +1587,7 @@ describe('Davai Frontend App with React Router', () => {
           created_by: 'tester',
           summary: 'Existing progress',
           proof: '',
-          status: 'step completed',
+          status: 'in progress',
           created_at: '2026-09-20T10:00:00Z',
           updated_by: null,
           updated_at: null

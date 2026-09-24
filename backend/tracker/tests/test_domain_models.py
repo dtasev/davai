@@ -18,7 +18,7 @@ class TestDomainModels:
         statuses = list(project.statuses.all())
         assert len(statuses) == 7
         status_names = [s.name for s in statuses]
-        assert status_names == ["todo", "planned", "step completed", "blocked", "awaiting review", "done", "cancelled"]
+        assert status_names == ["todo", "planned", "in progress", "blocked", "review", "done", "cancelled"]
 
         default_status = project.get_default_status()
         assert default_status is not None
@@ -120,9 +120,9 @@ class TestDomainModels:
             created_by=test_user,
             summary="Drafted data models",
             proof="git:feature-models-branch",
-            status="step completed"
+            status="in progress"
         )
-        assert item.status == "step completed"
+        assert item.status == "in progress"
 
         p2 = Progress.objects.create(
             work_item=item,

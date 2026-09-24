@@ -52,7 +52,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
         created_by=test_user,
         summary="GraphQL Progress Summary",
         proof="git:sha123",
-        status="step completed"
+        status="in progress"
     )
     await sync_to_async(WorkItem.objects.create)(
         project=test_project,
@@ -115,12 +115,12 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
     assert res.data["workItem"]["title"] == "GraphQL Test Item"
     assert res.data["workItem"]["subtasks"] == [{"key": f"{test_project.key}-101", "title": "GraphQL Child Subtask"}]
     assert res.data["workItem"]["description"] == "Created for testing GraphQL schema"
-    assert res.data["workItem"]["status"] == "step completed"
+    assert res.data["workItem"]["status"] == "in progress"
     assert res.data["workItem"]["context"]["summary"] == "GraphQL Context Summary"
     assert len(res.data["workItem"]["progress"]) == 1
     assert res.data["workItem"]["progress"][0]["summary"] == "GraphQL Progress Summary"
     assert res.data["workItem"]["progress"][0]["proof"] == "git:sha123"
-    assert res.data["workItem"]["progress"][0]["status"] == "step completed"
+    assert res.data["workItem"]["progress"][0]["status"] == "in progress"
     assert res.data["workItem"]["progress"][0]["createdBy"] == test_user.username
     assert res.data["workItem"]["progress"][0]["createdAt"] is not None
     assert res.data["workItem"]["progress"][0]["updatedBy"] is None

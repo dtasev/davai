@@ -153,10 +153,10 @@ class TestMCPWithApiClient:
         with pytest.raises(ValueError, match="Invalid status 'completed'"):
             log_work_item_progress(key=item_key, summary="Try completed", status="completed")
 
-        prog = log_work_item_progress(key=item_key, summary="Shipped MCP integration", proof="git:sha-987abc", status="step completed")
+        prog = log_work_item_progress(key=item_key, summary="Shipped MCP integration", proof="git:sha-987abc", status="in progress")
         assert prog["summary"] == "Shipped MCP integration"
         assert prog["proof"] == "git:sha-987abc"
-        assert prog["status"] == "step completed"
+        assert prog["status"] == "in progress"
         assert prog["created_by"] == test_user.username
         assert "created_at" in prog
         prog_id = prog["id"]
@@ -172,11 +172,11 @@ class TestMCPWithApiClient:
             progress_id=prog_id,
             summary="Shipped MCP integration with tests",
             proof="git:sha-final",
-            status="awaiting review"
+            status="review"
         )
         assert updated_prog["summary"] == "Shipped MCP integration with tests"
         assert updated_prog["proof"] == "git:sha-final"
-        assert updated_prog["status"] == "awaiting review"
+        assert updated_prog["status"] == "review"
         assert updated_prog["created_by"] == test_user.username
         assert updated_prog["updated_by"] == test_user.username
         assert updated_prog["updated_at"] is not None
