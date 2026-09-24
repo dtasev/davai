@@ -472,6 +472,35 @@ export function WorkItemDetailModal({
               </button>
             </>
           )}
+          {onAddProgress && (
+            <label
+              data-testid="mark-done-button"
+              title={item.status?.toLowerCase() === 'done' ? 'Work item is Done' : 'Mark as Done'}
+              onClick={e => {
+                if (item.status?.toLowerCase() !== 'done') {
+                  e.preventDefault()
+                  setShowDoneConfirm(prev => !prev)
+                }
+              }}
+              className={`px-2 py-1 rounded-lg flex items-center gap-1.5 text-xs font-medium select-none transition ${
+                item.status?.toLowerCase() === 'done'
+                  ? 'text-emerald-400 bg-emerald-950/20 border border-emerald-800/30 cursor-default'
+                  : 'text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800 border border-emerald-800/40 bg-emerald-950/20 cursor-pointer'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={item.status?.toLowerCase() === 'done'}
+                disabled={item.status?.toLowerCase() === 'done' || isMarkingDone}
+                onChange={() => {}}
+                data-testid="mark-done-checkbox"
+                className="w-3.5 h-3.5 rounded border-emerald-600 bg-zinc-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500 disabled:opacity-80 disabled:cursor-default"
+              />
+              <span data-testid="mark-done-checkbox-label">
+                {item.status?.toLowerCase() === 'done' ? 'Done' : 'Mark Done'}
+              </span>
+            </label>
+          )}
           <button
             type="button"
             onClick={handleCopyDetails}
@@ -629,33 +658,6 @@ export function WorkItemDetailModal({
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-zinc-500">Status:</span>
               <StatusBadge status={item.status} />
-              {onAddProgress && (
-                <label
-                  data-testid="mark-done-checkbox-label"
-                  title={item.status?.toLowerCase() === 'done' ? 'Work item is Done' : 'Mark ticket as Done directly'}
-                  onClick={e => {
-                    if (item.status?.toLowerCase() !== 'done') {
-                      e.preventDefault()
-                      setShowDoneConfirm(prev => !prev)
-                    }
-                  }}
-                  className={`inline-flex items-center gap-1.5 text-xs font-medium ml-1.5 select-none transition ${
-                    item.status?.toLowerCase() === 'done'
-                      ? 'text-emerald-400 cursor-default'
-                      : 'text-emerald-400 hover:text-emerald-300 cursor-pointer'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={item.status?.toLowerCase() === 'done'}
-                    disabled={item.status?.toLowerCase() === 'done' || isMarkingDone}
-                    onChange={() => {}}
-                    data-testid="mark-done-checkbox"
-                    className="w-3.5 h-3.5 rounded border-emerald-600 bg-zinc-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500 disabled:opacity-80 disabled:cursor-default"
-                  />
-                  <span>{item.status?.toLowerCase() === 'done' ? 'Done' : 'Mark Done'}</span>
-                </label>
-              )}
             </div>
 
             <div className="flex items-center gap-1.5">
@@ -959,41 +961,11 @@ export function WorkItemDetailModal({
 
         {/* Progress & Milestones Timeline */}
         <div className="space-y-2.5 border-t border-zinc-800/80 pt-3">
-          <div className="flex items-center justify-between gap-1.5">
-            <div className="flex items-center gap-1.5">
-              <GitCommit className="w-3.5 h-3.5 text-emerald-400" />
-              <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
-                Progress &amp; Git Proofs ({item.progress?.length || 0})
-              </h4>
-            </div>
-
-            {onAddProgress && (
-              <label
-                data-testid="progress-mark-done-checkbox-label"
-                title={item.status?.toLowerCase() === 'done' ? 'Work item is Done' : 'Mark ticket as Done directly'}
-                onClick={e => {
-                  if (item.status?.toLowerCase() !== 'done') {
-                    e.preventDefault()
-                    setShowDoneConfirm(prev => !prev)
-                  }
-                }}
-                className={`inline-flex items-center gap-1.5 text-xs font-medium select-none transition ${
-                  item.status?.toLowerCase() === 'done'
-                    ? 'text-emerald-400 cursor-default'
-                    : 'text-emerald-400 hover:text-emerald-300 cursor-pointer'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={item.status?.toLowerCase() === 'done'}
-                  disabled={item.status?.toLowerCase() === 'done' || isMarkingDone}
-                  onChange={() => {}}
-                  data-testid="progress-mark-done-checkbox"
-                  className="w-3.5 h-3.5 rounded border-emerald-600 bg-zinc-900 text-emerald-500 focus:ring-emerald-500 cursor-pointer accent-emerald-500 disabled:opacity-80 disabled:cursor-default"
-                />
-                <span>{item.status?.toLowerCase() === 'done' ? 'Done' : 'Mark Done'}</span>
-              </label>
-            )}
+          <div className="flex items-center gap-1.5">
+            <GitCommit className="w-3.5 h-3.5 text-emerald-400" />
+            <h4 className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">
+              Progress &amp; Git Proofs ({item.progress?.length || 0})
+            </h4>
           </div>
 
           {/* Add Progress form */}

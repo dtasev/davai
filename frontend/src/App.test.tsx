@@ -1633,6 +1633,11 @@ describe('Davai Frontend App with React Router', () => {
     expect(checkbox.checked).toBe(false)
     expect(screen.getByTestId('mark-done-checkbox-label')).toHaveTextContent('Mark Done')
 
+    // Mark done button is on the left of the Copy work item details button
+    const markDoneBtn = screen.getByTestId('mark-done-button')
+    const copyBtn = screen.getByTestId('copy-work-item-button')
+    expect(markDoneBtn.nextElementSibling).toBe(copyBtn)
+
     // Confirmation banner is initially not shown
     expect(screen.queryByTestId('mark-done-confirm')).not.toBeInTheDocument()
 
