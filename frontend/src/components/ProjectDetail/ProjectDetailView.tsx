@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, LayoutList, Kanban } from 'lucide-react'
+import { ArrowLeft, RefreshCw, LayoutList, Kanban, Search } from 'lucide-react'
 import { Project, Sprint, Release, WorkItem, DEFAULT_PROJECT_STATUSES } from '../../types'
 import { ProjectListView } from './ProjectListView'
 import { KanbanBoard } from './KanbanBoard'
@@ -14,6 +14,7 @@ interface ProjectDetailViewProps {
   loading: boolean
   onBack: () => void
   onRefresh: () => void
+  onOpenQuickJump?: () => void
   onSelectSprint: (sprint: Sprint) => void
   onSelectRelease: (release: Release) => void
   onSelectWorkItem: (item: WorkItem) => void
@@ -50,6 +51,7 @@ export function ProjectDetailView({
   loading,
   onBack,
   onRefresh,
+  onOpenQuickJump,
   onSelectSprint,
   onSelectRelease,
   onSelectWorkItem,
@@ -141,6 +143,22 @@ export function ProjectDetailView({
               <strong className="text-zinc-200">{workItems.length}</strong> Items
             </span>
           </div>
+
+          {onOpenQuickJump && (
+            <button
+              type="button"
+              onClick={onOpenQuickJump}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition text-xs shadow-sm"
+              title="Quick jump to issue (Press G)"
+              data-testid="quick-jump-trigger"
+            >
+              <Search className="w-3.5 h-3.5 text-zinc-500" />
+              <span className="hidden sm:inline">Jump</span>
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-zinc-800 border border-zinc-700/80 rounded text-zinc-400 leading-none">
+                G
+              </kbd>
+            </button>
+          )}
 
           <button
             onClick={onRefresh}

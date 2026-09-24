@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { Project, Sprint, Release, WorkItem, ProgressEntry, DEFAULT_PROJECT_STATUSES } from '../types'
 import { useApp } from '../context/AppContext'
 import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
+import { QuickJumpModal } from '../components/ProjectDetail/QuickJumpModal'
 import { apiFetch } from '../utils/apiFetch'
 
 export interface ProjectDetailOutletContext {
@@ -59,6 +60,50 @@ export function ProjectDetailRoute() {
   const [releases, setReleases] = useState<Release[]>([])
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [loadingDetails, setLoadingDetails] = useState(true)
+  const [isQuickJumpOpen, setIsQuickJumpOpen] = useState(false)
+
+  // Global 'g' keyboard shortcut to open quick jump modal on /projects/:projectKey
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if modifier keys are pressed
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+
+      // Only trigger on 'g' or 'G'
+      if (e.key !== 'g' && e.key !== 'G') return
+
+      // Ignore when user is typing in an input/textarea/select or contenteditable element
+      const target = e.target as HTMLElement | null
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable)
+      ) {
+        return
+      }
+
+      // Check if a sub-modal route (items, sprints, releases) is currently open
+      const isSubModalRoute = /^\/projects\/[^/]+\/(items|sprints|releases)(\/|$)/i.test(location.pathname)
+      if (isSubModalRoute) return
+
+      // Check if another modal has locked body scroll
+      if (document.body.style.overflow === 'hidden') return
+
+      e.preventDefault()
+      setIsQuickJumpOpen(true)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [location.pathname])
+
+  const handleSelectQuickJumpItem = (item: WorkItem) => {
+    setIsQuickJumpOpen(false)
+    navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)
+  }
 
   const currentProject = projects.find(p => p.key === projectKey?.toUpperCase()) || null
 
@@ -446,6 +491,15 @@ export function ProjectDetailRoute() {
         onCreateSprint={handleCreateSprint}
         onCreateRelease={handleCreateRelease}
         onCreateWorkItem={handleCreateWorkItem}
+        onOpenQuickJump={() => setIsQuickJumpOpen(true)}
+      />
+
+      <QuickJumpModal
+        isOpen={isQuickJumpOpen}
+        onClose={() => setIsQuickJumpOpen(false)}
+        projectKey={projectKey || effectiveProject.key}
+        workItems={workItems}
+        onSelectWorkItem={handleSelectQuickJumpItem}
       />
 
       <Outlet

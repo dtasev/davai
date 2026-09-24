@@ -1688,6 +1688,53 @@ describe('Davai Frontend App with React Router', () => {
     expect(doneBtn.className).toContain('text-emerald-400')
     expect(doneBtn).toHaveAttribute('title', 'Work item is Done')
   })
+
+  it('opens quick jump modal on shortcut "g", filters by number, and pressing Enter opens item modal', async () => {
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/projects/DAV']
+    })
+    render(<App router={router} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    })
+
+    // 1. Pressing 'g' inside an input should NOT open the quick jump modal
+    const searchInput = screen.getByPlaceholderText(/Semantic search...|Search items.../i)
+    fireEvent.focus(searchInput)
+    fireEvent.keyDown(searchInput, { key: 'g', code: 'KeyG' })
+    expect(screen.queryByTestId('quick-jump-modal')).not.toBeInTheDocument()
+
+    // 2. Pressing 'g' on window when not in an input opens the quick jump modal
+    fireEvent.blur(searchInput)
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-jump-modal')).toBeInTheDocument()
+    })
+
+    const jumpInput = screen.getByTestId('quick-jump-input')
+    expect(jumpInput).toBeInTheDocument()
+
+    // 3. Type '2' to search for DAV-2
+    fireEvent.change(jumpInput, { target: { value: '2' } })
+
+    const resultItems = screen.getAllByTestId(/^quick-jump-item-/)
+    expect(resultItems[0]).toHaveAttribute('data-testid', 'quick-jump-item-DAV-2')
+
+    // 4. Press Enter to select the first item (DAV-2)
+    fireEvent.keyDown(jumpInput, { key: 'Enter', code: 'Enter' })
+
+    // Quick jump modal closes
+    await waitFor(() => {
+      expect(screen.queryByTestId('quick-jump-modal')).not.toBeInTheDocument()
+    })
+
+    // Work item modal for DAV-2 should now be open
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-title')).toHaveTextContent('Frontend Kanban Board')
+    })
+  })
 })
 
 
