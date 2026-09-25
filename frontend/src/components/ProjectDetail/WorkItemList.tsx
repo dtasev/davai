@@ -8,7 +8,8 @@ import {
   Sparkles,
   GitCommit,
   ChevronDown,
-  Loader2
+  Loader2,
+  Calendar
 } from 'lucide-react'
 import {
   WorkItem,
@@ -22,6 +23,42 @@ import {
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 import { apiFetch } from '../../utils/apiFetch'
+
+export function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return ''
+  try {
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (match) {
+      const year = parseInt(match[1], 10)
+      const month = parseInt(match[2], 10) - 1
+      const day = parseInt(match[3], 10)
+      return new Date(year, month, day).toLocaleDateString()
+    }
+    const d = new Date(dateStr)
+    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString()
+  } catch {
+    return dateStr
+  }
+}
+
+export function formatItemDates(
+  startDate: string | null | undefined,
+  targetDate: string | null | undefined
+): string | null {
+  const start = formatDate(startDate)
+  const target = formatDate(targetDate)
+
+  if (start && target) {
+    return `${start} -> ${target}`
+  }
+  if (target) {
+    return target
+  }
+  if (start) {
+    return `${start} ->`
+  }
+  return null
+}
 
 interface WorkItemListProps {
   projectKey?: string
@@ -555,6 +592,7 @@ export function WorkItemList({
           {filteredItems.map(item => {
             const sprint = sprints.find(s => s.id === item.sprint_id)
             const release = releases.find(r => r.id === item.release_id)
+            const dateLabel = formatItemDates(item.start_date, item.target_date)
 
             return (
               <div
@@ -588,6 +626,23 @@ export function WorkItemList({
                     {release && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800/80 text-indigo-300 border border-zinc-800 leading-none">
                         {release.name}
+                      </span>
+                    )}
+
+                    {dateLabel && (
+                      <span
+                        data-testid={`work-item-dates-${item.key}`}
+                        className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800/80 text-zinc-400 border border-zinc-800 leading-none flex items-center gap-1"
+                        title={
+                          item.start_date && item.target_date
+                            ? `Timeline: ${dateLabel}`
+                            : item.target_date
+                            ? `Target date: ${dateLabel}`
+                            : `Start date: ${dateLabel}`
+                        }
+                      >
+                        <Calendar className="w-2.5 h-2.5 text-zinc-500" />
+                        <span>{dateLabel}</span>
                       </span>
                     )}
 

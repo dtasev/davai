@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
-import { WorkItemList } from './WorkItemList'
+import { WorkItemList, formatDate, formatItemDates } from './WorkItemList'
 import { WorkItem, ProjectStatus } from '../../types'
 
 const mockStatuses: ProjectStatus[] = [
@@ -372,5 +372,146 @@ describe('WorkItemList - Sorting and Multi-Select Status Filter', () => {
     expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
     expect(screen.queryByTestId('work-item-DAV-2')).not.toBeInTheDocument()
   })
+
+  describe('WorkItemList - Date Display (start_date and target_date)', () => {
+    it('formatItemDates formats combinations correctly', () => {
+      const s = '2026-10-01'
+      const t = '2026-10-15'
+      const expectedStart = formatDate(s)
+      const expectedTarget = formatDate(t)
+
+      expect(formatItemDates(s, t)).toBe(`${expectedStart} -> ${expectedTarget}`)
+      expect(formatItemDates(null, t)).toBe(expectedTarget)
+      expect(formatItemDates('', t)).toBe(expectedTarget)
+      expect(formatItemDates(s, null)).toBe(`${expectedStart} ->`)
+      expect(formatItemDates(s, '')).toBe(`${expectedStart} ->`)
+      expect(formatItemDates(null, null)).toBeNull()
+      expect(formatItemDates(undefined, undefined)).toBeNull()
+    })
+
+    it('shows start date -> target date when both dates are set', () => {
+      const items: WorkItem[] = [
+        {
+          ...baseWorkItem,
+          id: 1,
+          key: 'DAV-1',
+          title: 'Scheduled Feature Task',
+          status: 'todo',
+          created: '2026-09-01T10:00:00Z',
+          start_date: '2026-10-01',
+          target_date: '2026-10-15'
+        }
+      ]
+
+      render(
+        <WorkItemList
+          workItems={items}
+          sprints={[]}
+          releases={[]}
+          statuses={mockStatuses}
+          onSelectWorkItem={vi.fn()}
+          onCreateWorkItem={vi.fn()}
+        />
+      )
+
+      const dateBadge = screen.getByTestId('work-item-dates-DAV-1')
+      expect(dateBadge).toBeInTheDocument()
+      const expectedStart = formatDate('2026-10-01')
+      const expectedTarget = formatDate('2026-10-15')
+      expect(dateBadge).toHaveTextContent(`${expectedStart} -> ${expectedTarget}`)
+    })
+
+    it('shows just target date if only target date is set', () => {
+      const items: WorkItem[] = [
+        {
+          ...baseWorkItem,
+          id: 2,
+          key: 'DAV-2',
+          title: 'Deadline Task',
+          status: 'todo',
+          created: '2026-09-02T10:00:00Z',
+          start_date: null,
+          target_date: '2026-10-20'
+        }
+      ]
+
+      render(
+        <WorkItemList
+          workItems={items}
+          sprints={[]}
+          releases={[]}
+          statuses={mockStatuses}
+          onSelectWorkItem={vi.fn()}
+          onCreateWorkItem={vi.fn()}
+        />
+      )
+
+      const dateBadge = screen.getByTestId('work-item-dates-DAV-2')
+      expect(dateBadge).toBeInTheDocument()
+      const expectedTarget = formatDate('2026-10-20')
+      expect(dateBadge).toHaveTextContent(expectedTarget)
+      expect(dateBadge).not.toHaveTextContent('->')
+    })
+
+    it('shows start date -> if only start date is set', () => {
+      const items: WorkItem[] = [
+        {
+          ...baseWorkItem,
+          id: 3,
+          key: 'DAV-3',
+          title: 'Started Task Without Target',
+          status: 'todo',
+          created: '2026-09-03T10:00:00Z',
+          start_date: '2026-10-05',
+          target_date: null
+        }
+      ]
+
+      render(
+        <WorkItemList
+          workItems={items}
+          sprints={[]}
+          releases={[]}
+          statuses={mockStatuses}
+          onSelectWorkItem={vi.fn()}
+          onCreateWorkItem={vi.fn()}
+        />
+      )
+
+      const dateBadge = screen.getByTestId('work-item-dates-DAV-3')
+      expect(dateBadge).toBeInTheDocument()
+      const expectedStart = formatDate('2026-10-05')
+      expect(dateBadge).toHaveTextContent(`${expectedStart} ->`)
+    })
+
+    it('does not show any date badge if neither start date nor target date is set', () => {
+      const items: WorkItem[] = [
+        {
+          ...baseWorkItem,
+          id: 4,
+          key: 'DAV-4',
+          title: 'Unscheduled Task',
+          status: 'todo',
+          created: '2026-09-04T10:00:00Z',
+          start_date: null,
+          target_date: null
+        }
+      ]
+
+      render(
+        <WorkItemList
+          workItems={items}
+          sprints={[]}
+          releases={[]}
+          statuses={mockStatuses}
+          onSelectWorkItem={vi.fn()}
+          onCreateWorkItem={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByTestId('work-item-dates-DAV-4')).not.toBeInTheDocument()
+    })
+  })
 })
+
 
