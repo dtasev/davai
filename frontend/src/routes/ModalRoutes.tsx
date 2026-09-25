@@ -151,6 +151,7 @@ export function WorkItemModalRoute() {
   return (
     <WorkItemDetailModal
       item={activeItem}
+      itemKey={itemKey}
       projectKey={projectKey}
       sprints={sprints}
       releases={releases}

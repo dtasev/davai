@@ -44,6 +44,7 @@ function formatDateTime(dateStr: string | null | undefined): string {
 
 interface WorkItemDetailModalProps {
   item: WorkItem | null
+  itemKey?: string
   projectKey?: string
   sprints: Sprint[]
   releases: Release[]
@@ -77,6 +78,7 @@ interface WorkItemDetailModalProps {
 
 export function WorkItemDetailModal({
   item,
+  itemKey,
   projectKey,
   sprints,
   releases,
@@ -89,6 +91,25 @@ export function WorkItemDetailModal({
   onDelete,
   onUpdateDetails
 }: WorkItemDetailModalProps) {
+  const activeKey = item?.key || (itemKey ? itemKey.toUpperCase() : '')
+  const originalTitleRef = useRef<string>(
+    typeof document !== 'undefined' && document.title && !document.title.includes(' | Davai')
+      ? document.title
+      : 'Davai - Work Management'
+  )
+
+  useEffect(() => {
+    if (activeKey) {
+      document.title = `${activeKey} | Davai`
+    }
+  }, [activeKey])
+
+  useEffect(() => {
+    const originalTitle = originalTitleRef.current
+    return () => {
+      document.title = originalTitle
+    }
+  }, [])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDoneConfirm, setShowDoneConfirm] = useState(false)

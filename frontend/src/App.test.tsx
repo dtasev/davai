@@ -1756,6 +1756,66 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('work-item-title')).toHaveTextContent('Frontend Kanban Board')
     })
   })
+
+  it('updates document.title to "${item.key} | Davai" when navigating into work item modal and restores it on close', async () => {
+    document.title = 'Davai - Work Management'
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    })
+
+    // Click work item DAV-1 card
+    fireEvent.click(screen.getByTestId('work-item-DAV-1'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-detail-modal')).toBeInTheDocument()
+    })
+
+    expect(document.title).toBe('DAV-1 | Davai')
+
+    // Close modal
+    const closeBtn = screen.getByRole('button', { name: /Close/i })
+    await act(async () => {
+      fireEvent.click(closeBtn)
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('work-item-detail-modal')).not.toBeInTheDocument()
+    })
+
+    expect(document.title).toBe('Davai - Work Management')
+  })
+
+  it('updates document.title in WorkItemDetailModal component and restores previous title on unmount', () => {
+    document.title = 'Davai - Work Management'
+    const { unmount, rerender } = render(
+      <WorkItemDetailModal
+        item={mockWorkItem}
+        sprints={[]}
+        releases={[]}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(document.title).toBe('DAV-1 | Davai')
+
+    const mockItem2 = { ...mockWorkItem, id: 2, key: 'CEMS-55', title: 'CEMS Work Item' }
+    rerender(
+      <WorkItemDetailModal
+        item={mockItem2}
+        sprints={[]}
+        releases={[]}
+        onClose={vi.fn()}
+      />
+    )
+
+    expect(document.title).toBe('CEMS-55 | Davai')
+
+    unmount()
+    expect(document.title).toBe('Davai - Work Management')
+  })
 })
+
 
 
