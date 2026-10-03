@@ -403,6 +403,176 @@ def get_project_summary(project_key: str = "DAV") -> Dict[str, Any]:
     """
     return get_client().get_project_summary(project_key=project_key)
 
+MCP_ALLOWED_INCIDENT_STATUSES = (
+    "reported",
+    "ongoing",
+)
+
+HUMAN_ONLY_INCIDENT_STATUSES = (
+    "done",
+    "no longer relevant",
+)
+
+MCP_ALLOWED_MONITORING_LOG_STATUSES = (
+    "ok",
+    "error",
+)
+
+@mcp_server.tool()
+def create_incident(
+    title: str,
+    cause: str = "",
+    investigation_note: str = "",
+    status: str = "reported",
+    project_key: str = "DAV",
+    work_item_keys: Optional[List[str]] = None,
+    monitoring_log_ids: Optional[List[Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Create a new incident in Davai.
+    Args:
+        title: Short title summarizing the incident.
+        cause: Investigation cause and details of the incident.
+        investigation_note: Quick investigation note (specific checks to confirm/deny whether this incident is happening again).
+        status: Initial incident status ('reported', 'ongoing'). Defaults to 'reported'. Note: 'done' and 'no longer relevant' are human-only statuses.
+        project_key: Project key (default 'DAV').
+        work_item_keys: Optional list of work item keys (e.g. ['DAV-1']) linked for mitigation/addressing the incident.
+        monitoring_log_ids: Optional list of monitoring log IDs or keys (e.g. [1, 'DAV-LOG-2']) linked to this incident.
+    """
+    clean_status = (status or "reported").strip().lower().replace("_", " ")
+    if clean_status in HUMAN_ONLY_INCIDENT_STATUSES:
+        raise ValueError(f"The '{clean_status}' status can only be set by a human via the frontend.")
+    if clean_status not in MCP_ALLOWED_INCIDENT_STATUSES:
+        raise ValueError(
+            f"Invalid incident status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_INCIDENT_STATUSES)}."
+        )
+    return get_client().create_incident(
+        title=title,
+        project_key=project_key,
+        cause=cause,
+        investigation_note=investigation_note,
+        status=clean_status,
+        work_item_keys=work_item_keys,
+        monitoring_log_ids=monitoring_log_ids,
+    )
+
+@mcp_server.tool()
+def get_incident(incident_id: str) -> Dict[str, Any]:
+    """
+    Retrieve details of an incident by key (e.g. 'DAV-INC-1') or numeric ID.
+    Returns incident details, linked work items, and linked monitoring log IDs/keys (without log run descriptions; use get_monitoring_log to fetch full log content).
+    Args:
+        incident_id: The incident key (e.g. 'DAV-INC-1') or numeric ID.
+    """
+    return get_client().get_incident(incident_id=incident_id)
+
+@mcp_server.tool()
+def search_incidents(
+    query: str = "",
+    project_key: str = "DAV",
+    mode: str = "hybrid",
+    status: Optional[str] = None,
+    limit: int = 20,
+) -> Dict[str, Any]:
+    """
+    Search incidents using semantic/vector/hybrid search.
+    Note: Incidents marked 'no longer relevant' are always excluded from all searches.
+    Returns matching incidents with linked monitoring_log_ids (without log details).
+    Args:
+        query: Search query string.
+        project_key: Project key filter (default 'DAV').
+        mode: Search mode ('hybrid', 'vector', 'keyword'). Defaults to 'hybrid'.
+        status: Optional status filter ('reported', 'ongoing', 'done').
+        limit: Max results to return (default 20).
+    """
+    return get_client().search_incidents(
+        query=query,
+        project_key=project_key,
+        mode=mode,
+        status=status,
+        limit=limit,
+    )
+
+@mcp_server.tool()
+def update_incident(
+    incident_id: str,
+    title: Optional[str] = None,
+    cause: Optional[str] = None,
+    investigation_note: Optional[str] = None,
+    status: Optional[str] = None,
+    work_item_keys: Optional[List[str]] = None,
+    monitoring_log_ids: Optional[List[Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Update an existing incident (e.g. update cause, investigation_note, open status, or linked work items/monitoring logs).
+    Args:
+        incident_id: Incident key (e.g. 'DAV-INC-1') or numeric ID.
+        title: Optional new title.
+        cause: Optional updated investigation cause/details.
+        investigation_note: Optional updated quick investigation note.
+        status: Optional new status ('reported', 'ongoing'). Note: 'done' and 'no longer relevant' are human-only statuses and cannot be set via MCP.
+        work_item_keys: Optional list of work item keys to link to this incident.
+        monitoring_log_ids: Optional list of monitoring log IDs or keys to link to this incident.
+    """
+    clean_status = None
+    if status is not None:
+        clean_status = status.strip().lower().replace("_", " ")
+        if clean_status in HUMAN_ONLY_INCIDENT_STATUSES:
+            raise ValueError(f"The '{clean_status}' status can only be set by a human via the frontend.")
+        if clean_status not in MCP_ALLOWED_INCIDENT_STATUSES:
+            raise ValueError(
+                f"Invalid incident status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_INCIDENT_STATUSES)}."
+            )
+    return get_client().update_incident(
+        incident_id=incident_id,
+        title=title,
+        cause=cause,
+        investigation_note=investigation_note,
+        status=clean_status,
+        work_item_keys=work_item_keys,
+        monitoring_log_ids=monitoring_log_ids,
+    )
+
+@mcp_server.tool()
+def create_monitoring_log(
+    description: str,
+    who_are_you: str = "",
+    status: str = "OK",
+    project_key: str = "DAV",
+    incident_id: Optional[str] = None,
+    jira_url: str = "",
+) -> Dict[str, Any]:
+    """
+    Create a monitoring log entry to report a check or monitoring run.
+    Args:
+        description: Full description or log output of the run.
+        who_are_you: Agent/runner identity or context description filled out by the LLM.
+        status: Run status ('OK' or 'Error'). Set by the LLM on creation.
+        project_key: Project key (default 'DAV').
+        incident_id: Optional Davai incident ID or key (e.g. 'DAV-INC-1') to link this run to, otherwise null.
+        jira_url: Optional URL to a JIRA incident if one is found.
+    """
+    clean_status = (status or "ok").strip().lower()
+    if clean_status not in MCP_ALLOWED_MONITORING_LOG_STATUSES:
+        raise ValueError(f"Invalid monitoring log status '{status}'. Allowed statuses are: OK, Error.")
+    return get_client().create_monitoring_log(
+        description=description,
+        who_are_you=who_are_you,
+        status=clean_status,
+        project_key=project_key,
+        incident_id=incident_id,
+        jira_url=jira_url,
+    )
+
+@mcp_server.tool()
+def get_monitoring_log(log_id: str) -> Dict[str, Any]:
+    """
+    Retrieve a specific monitoring log by its numeric ID or key (e.g. 'DAV-LOG-1'), including its full run description.
+    Args:
+        log_id: Monitoring log numeric ID or key (e.g. 'DAV-LOG-1').
+    """
+    return get_client().get_monitoring_log(log_id=log_id)
+
 @mcp_server.resource("davai://board/state")
 def get_board_state() -> str:
     """Read the complete real-time JSON state of the Davai work board."""
@@ -435,3 +605,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

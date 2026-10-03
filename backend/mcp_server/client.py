@@ -401,3 +401,107 @@ class DavaiClient:
             "sprints": sprint_summaries,
             "releases": release_summaries,
         }
+
+    # -----------------------------------------------------------------------
+    # Incidents & Monitoring Logs
+    # -----------------------------------------------------------------------
+
+    def create_incident(
+        self,
+        title: str,
+        project_key: str = "DAV",
+        cause: str = "",
+        investigation_note: str = "",
+        status: str = "reported",
+        work_item_keys: Optional[List[str]] = None,
+        monitoring_log_ids: Optional[List[Any]] = None,
+    ) -> Dict[str, Any]:
+        """Create a new incident."""
+        payload: Dict[str, Any] = {
+            "project_key": project_key,
+            "title": title,
+            "cause": cause,
+            "investigation_note": investigation_note,
+            "status": status,
+        }
+        if work_item_keys is not None:
+            payload["work_item_keys"] = work_item_keys
+        if monitoring_log_ids is not None:
+            payload["monitoring_log_ids"] = monitoring_log_ids
+        return self._request("POST", "/incidents", data=payload)
+
+    def get_incident(self, incident_id: Any) -> Dict[str, Any]:
+        """Fetch a single incident by its key (e.g. 'DAV-INC-1') or numeric ID."""
+        return self._request("GET", f"/incidents/{incident_id}")
+
+    def search_incidents(
+        self,
+        query: str = "",
+        project_key: Optional[str] = None,
+        mode: str = "hybrid",
+        status: Optional[str] = None,
+        limit: int = 20,
+    ) -> Dict[str, Any]:
+        """Search incidents (excludes 'no longer relevant' incidents)."""
+        params: Dict[str, Any] = {
+            "q": query,
+            "mode": mode,
+            "limit": limit,
+        }
+        if status:
+            params["status"] = status
+        if project_key and project_key.upper() != "ALL":
+            return self._request("GET", f"/projects/{project_key.upper()}/incidents/search", params=params)
+        return self._request("GET", "/incidents/search", params=params)
+
+    def update_incident(
+        self,
+        incident_id: Any,
+        title: Optional[str] = None,
+        cause: Optional[str] = None,
+        investigation_note: Optional[str] = None,
+        status: Optional[str] = None,
+        work_item_keys: Optional[List[str]] = None,
+        monitoring_log_ids: Optional[List[Any]] = None,
+    ) -> Dict[str, Any]:
+        """Update an existing incident."""
+        payload: Dict[str, Any] = {}
+        if title is not None:
+            payload["title"] = title
+        if cause is not None:
+            payload["cause"] = cause
+        if investigation_note is not None:
+            payload["investigation_note"] = investigation_note
+        if status is not None:
+            payload["status"] = status
+        if work_item_keys is not None:
+            payload["work_item_keys"] = work_item_keys
+        if monitoring_log_ids is not None:
+            payload["monitoring_log_ids"] = monitoring_log_ids
+        return self._request("PATCH", f"/incidents/{incident_id}", data=payload)
+
+    def create_monitoring_log(
+        self,
+        description: str,
+        who_are_you: str = "",
+        status: str = "ok",
+        project_key: str = "DAV",
+        incident_id: Optional[Any] = None,
+        jira_url: str = "",
+    ) -> Dict[str, Any]:
+        """Create a monitoring log entry."""
+        payload: Dict[str, Any] = {
+            "project_key": project_key,
+            "who_are_you": who_are_you,
+            "description": description,
+            "status": status,
+            "jira_url": jira_url,
+        }
+        if incident_id is not None:
+            payload["incident_id"] = incident_id
+        return self._request("POST", "/monitoring-logs", data=payload)
+
+    def get_monitoring_log(self, log_id: Any) -> Dict[str, Any]:
+        """Fetch a single monitoring log by its numeric ID or key (e.g. 'DAV-LOG-1')."""
+        return self._request("GET", f"/monitoring-logs/{log_id}")
+

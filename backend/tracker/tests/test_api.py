@@ -1063,6 +1063,175 @@ class TestNinjaAPI:
         assert res_a4.json()["key"] == "PRJA-4"
         assert res_b3.json()["key"] == "PRJB-3"
 
+    def test_incidents_and_monitoring_logs_api(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+        mcp_headers = {"X-API-Key": raw_key, "User-Agent": "Davai-MCP/1.0"}
+
+        # Create a work item to link to an incident
+        wi_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Mitigate Redis connection spike", "project_key": test_project.key},
+            headers=headers
+        )
+        assert wi_res.status_code == 200
+        wi_key = wi_res.json()["key"]
+
+        # 1. MCP (LLM) cannot create an incident with human-only status ("done" or "no longer relevant")
+        res_forbidden_done = ninja_client.post(
+            f"/projects/{test_project.key}/incidents",
+            json={"title": "Test Done", "status": "done"},
+            headers=mcp_headers
+        )
+        assert res_forbidden_done.status_code == 400
+        assert "human" in res_forbidden_done.json()["detail"].lower()
+
+        res_forbidden_nlr = ninja_client.post(
+            f"/projects/{test_project.key}/incidents",
+            json={"title": "Test NLR", "status": "no longer relevant"},
+            headers=mcp_headers
+        )
+        assert res_forbidden_nlr.status_code == 400
+        assert "human" in res_forbidden_nlr.json()["detail"].lower()
+
+        # 2. Create incident via API key with valid status and linked work item
+        inc_res = ninja_client.post(
+            f"/projects/{test_project.key}/incidents",
+            json={
+                "title": "Redis Connection Pool Exhaustion",
+                "cause": "Burst of un-cached worker requests during hourly cron.",
+                "investigation_note": "Check redis_connected_clients metric and worker concurrency.",
+                "status": "reported",
+                "work_item_keys": [wi_key],
+            },
+            headers=mcp_headers
+        )
+        assert inc_res.status_code == 200
+        inc_data = inc_res.json()
+        assert inc_data["key"] == f"{test_project.key}-INC-1"
+        assert inc_data["title"] == "Redis Connection Pool Exhaustion"
+        assert inc_data["cause"] == "Burst of un-cached worker requests during hourly cron."
+        assert inc_data["investigation_note"] == "Check redis_connected_clients metric and worker concurrency."
+        assert inc_data["status"] == "reported"
+        assert inc_data["work_item_keys"] == [wi_key]
+        assert len(inc_data["work_items"]) == 1
+        assert inc_data["work_items"][0]["key"] == wi_key
+        inc_key = inc_data["key"]
+        inc_id = inc_data["id"]
+
+        # 3. Create monitoring log linked to the incident
+        log_res = ninja_client.post(
+            f"/projects/{test_project.key}/monitoring-logs",
+            json={
+                "who_are_you": "ecmwf-watchdog-agent-v1",
+                "description": "ERROR: redis_connected_clients=1024 exceeded threshold 800 on node-03",
+                "status": "Error",
+                "incident_id": inc_key,
+                "jira_url": "https://jira.ecmwf.int/browse/OPS-42",
+            },
+            headers=mcp_headers
+        )
+        assert log_res.status_code == 200
+        log_data = log_res.json()
+        assert log_data["key"] == f"{test_project.key}-LOG-1"
+        assert log_data["who_are_you"] == "ecmwf-watchdog-agent-v1"
+        assert log_data["status"] == "error"
+        assert log_data["incident_id"] == inc_id
+        assert log_data["incident_key"] == inc_key
+        assert log_data["jira_url"] == "https://jira.ecmwf.int/browse/OPS-42"
+        assert "exceeded threshold 800" in log_data["description"]
+        log_key = log_data["key"]
+        log_id = log_data["id"]
+
+        # 4. Get incident by key and numeric id -> serializes linked log IDs without description
+        get_inc = ninja_client.get(f"/incidents/{inc_key}")
+        assert get_inc.status_code == 200
+        get_inc_data = get_inc.json()
+        assert get_inc_data["monitoring_log_ids"] == [log_id]
+        assert get_inc_data["monitoring_log_keys"] == [log_key]
+        assert len(get_inc_data["monitoring_logs"]) == 1
+        assert get_inc_data["monitoring_logs"][0]["id"] == log_id
+        assert get_inc_data["monitoring_logs"][0]["key"] == log_key
+        assert "description" not in get_inc_data["monitoring_logs"][0]
+
+        get_inc_by_id = ninja_client.get(f"/incidents/{inc_id}")
+        assert get_inc_by_id.status_code == 200
+        assert get_inc_by_id.json()["key"] == inc_key
+
+        # 5. Get monitoring log by key and numeric id -> includes full description
+        get_log = ninja_client.get(f"/monitoring-logs/{log_key}")
+        assert get_log.status_code == 200
+        assert "exceeded threshold 800" in get_log.json()["description"]
+
+        get_log_by_id = ninja_client.get(f"/monitoring-logs/{log_id}")
+        assert get_log_by_id.status_code == 200
+        assert get_log_by_id.json()["key"] == log_key
+
+        # 6. MCP (LLM) can update incident to "ongoing", but not "done" or "no longer relevant"
+        upd_ongoing = ninja_client.patch(
+            f"/incidents/{inc_key}",
+            json={"status": "ongoing"},
+            headers=mcp_headers
+        )
+        assert upd_ongoing.status_code == 200
+        assert upd_ongoing.json()["status"] == "ongoing"
+
+        upd_done_llm = ninja_client.patch(
+            f"/incidents/{inc_key}",
+            json={"status": "done"},
+            headers=mcp_headers
+        )
+        assert upd_done_llm.status_code == 400
+
+        upd_nlr_llm = ninja_client.patch(
+            f"/incidents/{inc_key}",
+            json={"status": "no longer relevant"},
+            headers=mcp_headers
+        )
+        assert upd_nlr_llm.status_code == 400
+
+        # 7. Human (Remote-User header, non-API-key) CAN set incident to "done" and "no longer relevant"
+        human_headers = {
+            "Remote-User": "human_engineer",
+            "Remote-Email": "engineer@ecmwf.int",
+        }
+        upd_done_human = ninja_client.patch(
+            f"/incidents/{inc_key}",
+            json={"status": "done"},
+            headers=human_headers
+        )
+        assert upd_done_human.status_code == 200
+        assert upd_done_human.json()["status"] == "done"
+
+        # Create a second incident and mark it "no longer relevant" as human
+        inc2_res = ninja_client.post(
+            f"/projects/{test_project.key}/incidents",
+            json={
+                "title": "Legacy NFS Mount Timeout on Decommissioned Cluster",
+                "cause": "Old storage array latency",
+                "status": "no longer relevant",
+            },
+            headers=human_headers
+        )
+        assert inc2_res.status_code == 200
+        inc2_key = inc2_res.json()["key"]
+
+        # 8. Search incidents -> "no longer relevant" is ALWAYS excluded even if matching query or requested in status filter
+        from tracker.embedding import flush_indexing_queue
+        flush_indexing_queue()
+
+        search_res = ninja_client.get(f"/projects/{test_project.key}/incidents/search?q=Legacy+NFS")
+        assert search_res.status_code == 200
+        search_keys = [r["incident"]["key"] for r in search_res.json()["results"]]
+        assert inc2_key not in search_keys
+
+        search_kw = ninja_client.get(
+            f"/projects/{test_project.key}/incidents/search?q=Legacy&mode=keyword&status=no+longer+relevant"
+        )
+        assert search_kw.status_code == 200
+        assert search_kw.json()["total"] == 0
+
+
 
 
 

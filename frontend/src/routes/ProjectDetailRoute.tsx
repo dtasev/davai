@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react'
 import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom'
-import { Project, Sprint, Release, WorkItem, ProgressEntry, DEFAULT_PROJECT_STATUSES } from '../types'
+import {
+  Project,
+  Sprint,
+  Release,
+  WorkItem,
+  Incident,
+  MonitoringLog,
+  ProgressEntry,
+  DEFAULT_PROJECT_STATUSES
+} from '../types'
 import { useApp } from '../context/AppContext'
 import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
 import { QuickJumpModal } from '../components/ProjectDetail/QuickJumpModal'
@@ -11,7 +20,11 @@ export interface ProjectDetailOutletContext {
   sprints: Sprint[]
   releases: Release[]
   workItems: WorkItem[]
+  incidents: Incident[]
+  monitoringLogs: MonitoringLog[]
   setWorkItems: Dispatch<SetStateAction<WorkItem[]>>
+  setIncidents: Dispatch<SetStateAction<Incident[]>>
+  setMonitoringLogs: Dispatch<SetStateAction<MonitoringLog[]>>
   handleUpdateStatus: (key: string, newStatus: string) => Promise<void>
   handleUpdateContext: (key: string, contextText: string) => Promise<void>
   handleAddProgress: (
@@ -27,6 +40,8 @@ export interface ProjectDetailOutletContext {
   handleDeleteSprint: (sprintId: number) => Promise<void>
   handleDeleteRelease: (releaseId: number) => Promise<void>
   handleDeleteWorkItem: (key: string) => Promise<void>
+  handleDeleteIncident: (key: string) => Promise<void>
+  handleDeleteMonitoringLog: (key: string) => Promise<void>
   handleUpdateSprint: (
     sprintId: number,
     data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
@@ -48,6 +63,26 @@ export interface ProjectDetailOutletContext {
       active_assignee_username?: string | null
     }
   ) => Promise<WorkItem>
+  handleUpdateIncident: (
+    key: string,
+    data: {
+      title?: string
+      cause?: string
+      investigation_note?: string
+      status?: string
+      work_item_keys?: string[]
+    }
+  ) => Promise<Incident>
+  handleUpdateMonitoringLog: (
+    key: string,
+    data: {
+      who_are_you?: string
+      description?: string
+      status?: string
+      incident_id?: string | null
+      jira_url?: string
+    }
+  ) => Promise<MonitoringLog>
 }
 
 export function ProjectDetailRoute() {
@@ -59,6 +94,8 @@ export function ProjectDetailRoute() {
   const [sprints, setSprints] = useState<Sprint[]>([])
   const [releases, setReleases] = useState<Release[]>([])
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
+  const [incidents, setIncidents] = useState<Incident[]>([])
+  const [monitoringLogs, setMonitoringLogs] = useState<MonitoringLog[]>([])
   const [loadingDetails, setLoadingDetails] = useState(true)
   const [isQuickJumpOpen, setIsQuickJumpOpen] = useState(false)
 
@@ -83,8 +120,8 @@ export function ProjectDetailRoute() {
         return
       }
 
-      // Check if a sub-modal route (items, sprints, releases) is currently open
-      const isSubModalRoute = /^\/projects\/[^/]+\/(items|sprints|releases)(\/|$)/i.test(location.pathname)
+      // Check if a sub-modal route (items, sprints, releases, incidents, monitoring-logs) is currently open
+      const isSubModalRoute = /^\/projects\/[^/]+\/(items|sprints|releases|incidents|monitoring-logs)(\/|$)/i.test(location.pathname)
       if (isSubModalRoute) return
 
       // Check if another modal has locked body scroll
@@ -111,20 +148,33 @@ export function ProjectDetailRoute() {
     if (!projectKey) return
     setLoadingDetails(true)
     try {
-      const [sprintsRes, releasesRes, itemsRes] = await Promise.all([
+      const [sprintsRes, releasesRes, itemsRes, incidentsRes, logsRes] = await Promise.all([
         apiFetch(`/api/projects/${projectKey}/sprints`),
         apiFetch(`/api/projects/${projectKey}/releases`),
-        apiFetch(`/api/work-items?project_key=${projectKey}`)
+        apiFetch(`/api/work-items?project_key=${projectKey}`),
+        apiFetch(`/api/projects/${projectKey}/incidents`).catch(() => null),
+        apiFetch(`/api/projects/${projectKey}/monitoring-logs`).catch(() => null)
       ])
 
-      if (sprintsRes.ok) {
-        setSprints(await sprintsRes.json())
+      if (sprintsRes?.ok) {
+        const data = await sprintsRes.json().catch(() => null)
+        if (Array.isArray(data)) setSprints(data)
       }
-      if (releasesRes.ok) {
-        setReleases(await releasesRes.json())
+      if (releasesRes?.ok) {
+        const data = await releasesRes.json().catch(() => null)
+        if (Array.isArray(data)) setReleases(data)
       }
-      if (itemsRes.ok) {
-        setWorkItems(await itemsRes.json())
+      if (itemsRes?.ok) {
+        const data = await itemsRes.json().catch(() => null)
+        if (Array.isArray(data)) setWorkItems(data)
+      }
+      if (incidentsRes?.ok) {
+        const data = await incidentsRes.json().catch(() => null)
+        if (Array.isArray(data)) setIncidents(data)
+      }
+      if (logsRes?.ok) {
+        const data = await logsRes.json().catch(() => null)
+        if (Array.isArray(data)) setMonitoringLogs(data)
       }
     } catch {
       // ignore
@@ -458,6 +508,131 @@ export function ProjectDetailRoute() {
     }
   }
 
+  const handleCreateIncident = async (data: {
+    title: string
+    cause: string
+    investigation_note: string
+    status: string
+    work_item_keys?: string[]
+  }) => {
+    if (!projectKey) return
+    const res = await apiFetch(`/api/projects/${projectKey}/incidents`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...data,
+        project_key: projectKey
+      })
+    })
+    if (res.ok) {
+      await fetchDetails()
+    }
+  }
+
+  const handleCreateMonitoringLog = async (data: {
+    who_are_you: string
+    description: string
+    status: string
+    incident_id?: string | null
+    jira_url?: string
+  }) => {
+    if (!projectKey) return
+    const res = await apiFetch(`/api/projects/${projectKey}/monitoring-logs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...data,
+        project_key: projectKey
+      })
+    })
+    if (res.ok) {
+      await fetchDetails()
+    }
+  }
+
+  const handleUpdateIncident = async (
+    key: string,
+    data: {
+      title?: string
+      cause?: string
+      investigation_note?: string
+      status?: string
+      work_item_keys?: string[]
+    }
+  ) => {
+    const res = await apiFetch(`/api/incidents/${key}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+    if (res.ok) {
+      const updated: Incident = await res.json()
+      setIncidents(prev => prev.map(inc => (inc.key === key ? updated : inc)))
+      return updated
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to update incident')
+    }
+  }
+
+  const handleUpdateMonitoringLog = async (
+    key: string,
+    data: {
+      who_are_you?: string
+      description?: string
+      status?: string
+      incident_id?: string | null
+      jira_url?: string
+    }
+  ) => {
+    const res = await apiFetch(`/api/monitoring-logs/${key}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+    if (res.ok) {
+      const updated: MonitoringLog = await res.json()
+      setMonitoringLogs(prev => prev.map(log => (log.key === key ? updated : log)))
+      await fetchDetails()
+      return updated
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to update monitoring log')
+    }
+  }
+
+  const handleDeleteIncident = async (key: string) => {
+    const res = await apiFetch(`/api/incidents/${key}`, {
+      method: 'DELETE'
+    })
+    if (res.ok) {
+      await fetchDetails()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to delete incident')
+    }
+  }
+
+  const handleDeleteMonitoringLog = async (key: string) => {
+    const res = await apiFetch(`/api/monitoring-logs/${key}`, {
+      method: 'DELETE'
+    })
+    if (res.ok) {
+      await fetchDetails()
+    } else {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || 'Failed to delete monitoring log')
+    }
+  }
+
   // Fallback project object if projects list is still loading
   const effectiveProject: Project = currentProject || {
     id: 0,
@@ -475,6 +650,8 @@ export function ProjectDetailRoute() {
         sprints={sprints}
         releases={releases}
         workItems={workItems}
+        incidents={incidents}
+        monitoringLogs={monitoringLogs}
         loading={loadingDetails}
         onBack={() => navigate('/')}
         onRefresh={fetchDetails}
@@ -487,10 +664,18 @@ export function ProjectDetailRoute() {
         onSelectWorkItem={item =>
           navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)
         }
+        onSelectIncident={incident =>
+          navigate(`/projects/${projectKey}/incidents/${incident.key}${location.search}`)
+        }
+        onSelectMonitoringLog={log =>
+          navigate(`/projects/${projectKey}/monitoring-logs/${log.key}${location.search}`)
+        }
         onUpdateStatus={handleUpdateStatus}
         onCreateSprint={handleCreateSprint}
         onCreateRelease={handleCreateRelease}
         onCreateWorkItem={handleCreateWorkItem}
+        onCreateIncident={handleCreateIncident}
+        onCreateMonitoringLog={handleCreateMonitoringLog}
         onOpenQuickJump={() => setIsQuickJumpOpen(true)}
       />
 
@@ -508,7 +693,11 @@ export function ProjectDetailRoute() {
           sprints,
           releases,
           workItems,
+          incidents,
+          monitoringLogs,
           setWorkItems,
+          setIncidents,
+          setMonitoringLogs,
           handleUpdateStatus,
           handleUpdateContext,
           handleAddProgress,
@@ -517,9 +706,13 @@ export function ProjectDetailRoute() {
           handleDeleteSprint,
           handleDeleteRelease,
           handleDeleteWorkItem,
+          handleDeleteIncident,
+          handleDeleteMonitoringLog,
           handleUpdateSprint,
           handleUpdateRelease,
-          handleUpdateWorkItemDetails
+          handleUpdateWorkItemDetails,
+          handleUpdateIncident,
+          handleUpdateMonitoringLog
         }}
       />
     </>

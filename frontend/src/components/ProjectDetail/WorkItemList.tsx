@@ -7,7 +7,6 @@ import {
   User as UserIcon,
   Sparkles,
   GitCommit,
-  ChevronDown,
   Loader2,
   Calendar
 } from 'lucide-react'
@@ -21,6 +20,7 @@ import {
   SearchResponse
 } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
+import { StatusFilterDropdown } from '../Common/StatusFilterDropdown'
 import { Modal } from '../Common/Modal'
 import { apiFetch } from '../../utils/apiFetch'
 
@@ -99,8 +99,6 @@ export function WorkItemList({
   const [searchResults, setSearchResults] = useState<SearchItemResult[] | null>(null)
   const [isSearching, setIsSearching] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
-  const statusDropdownRef = useRef<HTMLDivElement>(null)
 
   const [internalMyIssuesOnly, setInternalMyIssuesOnly] = useState<boolean>(() => {
     try {
@@ -148,80 +146,6 @@ export function WorkItemList({
       setSelectedStatuses(effectiveStatuses.map(s => s.name.toLowerCase()).filter(n => n !== 'done'))
     }
   }, [effectiveStatuses])
-
-  // Close status dropdown on outside click or escape
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        statusDropdownRef.current &&
-        !statusDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsStatusDropdownOpen(false)
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsStatusDropdownOpen(false)
-      }
-    }
-    if (isStatusDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleKeyDown)
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isStatusDropdownOpen])
-
-  const toggleStatus = (statusName: string) => {
-    const norm = statusName.toLowerCase()
-    setSelectedStatuses(prev => {
-      if (prev.includes(norm)) {
-        return prev.filter(s => s !== norm)
-      } else {
-        return [...prev, norm]
-      }
-    })
-  }
-
-  const selectOnly = (statusName: string) => {
-    setSelectedStatuses([statusName.toLowerCase()])
-  }
-
-  const selectAll = () => {
-    setSelectedStatuses(effectiveStatuses.map(st => st.name.toLowerCase()))
-  }
-
-  const selectAllExceptDone = () => {
-    setSelectedStatuses(
-      effectiveStatuses.map(st => st.name.toLowerCase()).filter(name => name !== 'done')
-    )
-  }
-
-  const clearAll = () => {
-    setSelectedStatuses([])
-  }
-
-  const isAllSelected =
-    effectiveStatuses.length > 0 &&
-    effectiveStatuses.every(st => selectedStatuses.includes(st.name.toLowerCase()))
-  const isDoneExcluded =
-    !selectedStatuses.includes('done') &&
-    effectiveStatuses.filter(s => s.name.toLowerCase() !== 'done').length > 0 &&
-    effectiveStatuses
-      .filter(s => s.name.toLowerCase() !== 'done')
-      .every(st => selectedStatuses.includes(st.name.toLowerCase()))
-
-  const statusButtonLabel = useMemo(() => {
-    if (selectedStatuses.length === 0) return 'No Statuses'
-    if (isAllSelected) return 'All Statuses'
-    if (isDoneExcluded) return 'Statuses (Done hidden)'
-    if (selectedStatuses.length === 1) {
-      return formatStatus(selectedStatuses[0])
-    }
-    return `Statuses (${selectedStatuses.length})`
-  }, [selectedStatuses, isAllSelected, isDoneExcluded])
 
   // Form state
   const [title, setTitle] = useState('')
@@ -443,131 +367,28 @@ export function WorkItemList({
           </button>
 
           {/* Status Multi-Select Filter */}
-          <div className="relative" ref={statusDropdownRef}>
-            <button
-              type="button"
-              data-testid="status-filter-dropdown-button"
-              onClick={() => setIsStatusDropdownOpen(prev => !prev)}
-              aria-haspopup="true"
-              aria-expanded={isStatusDropdownOpen}
-              className={`px-2.5 py-1.5 rounded-lg border text-sm flex items-center gap-2 transition focus:outline-none ${
-                isStatusDropdownOpen
-                  ? 'bg-zinc-800 border-indigo-500 text-zinc-100 shadow-sm'
-                  : 'bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-zinc-100 hover:border-zinc-700'
-              }`}
-            >
-              <span className="truncate max-w-[130px] sm:max-w-none">{statusButtonLabel}</span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 text-zinc-400 transition-transform duration-200 shrink-0 ${
-                  isStatusDropdownOpen ? 'rotate-180 text-indigo-400' : ''
-                }`}
-              />
-            </button>
-
-            {isStatusDropdownOpen && (
-              <div
-                data-testid="status-filter-dropdown-menu"
-                className="absolute right-0 sm:left-0 sm:right-auto mt-1.5 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 py-1 overflow-hidden"
-              >
-                {/* Header Actions */}
-                <div className="px-3 py-1.5 border-b border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-400">
-                  <span className="font-semibold text-zinc-300">Filter by Status</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      data-testid="status-filter-select-all"
-                      onClick={selectAll}
-                      className="hover:text-indigo-400 transition text-[11px]"
-                    >
-                      All
-                    </button>
-                    <span className="text-zinc-700">|</span>
-                    <button
-                      type="button"
-                      data-testid="status-filter-hide-done"
-                      onClick={selectAllExceptDone}
-                      className="hover:text-indigo-400 transition text-[11px]"
-                      title="Hide Done statuses"
-                    >
-                      Hide Done
-                    </button>
-                    <span className="text-zinc-700">|</span>
-                    <button
-                      type="button"
-                      data-testid="status-filter-clear"
-                      onClick={clearAll}
-                      className="hover:text-rose-400 transition text-[11px]"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-
-                {/* Status Options */}
-                <div className="max-h-60 overflow-y-auto py-1 divide-y divide-zinc-800/40">
-                  {effectiveStatuses.map(st => {
-                    const normSt = st.name.toLowerCase()
-                    const isSelected = selectedStatuses.includes(normSt)
-                    const count = workItems.filter(item => {
-                      const itemStatus = (item.status || 'todo').toLowerCase()
-                      if (itemStatus === normSt) return true
-                      if (
-                        (normSt === 'in progress' || normSt === 'step completed') &&
-                        (itemStatus === 'in progress' || itemStatus === 'step completed')
-                      ) {
-                        return true
-                      }
-                      return false
-                    }).length
-
-                    return (
-                      <div
-                        key={st.id || st.name}
-                        data-testid={`status-option-${normSt.replace(/\s+/g, '-')}`}
-                        onClick={() => toggleStatus(st.name)}
-                        className={`flex items-center justify-between px-3 py-1.5 hover:bg-zinc-800/60 cursor-pointer transition select-none group ${
-                          isSelected ? 'bg-zinc-800/30' : ''
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                          <input
-                            type="checkbox"
-                            data-testid={`status-checkbox-${normSt.replace(/\s+/g, '-')}`}
-                            checked={isSelected}
-                            onChange={() => {}} // Row onClick handles toggling
-                            className="w-3.5 h-3.5 rounded bg-zinc-950 border-zinc-700 text-indigo-600 focus:ring-0 cursor-pointer accent-indigo-600 shrink-0"
-                          />
-                          <span
-                            className={`text-xs truncate capitalize ${
-                              isSelected ? 'text-zinc-200 font-medium' : 'text-zinc-400'
-                            }`}
-                          >
-                            {formatStatus(st.name)}
-                          </span>
-                          <span className="text-[10px] text-zinc-500 font-mono ml-auto mr-1">
-                            ({count})
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          data-testid={`status-only-${normSt.replace(/\s+/g, '-')}`}
-                          onClick={e => {
-                            e.stopPropagation()
-                            selectOnly(st.name)
-                          }}
-                          className="px-1.5 py-0.5 text-[10px] font-mono lowercase text-zinc-500 hover:text-indigo-300 hover:bg-indigo-950/80 border border-zinc-800/80 hover:border-indigo-700/60 rounded transition shrink-0 ml-1.5"
-                          title={`Show only ${formatStatus(st.name)}`}
-                        >
-                          only
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+          <StatusFilterDropdown
+            statuses={effectiveStatuses}
+            selectedStatuses={selectedStatuses}
+            onChangeSelectedStatuses={setSelectedStatuses}
+            getCountForStatus={normSt =>
+              workItems.filter(item => {
+                const itemStatus = (item.status || 'todo').toLowerCase()
+                if (itemStatus === normSt) return true
+                if (
+                  (normSt === 'in progress' || normSt === 'step completed') &&
+                  (itemStatus === 'in progress' || itemStatus === 'step completed')
+                ) {
+                  return true
+                }
+                return false
+              }).length
+            }
+            excludedByDefault={['done']}
+            hideExcludedLabel="Hide Done"
+            hideExcludedTitle="Hide Done statuses"
+            excludedButtonSummary="Statuses (Done hidden)"
+          />
 
           <button
             onClick={() => setIsModalOpen(true)}

@@ -7,7 +7,9 @@ import { ProjectDetailRoute } from './ProjectDetailRoute'
 import {
   SprintModalRoute,
   ReleaseModalRoute,
-  WorkItemModalRoute
+  WorkItemModalRoute,
+  IncidentModalRoute,
+  MonitoringLogModalRoute
 } from './ModalRoutes'
 
 export const routes: RouteObject[] = [
@@ -46,6 +48,14 @@ export const routes: RouteObject[] = [
           {
             path: 'items/:itemKey',
             element: <WorkItemModalRoute />
+          },
+          {
+            path: 'incidents/:incidentKey',
+            element: <IncidentModalRoute />
+          },
+          {
+            path: 'monitoring-logs/:logKey',
+            element: <MonitoringLogModalRoute />
           }
         ]
       },
@@ -62,3 +72,4 @@ export const router = createBrowserRouter(routes, {
     v7_relativeSplatPath: true
   }
 })
+

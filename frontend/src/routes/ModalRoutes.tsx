@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation, useOutletContext } from 'react-router-dom'
-import { WorkItem } from '../types'
+import { WorkItem, Incident, MonitoringLog } from '../types'
 import { apiFetch } from '../utils/apiFetch'
 import { ProjectDetailOutletContext } from './ProjectDetailRoute'
 import { SprintDetailModal } from '../components/Modals/SprintDetailModal'
 import { ReleaseDetailModal } from '../components/Modals/ReleaseDetailModal'
 import { WorkItemDetailModal } from '../components/Modals/WorkItemDetailModal'
+import { IncidentDetailModal } from '../components/Modals/IncidentDetailModal'
+import { MonitoringLogDetailModal } from '../components/Modals/MonitoringLogDetailModal'
 
 export function SprintModalRoute() {
   const { projectKey, sprintId } = useParams<{ projectKey: string; sprintId: string }>()
@@ -201,3 +203,133 @@ export function WorkItemModalRoute() {
     />
   )
 }
+
+export function IncidentModalRoute() {
+  const { projectKey, incidentKey } = useParams<{ projectKey: string; incidentKey: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const {
+    incidents,
+    handleUpdateIncident,
+    handleDeleteIncident
+  } = useOutletContext<ProjectDetailOutletContext>()
+
+  const [detailIncident, setDetailIncident] = useState<Incident | null>(null)
+
+  const foundIncident = incidents.find(
+    inc => inc.key.toUpperCase() === incidentKey?.toUpperCase() || String(inc.id) === incidentKey
+  )
+  const activeIncident =
+    detailIncident &&
+    (detailIncident.key.toUpperCase() === incidentKey?.toUpperCase() ||
+      String(detailIncident.id) === incidentKey)
+      ? detailIncident
+      : foundIncident || null
+
+  useEffect(() => {
+    if (incidentKey) {
+      apiFetch(`/api/incidents/${incidentKey}`)
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => {
+          if (data) setDetailIncident(data)
+        })
+        .catch(() => {})
+    }
+  }, [incidentKey])
+
+  const handleDelete = activeIncident || incidentKey ? async () => {
+    const keyToDelete = activeIncident?.key || incidentKey!
+    await handleDeleteIncident(keyToDelete)
+    navigate(`/projects/${projectKey}${location.search}`)
+  } : undefined
+
+  const handleUpdate = activeIncident || incidentKey ? async (data: {
+    title?: string
+    cause?: string
+    investigation_note?: string
+    status?: string
+    work_item_keys?: string[]
+  }) => {
+    const keyToUpdate = activeIncident?.key || incidentKey!
+    const updated = await handleUpdateIncident(keyToUpdate, data)
+    if (updated) setDetailIncident(updated)
+  } : undefined
+
+  return (
+    <IncidentDetailModal
+      incident={activeIncident}
+      onClose={() => navigate(`/projects/${projectKey}${location.search}`)}
+      onSelectWorkItem={key => navigate(`/projects/${projectKey}/items/${key}${location.search}`)}
+      onSelectMonitoringLog={key =>
+        navigate(`/projects/${projectKey}/monitoring-logs/${key}${location.search}`)
+      }
+      onUpdateIncident={handleUpdate}
+      onDelete={handleDelete}
+    />
+  )
+}
+
+export function MonitoringLogModalRoute() {
+  const { projectKey, logKey } = useParams<{ projectKey: string; logKey: string }>()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const {
+    monitoringLogs,
+    handleUpdateMonitoringLog,
+    handleDeleteMonitoringLog
+  } = useOutletContext<ProjectDetailOutletContext>()
+
+  const [detailLog, setDetailLog] = useState<MonitoringLog | null>(null)
+
+  const foundLog = monitoringLogs.find(
+    l => l.key.toUpperCase() === logKey?.toUpperCase() || String(l.id) === logKey
+  )
+  const activeLog =
+    detailLog &&
+    (detailLog.key.toUpperCase() === logKey?.toUpperCase() ||
+      String(detailLog.id) === logKey)
+      ? detailLog
+      : foundLog || null
+
+  useEffect(() => {
+    if (logKey) {
+      apiFetch(`/api/monitoring-logs/${logKey}`)
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => {
+          if (data) setDetailLog(data)
+        })
+        .catch(() => {})
+    }
+  }, [logKey])
+
+  const handleDelete = activeLog || logKey ? async () => {
+    const keyToDelete = activeLog?.key || logKey!
+    await handleDeleteMonitoringLog(keyToDelete)
+    navigate(`/projects/${projectKey}${location.search}`)
+  } : undefined
+
+  const handleUpdate = activeLog || logKey ? async (data: {
+    who_are_you?: string
+    description?: string
+    status?: string
+    incident_id?: string | null
+    jira_url?: string
+  }) => {
+    const keyToUpdate = activeLog?.key || logKey!
+    const updated = await handleUpdateMonitoringLog(keyToUpdate, data)
+    if (updated) setDetailLog(updated)
+  } : undefined
+
+  return (
+    <MonitoringLogDetailModal
+      log={activeLog}
+      onClose={() => navigate(`/projects/${projectKey}${location.search}`)}
+      onSelectIncident={incKey =>
+        navigate(`/projects/${projectKey}/incidents/${incKey}${location.search}`)
+      }
+      onUpdateLog={handleUpdate}
+      onDelete={handleDelete}
+    />
+  )
+}
+

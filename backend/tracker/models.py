@@ -33,6 +33,14 @@ class Project(models.Model):
         default=0,
         help_text="Counter for sequential work item keys within this project",
     )
+    last_incident_number = models.PositiveIntegerField(
+        default=0,
+        help_text="Counter for sequential incident keys within this project",
+    )
+    last_monitoring_log_number = models.PositiveIntegerField(
+        default=0,
+        help_text="Counter for sequential monitoring log keys within this project",
+    )
 
     class Meta:
         ordering = ["key"]
@@ -64,6 +72,38 @@ class Project(models.Model):
             self.last_work_item_number = proj.last_work_item_number
             return candidate_key
 
+    def generate_next_incident_key(self) -> str:
+        """
+        Atomically generates and reserves the next sequential incident key for this project (e.g. DAV-INC-1).
+        """
+        from django.db import transaction
+        with transaction.atomic():
+            proj = Project.objects.select_for_update().get(pk=self.pk)
+            while True:
+                proj.last_incident_number += 1
+                candidate_key = f"{proj.key}-INC-{proj.last_incident_number}"
+                if not self.incidents.filter(key=candidate_key).exists():
+                    break
+            proj.save(update_fields=["last_incident_number"])
+            self.last_incident_number = proj.last_incident_number
+            return candidate_key
+
+    def generate_next_monitoring_log_key(self) -> str:
+        """
+        Atomically generates and reserves the next sequential monitoring log key for this project (e.g. DAV-LOG-1).
+        """
+        from django.db import transaction
+        with transaction.atomic():
+            proj = Project.objects.select_for_update().get(pk=self.pk)
+            while True:
+                proj.last_monitoring_log_number += 1
+                candidate_key = f"{proj.key}-LOG-{proj.last_monitoring_log_number}"
+                if not self.monitoring_logs.filter(key=candidate_key).exists():
+                    break
+            proj.save(update_fields=["last_monitoring_log_number"])
+            self.last_monitoring_log_number = proj.last_monitoring_log_number
+            return candidate_key
+
 
 class ProjectStatus(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="statuses")
@@ -90,6 +130,23 @@ STANDARD_STATUSES = (
 )
 
 ALL_PROGRESS_STATUSES = STANDARD_STATUSES
+
+INCIDENT_STATUSES = (
+    "reported",
+    "ongoing",
+    "done",
+    "no longer relevant",
+)
+
+HUMAN_ONLY_INCIDENT_STATUSES = (
+    "done",
+    "no longer relevant",
+)
+
+MONITORING_LOG_STATUSES = (
+    "ok",
+    "error",
+)
 
 DEFAULT_PROJECT_STATUSES = [
     (name, name == "todo", order)
@@ -243,6 +300,102 @@ class WorkItemEmbedding(models.Model):
         return f"Embedding for {self.work_item.key}"
 
 
+class Incident(models.Model):
+    STATUS_CHOICES = [(s, s.title()) for s in INCIDENT_STATUSES]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="incidents")
+    key = models.CharField(max_length=40, unique=True, db_index=True)
+    title = models.CharField(max_length=255)
+    cause = models.TextField(blank=True, help_text="Investigation cause and details of the incident")
+    investigation_note = models.TextField(
+        blank=True,
+        help_text="Quick investigation note (specific things to check to confirm/deny recurrence)"
+    )
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="reported")
+    work_items = models.ManyToManyField(WorkItem, blank=True, related_name="incidents")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_incidents"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="updated_incidents"
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        if not self.key and self.project_id:
+            self.key = self.project.generate_next_incident_key()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.key}: {self.title} [{self.status}]"
+
+
+class IncidentEmbedding(models.Model):
+    incident = models.OneToOneField(Incident, on_delete=models.CASCADE, related_name="embedding")
+    embedding = VectorField(dimensions=384)
+    content_hash = models.CharField(max_length=64, db_index=True)
+    embedded_text = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            HnswIndex(
+                name="incident_vec_hnsw_idx",
+                fields=["embedding"],
+                m=16,
+                ef_construction=64,
+                opclasses=["vector_cosine_ops"],
+            )
+        ]
+
+    def __str__(self):
+        return f"Embedding for {self.incident.key}"
+
+
+class MonitoringLog(models.Model):
+    STATUS_CHOICES = [
+        ("ok", "OK"),
+        ("error", "Error"),
+    ]
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="monitoring_logs")
+    key = models.CharField(max_length=40, unique=True, db_index=True)
+    who_are_you = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Agent/runner identification filled out by the LLM"
+    )
+    description = models.TextField(help_text="Description/log of the monitoring run")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ok")
+    incident = models.ForeignKey(
+        Incident, null=True, blank=True, on_delete=models.SET_NULL, related_name="monitoring_logs"
+    )
+    jira_url = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Link to a JIRA incident if one is found"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_monitoring_logs"
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        if not self.key and self.project_id:
+            self.key = self.project.generate_next_monitoring_log_key()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.key} [{self.status.upper()}] ({self.created_at.isoformat()})"
+
+
 @receiver(post_save, sender=WorkItem)
 def handle_work_item_saved(sender, instance, created, **kwargs):
     try:
@@ -251,6 +404,16 @@ def handle_work_item_saved(sender, instance, created, **kwargs):
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("Failed to schedule auto-indexing for work item %s: %s", instance.key, e)
+
+
+@receiver(post_save, sender=Incident)
+def handle_incident_saved(sender, instance, created, **kwargs):
+    try:
+        from tracker.embedding import schedule_incident_indexing
+        schedule_incident_indexing(instance.id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to schedule auto-indexing for incident %s: %s", instance.key, e)
 
 
 @receiver([post_save, post_delete], sender=Context)
@@ -273,4 +436,5 @@ def handle_progress_changed(sender, instance, **kwargs):
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("Failed to schedule re-indexing on progress change: %s", e)
+
 

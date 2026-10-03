@@ -1,16 +1,22 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, LayoutList, Kanban, Search } from 'lucide-react'
-import { Project, Sprint, Release, WorkItem, DEFAULT_PROJECT_STATUSES } from '../../types'
+import { ArrowLeft, RefreshCw, LayoutList, Kanban, Search, Flame, Activity } from 'lucide-react'
+import { Project, Sprint, Release, WorkItem, Incident, MonitoringLog, DEFAULT_PROJECT_STATUSES } from '../../types'
 import { ProjectListView } from './ProjectListView'
 import { KanbanBoard } from './KanbanBoard'
+import { IncidentList } from './IncidentList'
+import { MonitoringLogList } from './MonitoringLogList'
 import { useOptionalApp } from '../../context/AppContext'
+
+export type ProjectViewMode = 'list' | 'board' | 'incidents' | 'monitoring-logs'
 
 interface ProjectDetailViewProps {
   project: Project
   sprints: Sprint[]
   releases: Release[]
   workItems: WorkItem[]
+  incidents?: Incident[]
+  monitoringLogs?: MonitoringLog[]
   loading: boolean
   onBack: () => void
   onRefresh: () => void
@@ -18,6 +24,8 @@ interface ProjectDetailViewProps {
   onSelectSprint: (sprint: Sprint) => void
   onSelectRelease: (release: Release) => void
   onSelectWorkItem: (item: WorkItem) => void
+  onSelectIncident?: (incident: Incident) => void
+  onSelectMonitoringLog?: (log: MonitoringLog) => void
   onUpdateStatus?: (key: string, newStatus: string) => Promise<void>
   onCreateSprint: (
     name: string,
@@ -41,6 +49,20 @@ interface ProjectDetailViewProps {
     sprint_id?: number | null
     release_id?: number | null
   }) => Promise<void>
+  onCreateIncident?: (data: {
+    title: string
+    cause: string
+    investigation_note: string
+    status: string
+    work_item_keys?: string[]
+  }) => Promise<void>
+  onCreateMonitoringLog?: (data: {
+    who_are_you: string
+    description: string
+    status: string
+    incident_id?: string | null
+    jira_url?: string
+  }) => Promise<void>
 }
 
 export function ProjectDetailView({
@@ -48,6 +70,8 @@ export function ProjectDetailView({
   sprints,
   releases,
   workItems,
+  incidents = [],
+  monitoringLogs = [],
   loading,
   onBack,
   onRefresh,
@@ -55,16 +79,27 @@ export function ProjectDetailView({
   onSelectSprint,
   onSelectRelease,
   onSelectWorkItem,
+  onSelectIncident,
+  onSelectMonitoringLog,
   onUpdateStatus,
   onCreateSprint,
   onCreateRelease,
-  onCreateWorkItem
+  onCreateWorkItem,
+  onCreateIncident,
+  onCreateMonitoringLog
 }: ProjectDetailViewProps) {
   const [searchParams, setSearchParams] = useSearchParams()
   const viewParam = searchParams.get('view')
-  const activeView: 'list' | 'board' = viewParam === 'board' ? 'board' : 'list'
+  const activeView: ProjectViewMode =
+    viewParam === 'board'
+      ? 'board'
+      : viewParam === 'incidents'
+      ? 'incidents'
+      : viewParam === 'monitoring-logs'
+      ? 'monitoring-logs'
+      : 'list'
 
-  const handleSelectView = (view: 'list' | 'board') => {
+  const handleSelectView = (view: ProjectViewMode) => {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev)
       if (view === 'list') {
@@ -208,6 +243,32 @@ export function ProjectDetailView({
               <Kanban className="w-4 h-4" />
               <span>Board View</span>
             </button>
+
+            <button
+              onClick={() => handleSelectView('incidents')}
+              data-testid="view-option-incidents"
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                activeView === 'incidents'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+              }`}
+            >
+              <Flame className="w-4 h-4" />
+              <span>Incidents</span>
+            </button>
+
+            <button
+              onClick={() => handleSelectView('monitoring-logs')}
+              data-testid="view-option-monitoring-logs"
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                activeView === 'monitoring-logs'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+              }`}
+            >
+              <Activity className="w-4 h-4" />
+              <span>Monitoring Logs</span>
+            </button>
           </div>
 
           {/* Quick Status Stats Card */}
@@ -238,7 +299,7 @@ export function ProjectDetailView({
 
         {/* Middle/Main Content Area */}
         <main className="flex-1 min-w-0 w-full">
-          {activeView === 'list' ? (
+          {activeView === 'list' && (
             <ProjectListView
               projectKey={project.key}
               sprints={sprints}
@@ -255,7 +316,8 @@ export function ProjectDetailView({
               onCreateRelease={onCreateRelease}
               onCreateWorkItem={onCreateWorkItem}
             />
-          ) : (
+          )}
+          {activeView === 'board' && (
             <KanbanBoard
               workItems={workItems}
               statuses={statuses}
@@ -269,8 +331,29 @@ export function ProjectDetailView({
               onCreateWorkItem={onCreateWorkItem}
             />
           )}
+          {activeView === 'incidents' && (
+            <IncidentList
+              projectKey={project.key}
+              incidents={incidents}
+              onSelectIncident={incident => onSelectIncident?.(incident)}
+              onCreateIncident={async data => {
+                await onCreateIncident?.(data)
+              }}
+            />
+          )}
+          {activeView === 'monitoring-logs' && (
+            <MonitoringLogList
+              projectKey={project.key}
+              monitoringLogs={monitoringLogs}
+              onSelectMonitoringLog={log => onSelectMonitoringLog?.(log)}
+              onCreateMonitoringLog={async data => {
+                await onCreateMonitoringLog?.(data)
+              }}
+            />
+          )}
         </main>
       </div>
     </div>
   )
 }
+

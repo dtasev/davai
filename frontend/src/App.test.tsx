@@ -260,6 +260,137 @@ describe('Davai Frontend App with React Router', () => {
         } as Response)
       }
 
+      if (urlStr.includes('/api/projects/DAV/incidents/search')) {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              query: 'redis',
+              mode: 'hybrid',
+              total: 1,
+              results: [
+                {
+                  incident: {
+                    id: 1,
+                    key: 'DAV-INC-1',
+                    project_key: 'DAV',
+                    title: 'Redis Cluster Failover',
+                    cause: 'Primary node OOM',
+                    investigation_note: 'Check redis memory usage',
+                    status: 'ongoing',
+                    work_item_keys: ['DAV-1'],
+                    work_items: [{ key: 'DAV-1', title: 'Build AI-Native Data Models' }],
+                    monitoring_log_ids: [1],
+                    monitoring_log_keys: ['DAV-LOG-1'],
+                    monitoring_logs: [
+                      {
+                        id: 1,
+                        key: 'DAV-LOG-1',
+                        status: 'error',
+                        who_are_you: 'redis-watchdog',
+                        created_at: '2026-09-20T00:00:00Z'
+                      }
+                    ],
+                    created_by: 'admin',
+                    updated_by: null,
+                    created_at: '2026-09-20T00:00:00Z',
+                    updated_at: '2026-09-20T00:00:00Z'
+                  },
+                  score: 0.95,
+                  match_type: 'hybrid'
+                }
+              ]
+            })
+        } as Response)
+      }
+
+      if (urlStr.includes('/api/projects/DAV/incidents') || urlStr.includes('/api/incidents/DAV-INC-')) {
+        const mockIncidents = [
+          {
+            id: 1,
+            key: 'DAV-INC-1',
+            project_key: 'DAV',
+            title: 'Redis Cluster Failover',
+            cause: 'Primary node OOM',
+            investigation_note: 'Check redis memory usage',
+            status: 'ongoing',
+            work_item_keys: ['DAV-1'],
+            work_items: [{ key: 'DAV-1', title: 'Build AI-Native Data Models' }],
+            monitoring_log_ids: [1],
+            monitoring_log_keys: ['DAV-LOG-1'],
+            monitoring_logs: [
+              {
+                id: 1,
+                key: 'DAV-LOG-1',
+                status: 'error',
+                who_are_you: 'redis-watchdog',
+                created_at: '2026-09-20T00:00:00Z'
+              }
+            ],
+            created_by: 'admin',
+            updated_by: null,
+            created_at: '2026-09-20T00:00:00Z',
+            updated_at: '2026-09-20T00:00:00Z'
+          },
+          {
+            id: 2,
+            key: 'DAV-INC-2',
+            project_key: 'DAV',
+            title: 'Decommissioned Storage Alert',
+            cause: 'Old SAN retired',
+            investigation_note: 'Ignore',
+            status: 'no longer relevant',
+            work_item_keys: [],
+            work_items: [],
+            monitoring_log_ids: [],
+            monitoring_log_keys: [],
+            monitoring_logs: [],
+            created_by: 'admin',
+            updated_by: null,
+            created_at: '2026-09-19T00:00:00Z',
+            updated_at: '2026-09-19T00:00:00Z'
+          }
+        ]
+        if (urlStr.includes('/api/incidents/DAV-INC-1')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockIncidents[0])
+          } as Response)
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockIncidents)
+        } as Response)
+      }
+
+      if (urlStr.includes('/api/projects/DAV/monitoring-logs') || urlStr.includes('/api/monitoring-logs/DAV-LOG-')) {
+        const mockLogs = [
+          {
+            id: 1,
+            key: 'DAV-LOG-1',
+            project_key: 'DAV',
+            who_are_you: 'redis-watchdog',
+            description: 'ERROR: Redis sentinel failover triggered on primary-01',
+            status: 'error',
+            incident_id: 1,
+            incident_key: 'DAV-INC-1',
+            jira_url: 'https://jira.example.com/browse/OPS-100',
+            created_by: 'admin',
+            created_at: '2026-09-20T00:00:00Z'
+          }
+        ]
+        if (urlStr.includes('/api/monitoring-logs/DAV-LOG-1')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve(mockLogs[0])
+          } as Response)
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockLogs)
+        } as Response)
+      }
+
       if (urlStr.includes('/api/projects')) {
         return Promise.resolve({
           ok: true,
@@ -1815,7 +1946,91 @@ describe('Davai Frontend App with React Router', () => {
     unmount()
     expect(document.title).toBe('Davai - Work Management')
   })
+
+  it('renders 4 entries in Views box (List View, Board View, Incidents, Monitoring Logs), filters out "No longer relevant" incidents by default, and navigates between Incident and Monitoring Log modals', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // 1. Verify all 4 entries exist in the Views sidebar box
+    expect(screen.getByTestId('view-option-list')).toHaveTextContent('List View')
+    expect(screen.getByTestId('view-option-board')).toHaveTextContent('Board View')
+    expect(screen.getByTestId('view-option-incidents')).toHaveTextContent('Incidents')
+    expect(screen.getByTestId('view-option-monitoring-logs')).toHaveTextContent('Monitoring Logs')
+
+    // 2. Switch to Incidents view
+    fireEvent.click(screen.getByTestId('view-option-incidents'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('incident-list-view')).toBeInTheDocument()
+    })
+
+    // No sprints or releases sections in Incidents view
+    expect(screen.queryByTestId('sprint-list-section')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('release-list-section')).not.toBeInTheDocument()
+
+    // DAV-INC-1 (ongoing) is visible, while DAV-INC-2 (no longer relevant) is hidden by default
+    expect(screen.getByTestId('incident-item-DAV-INC-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('incident-item-DAV-INC-2')).not.toBeInTheDocument()
+
+    // Open status filter dropdown and verify "no longer relevant" is unchecked by default
+    fireEvent.click(screen.getByTestId('status-filter-dropdown-button'))
+    const dropdown = screen.getByTestId('status-filter-dropdown-menu')
+    expect(dropdown).toBeInTheDocument()
+    const nlrCheckbox = screen.getByTestId('status-checkbox-no-longer-relevant') as HTMLInputElement
+    expect(nlrCheckbox.checked).toBe(false)
+
+    // Enable "no longer relevant" and verify DAV-INC-2 appears
+    fireEvent.click(nlrCheckbox)
+    expect(screen.getByTestId('incident-item-DAV-INC-2')).toBeInTheDocument()
+
+    // Click "Hide Irrelevant" (hide excluded) button and verify DAV-INC-2 is hidden again
+    fireEvent.click(screen.getByTestId('status-filter-hide-done'))
+    expect(screen.queryByTestId('incident-item-DAV-INC-2')).not.toBeInTheDocument()
+
+    // 3. Click DAV-INC-1 to open IncidentDetailModal
+    fireEvent.click(screen.getByTestId('incident-item-DAV-INC-1'))
+    await waitFor(() => {
+      expect(screen.getByTestId('incident-detail-modal')).toBeInTheDocument()
+    })
+
+    expect(screen.getByTestId('incident-title')).toHaveTextContent('Redis Cluster Failover')
+    expect(screen.getByTestId('incident-work-items-list')).toBeInTheDocument()
+    expect(screen.getByTestId('incident-work-item-DAV-1')).toBeInTheDocument()
+    expect(screen.getByTestId('incident-monitoring-logs-list')).toBeInTheDocument()
+    expect(screen.getByTestId('incident-monitoring-log-DAV-LOG-1')).toBeInTheDocument()
+
+    // 4. Click linked monitoring log DAV-LOG-1 inside IncidentDetailModal to open MonitoringLogDetailModal
+    fireEvent.click(screen.getByTestId('incident-monitoring-log-DAV-LOG-1'))
+    await waitFor(() => {
+      expect(screen.getByTestId('monitoring-log-detail-modal')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('monitoring-log-who-are-you')).toHaveTextContent('redis-watchdog')
+    expect(screen.getByTestId('monitoring-log-description')).toHaveTextContent(
+      'ERROR: Redis sentinel failover triggered on primary-01'
+    )
+    expect(screen.getByTestId('monitoring-log-jira-link')).toHaveAttribute(
+      'href',
+      'https://jira.example.com/browse/OPS-100'
+    )
+
+    // Close modal and switch to Monitoring Logs view
+    fireEvent.click(screen.getByRole('button', { name: /Close/i }))
+    await waitFor(() => {
+      expect(screen.queryByTestId('monitoring-log-detail-modal')).not.toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTestId('view-option-monitoring-logs'))
+    await waitFor(() => {
+      expect(screen.getByTestId('monitoring-log-list-view')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('monitoring-log-item-DAV-LOG-1')).toBeInTheDocument()
+  })
 })
+
+
 
 
 

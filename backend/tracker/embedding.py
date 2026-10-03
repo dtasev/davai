@@ -49,6 +49,28 @@ def format_work_item_text(work_item) -> str:
     return "\n\n".join(parts)
 
 
+def format_incident_text(incident) -> str:
+    """
+    Builds a structured markdown text representation of an Incident
+    including its key, title, status, cause, and investigation note.
+    """
+    parts = [
+        f"Key: {incident.key}",
+        f"Title: {incident.title}",
+        f"Status: {incident.status}",
+    ]
+    if incident.project:
+        parts.append(f"Project: {incident.project.key} - {incident.project.name}")
+
+    if incident.cause and incident.cause.strip():
+        parts.append(f"Investigation Cause:\n{incident.cause.strip()}")
+
+    if incident.investigation_note and incident.investigation_note.strip():
+        parts.append(f"Investigation Note:\n{incident.investigation_note.strip()}")
+
+    return "\n\n".join(parts)
+
+
 class BaseEmbeddingProvider(ABC):
     @abstractmethod
     def embed_query(self, text: str) -> List[float]:
@@ -177,12 +199,54 @@ def index_work_item(work_item, force: bool = False):
     return embedding_obj
 
 
+def index_incident(incident, force: bool = False):
+    """
+    Renders text for the incident, checks content hash,
+    and updates IncidentEmbedding in PostgreSQL.
+    """
+    from tracker.models import IncidentEmbedding
+
+    text = format_incident_text(incident)
+    content_hash = compute_content_hash(text)
+
+    embedding_obj = getattr(incident, "embedding", None)
+    if not force and embedding_obj and embedding_obj.content_hash == content_hash:
+        return embedding_obj
+
+    provider = get_embedding_provider()
+    vec = provider.embed_query(text)
+
+    try:
+        if embedding_obj:
+            embedding_obj.embedding = vec
+            embedding_obj.content_hash = content_hash
+            embedding_obj.embedded_text = text
+            embedding_obj.save(update_fields=["embedding", "content_hash", "embedded_text", "updated_at"])
+        else:
+            embedding_obj = IncidentEmbedding.objects.create(
+                incident=incident,
+                embedding=vec,
+                content_hash=content_hash,
+                embedded_text=text,
+            )
+    except Exception as e:
+        logger.warning(
+            "Could not persist embedding for incident %s (incident may have been deleted): %s",
+            getattr(incident, "key", incident),
+            e,
+        )
+        return None
+
+    return embedding_obj
+
+
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from django.db import transaction
 
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="emb_indexing")
 _pending_item_ids = set()
+_pending_incident_ids = set()
 _pending_lock = threading.Lock()
 
 
@@ -217,6 +281,36 @@ def queue_work_item_indexing(work_item_id: int):
     return _executor.submit(_worker)
 
 
+def queue_incident_indexing(incident_id: int):
+    """
+    Submits a background task to index the incident.
+    Deduplicates requests so multiple signals for the same incident ID
+    within a short window only execute one embedding computation.
+    """
+    with _pending_lock:
+        if incident_id in _pending_incident_ids:
+            return None
+        _pending_incident_ids.add(incident_id)
+
+    def _worker():
+        try:
+            from tracker.models import Incident
+            incident = (
+                Incident.objects.select_related("project")
+                .filter(id=incident_id)
+                .first()
+            )
+            if incident:
+                index_incident(incident)
+        except Exception as e:
+            logger.warning("Background indexing failed for incident %s: %s", incident_id, e)
+        finally:
+            with _pending_lock:
+                _pending_incident_ids.discard(incident_id)
+
+    return _executor.submit(_worker)
+
+
 def flush_indexing_queue():
     """Waits for pending indexing tasks to complete (useful in tests or shutdown)."""
     global _executor
@@ -234,5 +328,18 @@ def schedule_work_item_indexing(work_item_id: int):
         transaction.on_commit(lambda: queue_work_item_indexing(work_item_id))
     else:
         queue_work_item_indexing(work_item_id)
+
+
+def schedule_incident_indexing(incident_id: int):
+    """
+    Schedules incident indexing after the current database transaction commits.
+    If not in an atomic block, queues immediately.
+    """
+    from django.db import connection
+    if connection.in_atomic_block:
+        transaction.on_commit(lambda: queue_incident_indexing(incident_id))
+    else:
+        queue_incident_indexing(incident_id)
+
 
 

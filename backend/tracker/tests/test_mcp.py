@@ -17,6 +17,12 @@ from mcp_server.server import (
     create_release,
     update_release,
     get_project_summary,
+    create_incident,
+    get_incident,
+    search_incidents,
+    update_incident,
+    create_monitoring_log,
+    get_monitoring_log,
     get_board_state,
     set_client
 )
@@ -309,3 +315,85 @@ class TestMCPWithApiClient:
         )
         assert updated_dated_item["start_date"].startswith("2026-10-03")
         assert updated_dated_item["target_date"] is None
+
+        # 15. Incidents & Monitoring Logs via MCP tools
+        with pytest.raises(ValueError, match="can only be set by a human"):
+            create_incident(
+                title="Human Only Status Check",
+                status="done",
+                project_key=test_project.key
+            )
+        with pytest.raises(ValueError, match="can only be set by a human"):
+            create_incident(
+                title="Human Only Irrelevant Check",
+                status="no longer relevant",
+                project_key=test_project.key
+            )
+
+        mcp_inc = create_incident(
+            title="PostgreSQL Replication Lag Spike",
+            cause="Heavy bulk insert job blocked WAL replay",
+            investigation_note="Check pg_stat_replication replay_lag on replica-01",
+            status="reported",
+            work_item_keys=[dated_item["key"]],
+            project_key=test_project.key,
+        )
+        assert mcp_inc["key"].startswith(f"{test_project.key}-INC-")
+        assert mcp_inc["title"] == "PostgreSQL Replication Lag Spike"
+        assert mcp_inc["status"] == "reported"
+        assert mcp_inc["work_item_keys"] == [dated_item["key"]]
+        inc_key = mcp_inc["key"]
+
+        # Update incident via MCP
+        with pytest.raises(ValueError, match="can only be set by a human"):
+            update_incident(incident_id=inc_key, status="done")
+        with pytest.raises(ValueError, match="can only be set by a human"):
+            update_incident(incident_id=inc_key, status="no longer relevant")
+
+        updated_inc = update_incident(
+            incident_id=inc_key,
+            status="ongoing",
+            investigation_note="Check pg_stat_replication and vacuum activity",
+        )
+        assert updated_inc["status"] == "ongoing"
+        assert "vacuum activity" in updated_inc["investigation_note"]
+
+        # Create monitoring log via MCP
+        mcp_log = create_monitoring_log(
+            who_are_you="db-replication-monitor-llm",
+            description="Replication lag 45s on replica-01",
+            status="Error",
+            incident_id=inc_key,
+            jira_url="https://jira.ecmwf.int/browse/DB-101",
+            project_key=test_project.key,
+        )
+        assert mcp_log["key"].startswith(f"{test_project.key}-LOG-")
+        assert mcp_log["status"] == "error"
+        assert mcp_log["incident_key"] == inc_key
+        log_key = mcp_log["key"]
+        log_id = mcp_log["id"]
+
+        # Fetch incident via MCP -> includes linked log IDs/keys without log description
+        fetched_inc = get_incident(inc_key)
+        assert fetched_inc["key"] == inc_key
+        assert log_id in fetched_inc["monitoring_log_ids"]
+        assert log_key in fetched_inc["monitoring_log_keys"]
+        assert "description" not in fetched_inc["monitoring_logs"][0]
+
+        # Fetch monitoring log via MCP -> includes full description
+        fetched_log = get_monitoring_log(log_key)
+        assert fetched_log["key"] == log_key
+        assert fetched_log["description"] == "Replication lag 45s on replica-01"
+        assert fetched_log["who_are_you"] == "db-replication-monitor-llm"
+
+        # Search incidents via MCP
+        from tracker.embedding import flush_indexing_queue
+        flush_indexing_queue()
+        search_res = search_incidents(
+            query="PostgreSQL replication WAL",
+            project_key=test_project.key,
+            mode="hybrid",
+        )
+        assert search_res["total"] >= 1
+        assert any(r["incident"]["key"] == inc_key for r in search_res["results"])
+

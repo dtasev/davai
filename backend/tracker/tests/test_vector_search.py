@@ -1,9 +1,10 @@
 import pytest
 from io import StringIO
 from django.core.management import call_command
-from tracker.models import WorkItem, Project, Context, Progress, WorkItemEmbedding
+from tracker.models import WorkItem, Project, Context, Progress, WorkItemEmbedding, Incident, IncidentEmbedding
 from tracker.embedding import (
     format_work_item_text,
+    format_incident_text,
     compute_content_hash,
     index_work_item,
     MockEmbeddingProvider,
@@ -168,3 +169,38 @@ class TestVectorSearchAndEmbedding:
         item.refresh_from_db()
         assert hasattr(item, "embedding")
         assert len(item.embedding.embedding) == 384
+
+    def test_incident_embedding_and_search(self, ninja_client, test_project, test_user):
+        inc1 = Incident.objects.create(
+            project=test_project,
+            key=f"{test_project.key}-INC-101",
+            title="Kubernetes Ingress TLS Certificate Expiry",
+            cause="cert-manager ACME DNS01 challenge failed due to expired route53 token",
+            investigation_note="Check kubectl get certificates -A and cert-manager logs",
+            status="ongoing",
+            created_by=test_user,
+        )
+        inc_irrelevant = Incident.objects.create(
+            project=test_project,
+            key=f"{test_project.key}-INC-102",
+            title="Kubernetes Old Ingress Deprecated",
+            cause="Old k8s cluster ingress failure",
+            investigation_note="Decommissioned",
+            status="no longer relevant",
+            created_by=test_user,
+        )
+        flush_indexing_queue()
+        inc1.refresh_from_db()
+        assert hasattr(inc1, "embedding")
+        assert len(inc1.embedding.embedding) == 384
+        assert "cert-manager" in format_incident_text(inc1)
+
+        # Hybrid search finds inc1 and excludes inc_irrelevant
+        res = ninja_client.get(f"/projects/{test_project.key}/incidents/search?q=k8s+ingress+certificate")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["mode"] == "hybrid"
+        keys = [r["incident"]["key"] for r in data["results"]]
+        assert inc1.key in keys
+        assert inc_irrelevant.key not in keys
+

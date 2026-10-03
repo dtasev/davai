@@ -166,3 +166,94 @@ export interface SearchResponse {
   total: number
   results: SearchItemResult[]
 }
+
+export const INCIDENT_STATUSES = [
+  'reported',
+  'ongoing',
+  'done',
+  'no longer relevant'
+] as const
+
+export type IncidentStatus = (typeof INCIDENT_STATUSES)[number] | string
+
+export const DEFAULT_INCIDENT_STATUSES: ProjectStatus[] = INCIDENT_STATUSES.map(
+  (name, index) => ({
+    id: index + 1,
+    name,
+    order: index,
+    is_default: name === 'reported'
+  })
+)
+
+export const MONITORING_LOG_STATUSES = ['ok', 'error'] as const
+
+export type MonitoringLogStatus = (typeof MONITORING_LOG_STATUSES)[number] | string
+
+export const DEFAULT_MONITORING_LOG_STATUSES: ProjectStatus[] = MONITORING_LOG_STATUSES.map(
+  (name, index) => ({
+    id: index + 1,
+    name,
+    order: index,
+    is_default: name === 'ok'
+  })
+)
+
+export interface MonitoringLogLink {
+  id: number
+  key: string
+  status: MonitoringLogStatus
+  who_are_you: string
+  created_at: string
+}
+
+export interface Incident {
+  id: number
+  key: string
+  project_key: string
+  title: string
+  cause: string
+  description?: string
+  investigation_note: string
+  status: IncidentStatus
+  work_items: SubtaskSummary[]
+  work_item_keys: string[]
+  monitoring_log_ids: number[]
+  monitoring_log_keys: string[]
+  monitoring_logs: MonitoringLogLink[]
+  created_by: string
+  updated_by?: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface IncidentSearchResult {
+  incident: Incident
+  score: number
+  vector_distance: number | null
+  rank_vector: number | null
+  rank_keyword: number | null
+  match_type: 'hybrid' | 'vector' | 'keyword' | 'exact'
+  snippet: string
+}
+
+export interface IncidentSearchResponse {
+  query: string
+  mode: 'hybrid' | 'vector' | 'keyword'
+  total: number
+  results: IncidentSearchResult[]
+}
+
+export interface MonitoringLog {
+  id: number
+  key: string
+  project_key: string
+  who_are_you: string
+  description: string
+  status: MonitoringLogStatus
+  incident_id: number | null
+  incident_key: string | null
+  jira_url: string
+  created_by: string
+  created_at: string
+}
+

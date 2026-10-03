@@ -9,6 +9,9 @@ from tracker.models import (
     Context,
     Progress,
     WorkItemEmbedding,
+    Incident,
+    IncidentEmbedding,
+    MonitoringLog,
 )
 
 
@@ -27,8 +30,8 @@ class ProjectStatusInline(admin.TabularInline):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("key", "name", "last_work_item_number", "created_at")
-    readonly_fields = ("last_work_item_number",)
+    list_display = ("key", "name", "last_work_item_number", "last_incident_number", "last_monitoring_log_number", "created_at")
+    readonly_fields = ("last_work_item_number", "last_incident_number", "last_monitoring_log_number")
     search_fields = ("key", "name")
     inlines = [ProjectStatusInline]
 
@@ -90,3 +93,25 @@ class WorkItemEmbeddingAdmin(admin.ModelAdmin):
     list_display = ("work_item", "content_hash", "updated_at")
     search_fields = ("work_item__key", "content_hash", "embedded_text")
     readonly_fields = ("content_hash", "embedded_text", "updated_at")
+
+
+@admin.register(Incident)
+class IncidentAdmin(admin.ModelAdmin):
+    list_display = ("key", "title", "project", "status", "created_by", "created_at", "updated_at")
+    list_filter = ("status", "project")
+    search_fields = ("key", "title", "cause", "investigation_note")
+
+
+@admin.register(IncidentEmbedding)
+class IncidentEmbeddingAdmin(admin.ModelAdmin):
+    list_display = ("incident", "content_hash", "updated_at")
+    search_fields = ("incident__key", "content_hash", "embedded_text")
+    readonly_fields = ("content_hash", "embedded_text", "updated_at")
+
+
+@admin.register(MonitoringLog)
+class MonitoringLogAdmin(admin.ModelAdmin):
+    list_display = ("key", "project", "status", "who_are_you", "incident", "jira_url", "created_at")
+    list_filter = ("status", "project")
+    search_fields = ("key", "who_are_you", "description", "jira_url", "incident__key")
+

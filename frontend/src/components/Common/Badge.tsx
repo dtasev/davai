@@ -18,9 +18,10 @@ export function PriorityBadge({ priority }: { priority: string }) {
 
 export function formatStatus(status: string | null | undefined): string {
   if (!status) return 'Todo'
-  return status
-    .toLowerCase()
-    .replace(/_/g, ' ')
+  const lower = status.toLowerCase().replace(/_/g, ' ').trim()
+  if (lower === 'ok') return 'OK'
+  if (lower === 'error') return 'Error'
+  return lower
     .split(' ')
     .map(word => (word ? word.charAt(0).toUpperCase() + word.slice(1) : ''))
     .join(' ')
@@ -33,26 +34,29 @@ export function StatusBadge({
   status: string
   isProgressEntry?: boolean
 }) {
-  const s = (status || 'todo').toLowerCase().replace(/_/g, ' ')
+  const s = (status || 'todo').toLowerCase().replace(/_/g, ' ').trim()
   let color = 'bg-zinc-800/60 text-zinc-300 border-zinc-800'
   let dot = 'bg-zinc-500'
 
   if (s === 'planned') {
     color = 'bg-sky-950/40 text-sky-300 border-sky-800/40'
     dot = 'bg-sky-400'
-  } else if (s === 'in progress' || s === 'step completed' || s === 'completed') {
+  } else if (s === 'reported') {
+    color = 'bg-amber-950/40 text-amber-300 border-amber-800/40'
+    dot = 'bg-amber-400'
+  } else if (s === 'ongoing' || s === 'in progress' || s === 'step completed' || s === 'completed') {
     color = 'bg-yellow-950/40 text-yellow-300 border-yellow-800/40'
     dot = 'bg-yellow-400'
-  } else if (s === 'blocked') {
-    color = 'bg-orange-950/40 text-orange-300 border-orange-800/40'
-    dot = 'bg-orange-400'
+  } else if (s === 'blocked' || s === 'error') {
+    color = 'bg-rose-950/40 text-rose-300 border-rose-800/40'
+    dot = 'bg-rose-400'
   } else if (s === 'review' || s === 'awaiting review' || s === 'waiting') {
     color = 'bg-purple-950/40 text-purple-300 border-purple-800/40'
     dot = 'bg-purple-400'
-  } else if (s === 'done') {
+  } else if (s === 'done' || s === 'ok') {
     color = 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40'
     dot = 'bg-emerald-400'
-  } else if (s === 'cancelled') {
+  } else if (s === 'cancelled' || s === 'no longer relevant') {
     color = 'bg-zinc-900 text-zinc-400 border-zinc-800'
     dot = 'bg-zinc-600'
   }
@@ -73,3 +77,4 @@ export function StatusBadge({
     </span>
   )
 }
+
