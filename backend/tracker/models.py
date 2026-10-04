@@ -148,6 +148,16 @@ MONITORING_LOG_STATUSES = (
     "error",
 )
 
+SPRINT_RELEASE_STATUSES = (
+    "planned",
+    "in progress",
+    "done",
+)
+
+HUMAN_ONLY_SPRINT_RELEASE_STATUSES = (
+    "done",
+)
+
 DEFAULT_PROJECT_STATUSES = [
     (name, name == "todo", order)
     for order, name in enumerate(STANDARD_STATUSES)
@@ -166,34 +176,59 @@ def create_default_project_statuses(sender, instance, created, **kwargs):
 
 
 class Release(models.Model):
+    STATUS_CHOICES = [(s, s.title()) for s in SPRINT_RELEASE_STATUSES]
+
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="releases")
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="planned")
     start_date = models.DateTimeField(null=True, blank=True)
     end_date = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-start_date", "-created_at"]
+
+    def save(self, *args, **kwargs):
+        if self.status == "done":
+            if not self.done_at:
+                self.done_at = timezone.now()
+        else:
+            self.done_at = None
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.project.key} Release: {self.name}"
 
 
 class Sprint(models.Model):
+    STATUS_CHOICES = [(s, s.title()) for s in SPRINT_RELEASE_STATUSES]
+
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="sprints")
     release = models.ForeignKey(Release, null=True, blank=True, on_delete=models.SET_NULL, related_name="sprints")
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default="planned")
     start_date = models.DateTimeField(null=True, blank=True)
     end_date = models.DateTimeField(null=True, blank=True)
+    done_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["-start_date", "-created_at"]
 
+    def save(self, *args, **kwargs):
+        if self.status == "done":
+            if not self.done_at:
+                self.done_at = timezone.now()
+        else:
+            self.done_at = None
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.project.key} Sprint: {self.name}"
+
 
 
 class WorkItem(models.Model):

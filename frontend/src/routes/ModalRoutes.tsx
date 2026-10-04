@@ -31,6 +31,7 @@ export function SprintModalRoute() {
   const handleUpdate = sprint ? async (data: {
     name?: string
     description?: string
+    status?: string
     start_date?: string | null
     end_date?: string | null
   }) => {
@@ -72,6 +73,7 @@ export function ReleaseModalRoute() {
   const handleUpdate = release ? async (data: {
     name?: string
     description?: string
+    status?: string
     start_date?: string | null
     end_date?: string | null
   }) => {

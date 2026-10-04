@@ -1231,6 +1231,94 @@ class TestNinjaAPI:
         assert search_kw.status_code == 200
         assert search_kw.json()["total"] == 0
 
+    def test_sprint_and_release_statuses_and_done_at(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+        human_headers = {"X-API-Key": raw_key, "User-Agent": "Mozilla/5.0"}
+        mcp_headers = {"X-API-Key": raw_key, "User-Agent": "Davai-MCP-Client/1.0"}
+
+        # 1. Create release (defaults to planned, done_at is None)
+        rel_res = ninja_client.post(
+            f"/projects/{test_project.key}/releases",
+            json={"name": "v1.0.0", "description": "Release 1"},
+            headers=human_headers
+        )
+        assert rel_res.status_code == 200
+        rel_data = rel_res.json()
+        assert rel_data["status"] == "planned"
+        assert rel_data["done_at"] is None
+        rel_id = rel_data["id"]
+
+        # 2. MCP cannot mark release as done
+        rel_mcp_done = ninja_client.patch(
+            f"/projects/{test_project.key}/releases/{rel_id}",
+            json={"status": "done"},
+            headers=mcp_headers
+        )
+        assert rel_mcp_done.status_code == 400
+        assert "human via the frontend" in rel_mcp_done.json()["detail"]
+
+        # 3. MCP can mark release as in progress
+        rel_mcp_prog = ninja_client.patch(
+            f"/projects/{test_project.key}/releases/{rel_id}",
+            json={"status": "in progress"},
+            headers=mcp_headers
+        )
+        assert rel_mcp_prog.status_code == 200
+        assert rel_mcp_prog.json()["status"] == "in progress"
+        assert rel_mcp_prog.json()["done_at"] is None
+
+        # 4. Human marks release as done -> records done_at
+        rel_human_done = ninja_client.patch(
+            f"/projects/{test_project.key}/releases/{rel_id}",
+            json={"status": "done"},
+            headers=human_headers
+        )
+        assert rel_human_done.status_code == 200
+        assert rel_human_done.json()["status"] == "done"
+        assert rel_human_done.json()["done_at"] is not None
+
+        # 5. Reopening release clears done_at
+        rel_reopen = ninja_client.patch(
+            f"/projects/{test_project.key}/releases/{rel_id}",
+            json={"status": "in progress"},
+            headers=human_headers
+        )
+        assert rel_reopen.status_code == 200
+        assert rel_reopen.json()["status"] == "in progress"
+        assert rel_reopen.json()["done_at"] is None
+
+        # 6. Create sprint (defaults to planned, done_at is None)
+        sp_res = ninja_client.post(
+            f"/projects/{test_project.key}/sprints",
+            json={"name": "Sprint 1", "description": "Iteration 1", "release_id": rel_id},
+            headers=human_headers
+        )
+        assert sp_res.status_code == 200
+        sp_data = sp_res.json()
+        assert sp_data["status"] == "planned"
+        assert sp_data["done_at"] is None
+        sp_id = sp_data["id"]
+
+        # 7. MCP cannot mark sprint as done
+        sp_mcp_done = ninja_client.patch(
+            f"/projects/{test_project.key}/sprints/{sp_id}",
+            json={"status": "done"},
+            headers=mcp_headers
+        )
+        assert sp_mcp_done.status_code == 400
+        assert "human via the frontend" in sp_mcp_done.json()["detail"]
+
+        # 8. Human marks sprint as done -> records done_at
+        sp_human_done = ninja_client.patch(
+            f"/projects/{test_project.key}/sprints/{sp_id}",
+            json={"status": "done"},
+            headers=human_headers
+        )
+        assert sp_human_done.status_code == 200
+        assert sp_human_done.json()["status"] == "done"
+        assert sp_human_done.json()["done_at"] is not None
+
+
 
 
 

@@ -15,6 +15,8 @@ interface ProjectListViewProps {
   onSelectSprint: (sprint: Sprint) => void
   onSelectRelease: (release: Release) => void
   onSelectWorkItem: (item: WorkItem) => void
+  onOpenAllSprints?: () => void
+  onOpenAllReleases?: () => void
   onCreateSprint: (
     name: string,
     description: string,
@@ -51,6 +53,8 @@ export function ProjectListView({
   onSelectSprint,
   onSelectRelease,
   onSelectWorkItem,
+  onOpenAllSprints,
+  onOpenAllReleases,
   onCreateSprint,
   onCreateRelease,
   onCreateWorkItem
@@ -63,6 +67,7 @@ export function ProjectListView({
           sprints={sprints}
           releases={releases}
           onSelectSprint={onSelectSprint}
+          onOpenAllSprints={onOpenAllSprints}
           onCreateSprint={onCreateSprint}
         />
       </section>
@@ -72,6 +77,7 @@ export function ProjectListView({
         <ReleaseList
           releases={releases}
           onSelectRelease={onSelectRelease}
+          onOpenAllReleases={onOpenAllReleases}
           onCreateRelease={onCreateRelease}
         />
       </section>

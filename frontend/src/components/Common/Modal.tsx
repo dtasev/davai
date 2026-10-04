@@ -1,6 +1,9 @@
-import { useEffect, ReactNode } from 'react'
+import { useEffect, useRef, ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+
+let openModalCount = 0
+let savedBodyOverflow = ''
 
 interface ModalProps {
   isOpen: boolean
@@ -21,20 +24,28 @@ export function Modal({
   closeOnOverlayClick = true,
   headerActions
 }: ModalProps) {
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
+    if (!isOpen) return
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') onCloseRef.current()
     }
-    if (isOpen) {
-      const prevOverflow = document.body.style.overflow
+    if (openModalCount === 0) {
+      savedBodyOverflow = document.body.style.overflow
       document.body.style.overflow = 'hidden'
-      window.addEventListener('keydown', handleKeyDown)
-      return () => {
-        document.body.style.overflow = prevOverflow
-        window.removeEventListener('keydown', handleKeyDown)
-      }
     }
-  }, [isOpen, onClose])
+    openModalCount += 1
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      openModalCount = Math.max(0, openModalCount - 1)
+      if (openModalCount === 0) {
+        document.body.style.overflow = savedBodyOverflow
+      }
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 

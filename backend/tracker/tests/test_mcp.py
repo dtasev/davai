@@ -265,13 +265,18 @@ class TestMCPWithApiClient:
         assert mcp_sprint["start_date"].startswith("2026-10-01")
         assert mcp_sprint["end_date"].startswith("2026-10-15")
 
-        # Update sprint dates and clear end_date
+        # Update sprint dates and status, and clear end_date
+        with pytest.raises(ValueError, match="can only be set by a human"):
+            update_sprint(sprint_id=mcp_sprint["id"], project_key=test_project.key, status="done")
+
         updated_sp = update_sprint(
             sprint_id=mcp_sprint["id"],
             project_key=test_project.key,
+            status="in progress",
             start_date="2026-10-05",
             end_date="clear"
         )
+        assert updated_sp["status"] == "in progress"
         assert updated_sp["start_date"].startswith("2026-10-05")
         assert updated_sp["end_date"] is None
 
@@ -284,16 +289,22 @@ class TestMCPWithApiClient:
             end_date="2026-11-01"
         )
         assert mcp_release["name"] == "v2.0.0"
+        assert mcp_release["status"] == "planned"
         assert mcp_release["start_date"].startswith("2026-10-01")
         assert mcp_release["end_date"].startswith("2026-11-01")
 
-        # Clear start_date and update end_date
+        # Clear start_date and update end_date and status
+        with pytest.raises(ValueError, match="can only be set by a human"):
+            update_release(release_id=mcp_release["id"], project_key=test_project.key, status="done")
+
         updated_rel = update_release(
             release_id=mcp_release["id"],
             project_key=test_project.key,
+            status="in progress",
             start_date="",
             end_date="2026-12-01"
         )
+        assert updated_rel["status"] == "in progress"
         assert updated_rel["start_date"] is None
         assert updated_rel["end_date"].startswith("2026-12-01")
 

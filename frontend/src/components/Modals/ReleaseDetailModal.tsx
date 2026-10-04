@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, ChangeEvent } from 'react'
 import { Rocket, Calendar, Zap, ListTodo, ChevronRight, Trash2, AlertTriangle, Check } from 'lucide-react'
-import { Release, Sprint, WorkItem } from '../../types'
-import { PriorityBadge, StatusBadge } from '../Common/Badge'
+import { Release, Sprint, WorkItem, DEFAULT_SPRINT_RELEASE_STATUSES } from '../../types'
+import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 
 interface ReleaseDetailModalProps {
@@ -15,6 +15,7 @@ interface ReleaseDetailModalProps {
   onUpdate?: (data: {
     name?: string
     description?: string
+    status?: string
     start_date?: string | null
     end_date?: string | null
   }) => Promise<void>
@@ -35,6 +36,7 @@ export function ReleaseDetailModal({
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(release?.name || '')
   const [editDescription, setEditDescription] = useState(release?.description || '')
+  const [editStatus, setEditStatus] = useState(release?.status || 'planned')
   const [editStartDate, setEditStartDate] = useState(
     release?.start_date ? release.start_date.slice(0, 10) : ''
   )
@@ -47,12 +49,15 @@ export function ReleaseDetailModal({
     if (release) {
       setEditName(release.name)
       setEditDescription(release.description || '')
+      setEditStatus(release.status || 'planned')
       setEditStartDate(release.start_date ? release.start_date.slice(0, 10) : '')
       setEditEndDate(release.end_date ? release.end_date.slice(0, 10) : '')
     }
-  }, [release?.id, release?.name, release?.description, release?.start_date, release?.end_date])
+  }, [release?.id, release?.name, release?.description, release?.status, release?.start_date, release?.end_date])
 
   if (!release) return null
+
+  const currentStatus = (release.status || 'planned').toLowerCase()
 
   const handleSave = async () => {
     if (!onUpdate || !editName.trim()) return
@@ -61,6 +66,7 @@ export function ReleaseDetailModal({
       await onUpdate({
         name: editName.trim(),
         description: editDescription.trim(),
+        status: editStatus,
         start_date: editStartDate ? editStartDate : null,
         end_date: editEndDate ? editEndDate : null
       })
@@ -74,10 +80,20 @@ export function ReleaseDetailModal({
     if (release) {
       setEditName(release.name)
       setEditDescription(release.description || '')
+      setEditStatus(release.status || 'planned')
       setEditStartDate(release.start_date ? release.start_date.slice(0, 10) : '')
       setEditEndDate(release.end_date ? release.end_date.slice(0, 10) : '')
     }
     setIsEditing(false)
+  }
+
+  const handleStatusChange = async (e: ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = e.target.value
+    if (isEditing) {
+      setEditStatus(newStatus)
+    } else if (onUpdate) {
+      await onUpdate({ status: newStatus })
+    }
   }
 
   const linkedSprints = sprints.filter(s => s.release_id === release.id)
@@ -113,6 +129,23 @@ export function ReleaseDetailModal({
                 <span>{isSaving ? 'Saving...' : 'Save'}</span>
               </button>
             </>
+          )}
+          {onUpdate && (
+            <button
+              type="button"
+              disabled={currentStatus === 'done'}
+              onClick={() => onUpdate({ status: 'done' })}
+              title={currentStatus === 'done' ? 'Release is Done' : 'Mark release as Done (Frontend-only)'}
+              aria-label={currentStatus === 'done' ? 'Release is Done' : 'Mark release as Done'}
+              data-testid="mark-release-done-button"
+              className={`p-1.5 rounded-lg transition ${
+                currentStatus === 'done'
+                  ? 'text-emerald-400 cursor-default'
+                  : 'text-zinc-500 hover:text-emerald-400 hover:bg-zinc-800 cursor-pointer'
+              }`}
+            >
+              <Check className="w-4 h-4" />
+            </button>
           )}
           {onDelete && (
             <button
@@ -160,7 +193,7 @@ export function ReleaseDetailModal({
         </div>
       }
     >
-      <div className="space-y-3.5">
+      <div className="space-y-3.5" data-testid="release-detail-modal">
         {showDeleteConfirm && (
           <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 text-rose-300 text-sm font-medium">
@@ -196,54 +229,87 @@ export function ReleaseDetailModal({
             </div>
           </div>
         )}
-        {/* Date Strip */}
+        {/* Date & Status Strip */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-lg text-sm">
-          {isEditing ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-zinc-400">Start:</span>
-                <input
-                  type="date"
-                  data-testid="edit-release-start-date-input"
-                  aria-label="Edit Release Start Date"
-                  value={editStartDate}
-                  onChange={e => setEditStartDate(e.target.value)}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-zinc-400">End:</span>
-                <input
-                  type="date"
-                  data-testid="edit-release-end-date-input"
-                  aria-label="Edit Release End Date"
-                  value={editEndDate}
-                  onChange={e => setEditEndDate(e.target.value)}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
-                />
-              </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status */}
+            <div className="flex items-center gap-1.5" data-testid="release-status-display">
+              <span className="text-[11px] text-zinc-500">Status:</span>
+              {onUpdate ? (
+                <select
+                  value={isEditing ? editStatus : (release.status || 'planned')}
+                  onChange={handleStatusChange}
+                  data-testid="release-status-select"
+                  aria-label="Release Status"
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:outline-none cursor-pointer"
+                >
+                  {DEFAULT_SPRINT_RELEASE_STATUSES.map(st => (
+                    <option key={st.id || st.name} value={st.name}>
+                      {formatStatus(st.name)}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <StatusBadge status={isEditing ? editStatus : (release.status || 'planned')} />
             </div>
-          ) : (
-            <div
-              onClick={() => onUpdate && setIsEditing(true)}
-              title={onUpdate ? 'Click to edit dates' : undefined}
-              data-testid="release-date-display"
-              className={`flex items-center gap-2 text-zinc-400 ${
-                onUpdate ? 'cursor-pointer hover:text-indigo-400 transition' : ''
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-              <span>
-                {release.start_date
-                  ? `${new Date(release.start_date).toLocaleDateString()} - ${
-                      release.end_date
-                        ? new Date(release.end_date).toLocaleDateString()
-                        : 'Ongoing'
-                    }`
-                  : 'Unscheduled'}
+
+            {release.done_at && (
+              <span
+                data-testid="release-done-at"
+                className="text-[11px] text-emerald-400 flex items-center gap-1 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-800/30"
+              >
+                <Check className="w-3 h-3" />
+                <span>Done {new Date(release.done_at).toLocaleDateString()}</span>
               </span>
-            </div>
-          )}
+            )}
+
+            {isEditing ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-zinc-400">Start:</span>
+                  <input
+                    type="date"
+                    data-testid="edit-release-start-date-input"
+                    aria-label="Edit Release Start Date"
+                    value={editStartDate}
+                    onChange={e => setEditStartDate(e.target.value)}
+                    className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-zinc-400">End:</span>
+                  <input
+                    type="date"
+                    data-testid="edit-release-end-date-input"
+                    aria-label="Edit Release End Date"
+                    value={editEndDate}
+                    onChange={e => setEditEndDate(e.target.value)}
+                    className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => onUpdate && setIsEditing(true)}
+                title={onUpdate ? 'Click to edit dates' : undefined}
+                data-testid="release-date-display"
+                className={`flex items-center gap-2 text-zinc-400 ${
+                  onUpdate ? 'cursor-pointer hover:text-indigo-400 transition' : ''
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                <span>
+                  {release.start_date
+                    ? `${new Date(release.start_date).toLocaleDateString()} - ${
+                        release.end_date
+                          ? new Date(release.end_date).toLocaleDateString()
+                          : 'Ongoing'
+                      }`
+                    : 'Unscheduled'}
+                </span>
+              </div>
+            )}
+          </div>
 
           <span className="text-[10px] font-mono text-indigo-400 bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-900/30 leading-none">
             Project: {release.project_key}

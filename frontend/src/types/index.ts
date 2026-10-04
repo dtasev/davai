@@ -14,13 +14,32 @@ export interface Project {
   statuses: ProjectStatus[]
 }
 
+export const SPRINT_RELEASE_STATUSES = [
+  'planned',
+  'in progress',
+  'done'
+] as const
+
+export type SprintReleaseStatus = (typeof SPRINT_RELEASE_STATUSES)[number] | string
+
+export const DEFAULT_SPRINT_RELEASE_STATUSES: ProjectStatus[] = SPRINT_RELEASE_STATUSES.map(
+  (name, index) => ({
+    id: index + 1,
+    name,
+    order: index,
+    is_default: name === 'planned'
+  })
+)
+
 export interface Release {
   id: number
   project_key: string
   name: string
   description: string
+  status?: SprintReleaseStatus
   start_date: string | null
   end_date: string | null
+  done_at?: string | null
   created_at: string
 }
 
@@ -30,8 +49,10 @@ export interface Sprint {
   release_id: number | null
   name: string
   description: string
+  status?: SprintReleaseStatus
   start_date: string | null
   end_date: string | null
+  done_at?: string | null
   created_at: string
 }
 

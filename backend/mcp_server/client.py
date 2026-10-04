@@ -231,6 +231,7 @@ class DavaiClient:
         name: str,
         project_key: str = "DAV",
         description: str = "",
+        status: Optional[str] = None,
         release_id: Optional[int] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -240,6 +241,8 @@ class DavaiClient:
             "name": name,
             "description": description,
         }
+        if status is not None:
+            payload["status"] = status
         if release_id is not None:
             payload["release_id"] = release_id
         if start_date is not None:
@@ -254,6 +257,7 @@ class DavaiClient:
         project_key: str = "DAV",
         name: Optional[str] = None,
         description: Optional[str] = None,
+        status: Optional[str] = None,
         release_id: Optional[int] = None,
         start_date: Any = _UNSET,
         end_date: Any = _UNSET,
@@ -264,6 +268,8 @@ class DavaiClient:
             payload["name"] = name
         if description is not None:
             payload["description"] = description
+        if status is not None:
+            payload["status"] = status
         if release_id is not None:
             payload["release_id"] = release_id
         if start_date is not _UNSET:
@@ -283,6 +289,7 @@ class DavaiClient:
         name: str,
         project_key: str = "DAV",
         description: str = "",
+        status: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -291,6 +298,8 @@ class DavaiClient:
             "name": name,
             "description": description,
         }
+        if status is not None:
+            payload["status"] = status
         if start_date is not None:
             payload["start_date"] = start_date
         if end_date is not None:
@@ -303,6 +312,7 @@ class DavaiClient:
         project_key: str = "DAV",
         name: Optional[str] = None,
         description: Optional[str] = None,
+        status: Optional[str] = None,
         start_date: Any = _UNSET,
         end_date: Any = _UNSET,
     ) -> Dict[str, Any]:
@@ -312,6 +322,8 @@ class DavaiClient:
             payload["name"] = name
         if description is not None:
             payload["description"] = description
+        if status is not None:
+            payload["status"] = status
         if start_date is not _UNSET:
             if start_date in (None, "", "null", "none", "clear"):
                 payload["start_date"] = None
@@ -352,6 +364,8 @@ class DavaiClient:
             sprint_summaries.append({
                 "id": s_id,
                 "name": s.get("name"),
+                "status": s.get("status", "planned"),
+                "done_at": s.get("done_at"),
                 "release_id": s.get("release_id"),
                 "start_date": s.get("start_date"),
                 "end_date": s.get("end_date"),
@@ -374,6 +388,8 @@ class DavaiClient:
             release_summaries.append({
                 "id": r_id,
                 "name": r.get("name"),
+                "status": r.get("status", "planned"),
+                "done_at": r.get("done_at"),
                 "start_date": r.get("start_date"),
                 "end_date": r.get("end_date"),
                 "total_items": r_total,

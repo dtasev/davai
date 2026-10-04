@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, LayoutList, Kanban, Search, Flame, Activity } from 'lucide-react'
 import { Project, Sprint, Release, WorkItem, Incident, MonitoringLog, DEFAULT_PROJECT_STATUSES } from '../../types'
 import { ProjectListView } from './ProjectListView'
+import { AllSprintsModal } from './SprintList'
+import { AllReleasesModal } from './ReleaseList'
 import { KanbanBoard } from './KanbanBoard'
 import { IncidentList } from './IncidentList'
 import { MonitoringLogList } from './MonitoringLogList'
@@ -89,6 +91,8 @@ export function ProjectDetailView({
   onCreateMonitoringLog
 }: ProjectDetailViewProps) {
   const [searchParams, setSearchParams] = useSearchParams()
+  const [isAllSprintsOpen, setIsAllSprintsOpen] = useState(false)
+  const [isAllReleasesOpen, setIsAllReleasesOpen] = useState(false)
   const viewParam = searchParams.get('view')
   const activeView: ProjectViewMode =
     viewParam === 'board'
@@ -168,12 +172,22 @@ export function ProjectDetailView({
 
         <div className="flex items-center gap-2.5 shrink-0">
           <div className="flex items-center gap-1.5 text-sm text-zinc-400">
-            <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
+            <button
+              type="button"
+              onClick={() => setIsAllSprintsOpen(true)}
+              className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-amber-500/40 hover:text-zinc-200 transition cursor-pointer"
+              data-testid="header-sprints-button"
+            >
               <strong className="text-zinc-200">{sprints.length}</strong> Sprints
-            </span>
-            <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsAllReleasesOpen(true)}
+              className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 hover:border-indigo-500/40 hover:text-zinc-200 transition cursor-pointer"
+              data-testid="header-releases-button"
+            >
               <strong className="text-zinc-200">{releases.length}</strong> Releases
-            </span>
+            </button>
             <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
               <strong className="text-zinc-200">{workItems.length}</strong> Items
             </span>
@@ -312,6 +326,8 @@ export function ProjectDetailView({
               onSelectSprint={onSelectSprint}
               onSelectRelease={onSelectRelease}
               onSelectWorkItem={onSelectWorkItem}
+              onOpenAllSprints={() => setIsAllSprintsOpen(true)}
+              onOpenAllReleases={() => setIsAllReleasesOpen(true)}
               onCreateSprint={onCreateSprint}
               onCreateRelease={onCreateRelease}
               onCreateWorkItem={onCreateWorkItem}
@@ -353,6 +369,21 @@ export function ProjectDetailView({
           )}
         </main>
       </div>
+
+      <AllSprintsModal
+        isOpen={isAllSprintsOpen}
+        onClose={() => setIsAllSprintsOpen(false)}
+        sprints={sprints}
+        releases={releases}
+        onSelectSprint={onSelectSprint}
+      />
+
+      <AllReleasesModal
+        isOpen={isAllReleasesOpen}
+        onClose={() => setIsAllReleasesOpen(false)}
+        releases={releases}
+        onSelectRelease={onSelectRelease}
+      />
     </div>
   )
 }

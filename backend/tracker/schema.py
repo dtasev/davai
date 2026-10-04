@@ -71,8 +71,10 @@ class ReleaseType:
     project_key: str
     name: str
     description: str
-    start_date: Optional[str]
-    end_date: Optional[str]
+    status: str = "planned"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    done_at: Optional[str] = None
 
 
 @strawberry.type
@@ -81,8 +83,10 @@ class SprintType:
     project_key: str
     name: str
     description: str
-    start_date: Optional[str]
-    end_date: Optional[str]
+    status: str = "planned"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    done_at: Optional[str] = None
 
 
 @strawberry.type

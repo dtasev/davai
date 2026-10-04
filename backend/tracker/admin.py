@@ -45,15 +45,15 @@ class ProjectStatusAdmin(admin.ModelAdmin):
 
 @admin.register(Release)
 class ReleaseAdmin(admin.ModelAdmin):
-    list_display = ("name", "project", "start_date", "end_date", "created_at")
-    list_filter = ("project",)
+    list_display = ("name", "project", "status", "start_date", "end_date", "done_at", "created_at")
+    list_filter = ("project", "status")
     search_fields = ("name", "description", "project__key")
 
 
 @admin.register(Sprint)
 class SprintAdmin(admin.ModelAdmin):
-    list_display = ("name", "project", "release", "start_date", "end_date", "created_at")
-    list_filter = ("project", "release")
+    list_display = ("name", "project", "release", "status", "start_date", "end_date", "done_at", "created_at")
+    list_filter = ("project", "release", "status")
     search_fields = ("name", "description", "project__key")
 
 

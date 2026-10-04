@@ -269,11 +269,21 @@ def list_releases(project_key: str = "DAV") -> List[Dict[str, Any]]:
     """
     return get_client().list_releases(project_key=project_key)
 
+MCP_ALLOWED_SPRINT_RELEASE_STATUSES = (
+    "planned",
+    "in progress",
+)
+
+HUMAN_ONLY_SPRINT_RELEASE_STATUSES = (
+    "done",
+)
+
 @mcp_server.tool()
 def create_sprint(
     name: str,
     project_key: str = "DAV",
     description: str = "",
+    status: str = "planned",
     release_id: Optional[int] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
@@ -284,14 +294,23 @@ def create_sprint(
         name: Sprint name.
         project_key: Project key (default 'DAV').
         description: Optional sprint objective / description.
+        status: Initial sprint status ('planned', 'in progress'). Defaults to 'planned'. Note: 'done' is a human-only status via the frontend.
         release_id: Optional release ID to associate with.
         start_date: Optional start date (YYYY-MM-DD or ISO format).
         end_date: Optional end date (YYYY-MM-DD or ISO format).
     """
+    clean_status = (status or "planned").strip().lower().replace("_", " ")
+    if clean_status in HUMAN_ONLY_SPRINT_RELEASE_STATUSES:
+        raise ValueError(f"The '{clean_status}' status can only be set by a human via the frontend.")
+    if clean_status not in MCP_ALLOWED_SPRINT_RELEASE_STATUSES:
+        raise ValueError(
+            f"Invalid sprint status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_SPRINT_RELEASE_STATUSES)}."
+        )
     return get_client().create_sprint(
         name=name,
         project_key=project_key,
         description=description,
+        status=clean_status,
         release_id=release_id,
         start_date=start_date,
         end_date=end_date
@@ -303,6 +322,7 @@ def update_sprint(
     project_key: str = "DAV",
     name: Optional[str] = None,
     description: Optional[str] = None,
+    status: Optional[str] = None,
     release_id: Optional[int] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
@@ -314,6 +334,7 @@ def update_sprint(
         project_key: Project key (default 'DAV').
         name: Optional new name.
         description: Optional new description.
+        status: Optional new status ('planned', 'in progress'). Note: 'done' is a human-only status via the frontend.
         release_id: Optional release ID to associate with (pass 0 to dissociate).
         start_date: Optional start date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
         end_date: Optional end date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
@@ -323,6 +344,15 @@ def update_sprint(
         kwargs["name"] = name
     if description is not None:
         kwargs["description"] = description
+    if status is not None:
+        clean_status = status.strip().lower().replace("_", " ")
+        if clean_status in HUMAN_ONLY_SPRINT_RELEASE_STATUSES:
+            raise ValueError(f"The '{clean_status}' status can only be set by a human via the frontend.")
+        if clean_status not in MCP_ALLOWED_SPRINT_RELEASE_STATUSES:
+            raise ValueError(
+                f"Invalid sprint status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_SPRINT_RELEASE_STATUSES)}."
+            )
+        kwargs["status"] = clean_status
     if release_id is not None:
         kwargs["release_id"] = release_id
     if start_date is not None:
@@ -340,6 +370,7 @@ def create_release(
     name: str,
     project_key: str = "DAV",
     description: str = "",
+    status: str = "planned",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -349,13 +380,22 @@ def create_release(
         name: Release name/version (e.g. 'v1.0.0').
         project_key: Project key (default 'DAV').
         description: Optional release scope / notes.
+        status: Initial release status ('planned', 'in progress'). Defaults to 'planned'. Note: 'done' is a human-only status via the frontend.
         start_date: Optional start date (YYYY-MM-DD or ISO format).
         end_date: Optional end date (YYYY-MM-DD or ISO format).
     """
+    clean_status = (status or "planned").strip().lower().replace("_", " ")
+    if clean_status in HUMAN_ONLY_SPRINT_RELEASE_STATUSES:
+        raise ValueError(f"The '{clean_status}' status can only be set by a human via the frontend.")
+    if clean_status not in MCP_ALLOWED_SPRINT_RELEASE_STATUSES:
+        raise ValueError(
+            f"Invalid release status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_SPRINT_RELEASE_STATUSES)}."
+        )
     return get_client().create_release(
         name=name,
         project_key=project_key,
         description=description,
+        status=clean_status,
         start_date=start_date,
         end_date=end_date
     )
@@ -366,6 +406,7 @@ def update_release(
     project_key: str = "DAV",
     name: Optional[str] = None,
     description: Optional[str] = None,
+    status: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -376,6 +417,7 @@ def update_release(
         project_key: Project key (default 'DAV').
         name: Optional new name.
         description: Optional new description.
+        status: Optional new status ('planned', 'in progress'). Note: 'done' is a human-only status via the frontend.
         start_date: Optional start date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
         end_date: Optional end date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
     """
@@ -384,6 +426,15 @@ def update_release(
         kwargs["name"] = name
     if description is not None:
         kwargs["description"] = description
+    if status is not None:
+        clean_status = status.strip().lower().replace("_", " ")
+        if clean_status in HUMAN_ONLY_SPRINT_RELEASE_STATUSES:
+            raise ValueError(f"The '{clean_status}' status can only be set by a human via the frontend.")
+        if clean_status not in MCP_ALLOWED_SPRINT_RELEASE_STATUSES:
+            raise ValueError(
+                f"Invalid release status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_SPRINT_RELEASE_STATUSES)}."
+            )
+        kwargs["status"] = clean_status
     if start_date is not None:
         kwargs["start_date"] = start_date
     if end_date is not None:

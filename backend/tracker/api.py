@@ -10,6 +10,7 @@ from django.db import transaction, connection
 from django.db.models import Subquery, OuterRef, Value, Q
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from tracker.models import (
     WorkItem,
     Project,
@@ -27,6 +28,8 @@ from tracker.models import (
     INCIDENT_STATUSES,
     HUMAN_ONLY_INCIDENT_STATUSES,
     MONITORING_LOG_STATUSES,
+    SPRINT_RELEASE_STATUSES,
+    HUMAN_ONLY_SPRINT_RELEASE_STATUSES,
 )
 from tracker.auth import api_key_auth, generate_api_key
 
@@ -90,13 +93,19 @@ class ReleaseOut(Schema):
     project_key: str
     name: str
     description: str
+    status: str = "planned"
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    done_at: Optional[str] = None
     created_at: str
 
     @staticmethod
     def resolve_project_key(obj: Release) -> str:
         return obj.project.key
+
+    @staticmethod
+    def resolve_status(obj: Release) -> str:
+        return obj.status or "planned"
 
     @staticmethod
     def resolve_start_date(obj: Release) -> Optional[str]:
@@ -107,6 +116,10 @@ class ReleaseOut(Schema):
         return obj.end_date.isoformat() if obj.end_date else None
 
     @staticmethod
+    def resolve_done_at(obj: Release) -> Optional[str]:
+        return obj.done_at.isoformat() if obj.done_at else None
+
+    @staticmethod
     def resolve_created_at(obj: Release) -> str:
         return obj.created_at.isoformat()
 
@@ -114,6 +127,7 @@ class ReleaseOut(Schema):
 class CreateReleaseIn(Schema):
     name: str
     description: str = ""
+    status: Optional[str] = "planned"
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
 
@@ -121,6 +135,7 @@ class CreateReleaseIn(Schema):
 class UpdateReleaseIn(Schema):
     name: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
 
@@ -131,8 +146,10 @@ class SprintOut(Schema):
     release_id: Optional[int] = None
     name: str
     description: str
+    status: str = "planned"
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    done_at: Optional[str] = None
     created_at: str
 
     @staticmethod
@@ -144,12 +161,20 @@ class SprintOut(Schema):
         return obj.release_id
 
     @staticmethod
+    def resolve_status(obj: Sprint) -> str:
+        return obj.status or "planned"
+
+    @staticmethod
     def resolve_start_date(obj: Sprint) -> Optional[str]:
         return obj.start_date.isoformat() if obj.start_date else None
 
     @staticmethod
     def resolve_end_date(obj: Sprint) -> Optional[str]:
         return obj.end_date.isoformat() if obj.end_date else None
+
+    @staticmethod
+    def resolve_done_at(obj: Sprint) -> Optional[str]:
+        return obj.done_at.isoformat() if obj.done_at else None
 
     @staticmethod
     def resolve_created_at(obj: Sprint) -> str:
@@ -159,6 +184,7 @@ class SprintOut(Schema):
 class CreateSprintIn(Schema):
     name: str
     description: str = ""
+    status: Optional[str] = "planned"
     release_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
@@ -167,6 +193,7 @@ class CreateSprintIn(Schema):
 class UpdateSprintIn(Schema):
     name: Optional[str] = None
     description: Optional[str] = None
+    status: Optional[str] = None
     release_id: Optional[int] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
@@ -529,6 +556,25 @@ def list_project_statuses(request, project_key: str):
 # Sprint & Release Endpoints
 # ---------------------------------------------------------------------------
 
+def _validate_and_normalize_sprint_release_status(request, raw_status: Optional[str], default: str = "planned") -> str:
+    if not raw_status:
+        return default
+    clean_status = raw_status.strip().lower().replace("_", " ")
+    if clean_status not in SPRINT_RELEASE_STATUSES:
+        raise errors.HttpError(
+            400,
+            f"Invalid status '{raw_status}'. Allowed statuses are: {', '.join(SPRINT_RELEASE_STATUSES)}."
+        )
+    if clean_status in HUMAN_ONLY_SPRINT_RELEASE_STATUSES:
+        user_agent = request.headers.get("User-Agent", "")
+        if "Davai-MCP" in user_agent:
+            raise errors.HttpError(
+                400,
+                f"The '{clean_status}' status can only be set by a human via the frontend, not via MCP."
+            )
+    return clean_status
+
+
 @api.get("/projects/{project_key}/releases", response=List[ReleaseOut], summary="List Releases")
 def list_releases(request, project_key: str):
     project = get_object_or_404(Project, key=project_key.upper())
@@ -538,12 +584,15 @@ def list_releases(request, project_key: str):
 @api.post("/projects/{project_key}/releases", response=ReleaseOut, auth=api_key_auth, summary="Create Release")
 def create_release(request, project_key: str, payload: CreateReleaseIn):
     project = get_object_or_404(Project, key=project_key.upper())
+    clean_status = _validate_and_normalize_sprint_release_status(request, payload.status, default="planned")
     return Release.objects.create(
         project=project,
         name=payload.name,
         description=payload.description,
+        status=clean_status,
         start_date=payload.start_date,
-        end_date=payload.end_date
+        end_date=payload.end_date,
+        done_at=timezone.now() if clean_status == "done" else None,
     )
 
 
@@ -555,6 +604,14 @@ def update_release(request, project_key: str, release_id: int, payload: UpdateRe
         release.name = payload.name
     if payload.description is not None:
         release.description = payload.description
+    if payload.status is not None:
+        clean_status = _validate_and_normalize_sprint_release_status(request, payload.status)
+        if clean_status == "done":
+            if release.status != "done" or not release.done_at:
+                release.done_at = timezone.now()
+        else:
+            release.done_at = None
+        release.status = clean_status
     if "start_date" in payload.model_fields_set:
         release.start_date = payload.start_date
     if "end_date" in payload.model_fields_set:
@@ -583,14 +640,17 @@ def create_sprint(request, project_key: str, payload: CreateSprintIn):
     release = None
     if payload.release_id:
         release = get_object_or_404(Release, id=payload.release_id, project=project)
+    clean_status = _validate_and_normalize_sprint_release_status(request, payload.status, default="planned")
 
     return Sprint.objects.create(
         project=project,
         release=release,
         name=payload.name,
         description=payload.description,
+        status=clean_status,
         start_date=payload.start_date,
-        end_date=payload.end_date
+        end_date=payload.end_date,
+        done_at=timezone.now() if clean_status == "done" else None,
     )
 
 
@@ -602,6 +662,14 @@ def update_sprint(request, project_key: str, sprint_id: int, payload: UpdateSpri
         sprint.name = payload.name
     if payload.description is not None:
         sprint.description = payload.description
+    if payload.status is not None:
+        clean_status = _validate_and_normalize_sprint_release_status(request, payload.status)
+        if clean_status == "done":
+            if sprint.status != "done" or not sprint.done_at:
+                sprint.done_at = timezone.now()
+        else:
+            sprint.done_at = None
+        sprint.status = clean_status
     if payload.release_id is not None:
         if payload.release_id == 0:
             sprint.release = None

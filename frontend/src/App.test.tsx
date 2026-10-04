@@ -114,6 +114,7 @@ describe('Davai Frontend App with React Router', () => {
           } as Response)
         }
         if (urlStr.includes('/api/projects/DAV/sprints/1')) {
+          const newStatus = body.status || 'planned'
           return Promise.resolve({
             ok: true,
             json: () =>
@@ -126,6 +127,8 @@ describe('Davai Frontend App with React Router', () => {
                   body.description !== undefined
                     ? body.description
                     : 'Bootstrap MVP sprint',
+                status: newStatus,
+                done_at: newStatus === 'done' ? '2026-10-04T12:00:00Z' : null,
                 start_date: body.start_date !== undefined ? body.start_date : '2026-09-20T00:00:00Z',
                 end_date: body.end_date !== undefined ? body.end_date : '2026-10-04T00:00:00Z',
                 created_at: '2026-09-20T00:00:00Z',
@@ -133,6 +136,7 @@ describe('Davai Frontend App with React Router', () => {
           } as Response)
         }
         if (urlStr.includes('/api/projects/DAV/releases/1')) {
+          const newStatus = body.status || 'planned'
           return Promise.resolve({
             ok: true,
             json: () =>
@@ -144,6 +148,8 @@ describe('Davai Frontend App with React Router', () => {
                   body.description !== undefined
                     ? body.description
                     : 'Initial MVP release milestone',
+                status: newStatus,
+                done_at: newStatus === 'done' ? '2026-10-04T15:00:00Z' : null,
                 start_date: body.start_date !== undefined ? body.start_date : '2026-09-20T00:00:00Z',
                 end_date: body.end_date !== undefined ? body.end_date : '2026-10-15T00:00:00Z',
                 created_at: '2026-09-20T00:00:00Z',
@@ -2027,6 +2033,203 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('monitoring-log-list-view')).toBeInTheDocument()
     })
     expect(screen.getByTestId('monitoring-log-item-DAV-LOG-1')).toBeInTheDocument()
+  })
+
+  it('marks sprints and releases as Done with done_at date, removes them from project view, and opens All Sprints / All Releases modals sorted with null done_at on top', async () => {
+    const origFetch = globalThis.fetch
+    let sprintsData = [
+      {
+        id: 1,
+        project_key: 'DAV',
+        release_id: 1,
+        name: 'Sprint 1 - Active',
+        description: 'Currently active sprint',
+        status: 'in progress',
+        done_at: null as string | null,
+        start_date: '2026-09-20T00:00:00Z',
+        end_date: '2026-10-04T00:00:00Z',
+        created_at: '2026-09-20T00:00:00Z',
+      },
+      {
+        id: 2,
+        project_key: 'DAV',
+        release_id: 1,
+        name: 'Sprint 0 - Old Done',
+        description: 'Older completed sprint',
+        status: 'done',
+        done_at: '2026-09-10T10:00:00Z',
+        start_date: '2026-09-01T00:00:00Z',
+        end_date: '2026-09-10T00:00:00Z',
+        created_at: '2026-09-01T00:00:00Z',
+      },
+      {
+        id: 3,
+        project_key: 'DAV',
+        release_id: 1,
+        name: 'Sprint 0.5 - Recent Done',
+        description: 'More recently completed sprint',
+        status: 'done',
+        done_at: '2026-09-18T10:00:00Z',
+        start_date: '2026-09-11T00:00:00Z',
+        end_date: '2026-09-18T00:00:00Z',
+        created_at: '2026-09-11T00:00:00Z',
+      },
+    ]
+
+    let releasesData = [
+      {
+        id: 1,
+        project_key: 'DAV',
+        name: 'v0.2.0 - Planned',
+        description: 'Upcoming release',
+        status: 'planned',
+        done_at: null as string | null,
+        start_date: '2026-10-01T00:00:00Z',
+        end_date: '2026-10-15T00:00:00Z',
+        created_at: '2026-10-01T00:00:00Z',
+      },
+      {
+        id: 2,
+        project_key: 'DAV',
+        name: 'v0.1.0 - Done',
+        description: 'Initial shipped release',
+        status: 'done',
+        done_at: '2026-09-15T12:00:00Z',
+        start_date: '2026-09-01T00:00:00Z',
+        end_date: '2026-09-15T00:00:00Z',
+        created_at: '2026-09-01T00:00:00Z',
+      },
+    ]
+
+    globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = url.toString()
+      const method = init?.method?.toUpperCase() || 'GET'
+      if (method === 'GET' && urlStr.includes('/api/projects/DAV/sprints')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(sprintsData),
+        } as Response)
+      }
+      if (method === 'GET' && urlStr.includes('/api/projects/DAV/releases')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(releasesData),
+        } as Response)
+      }
+      if (method === 'PATCH' && urlStr.includes('/api/projects/DAV/sprints/1')) {
+        const body = init?.body ? JSON.parse(init.body as string) : {}
+        sprintsData[0] = {
+          ...sprintsData[0],
+          status: body.status || sprintsData[0].status,
+          done_at: body.status === 'done' ? '2026-10-04T18:00:00Z' : null,
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(sprintsData[0]),
+        } as Response)
+      }
+      if (method === 'PATCH' && urlStr.includes('/api/projects/DAV/releases/1')) {
+        const body = init?.body ? JSON.parse(init.body as string) : {}
+        releasesData[0] = {
+          ...releasesData[0],
+          status: body.status || releasesData[0].status,
+          done_at: body.status === 'done' ? '2026-10-04T19:00:00Z' : null,
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(releasesData[0]),
+        } as Response)
+      }
+      return origFetch(url, init)
+    })
+
+    const { router } = await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // Done sprints (2, 3) and done releases (2) are NOT shown on the project view page
+    expect(screen.getByTestId('sprint-card-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('sprint-card-2')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('sprint-card-3')).not.toBeInTheDocument()
+    expect(screen.getByTestId('release-card-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('release-card-2')).not.toBeInTheDocument()
+
+    // Click Sprints header to open All Sprints modal
+    fireEvent.click(screen.getByTestId('open-all-sprints-modal'))
+    const allSprintsList = await screen.findByTestId('all-sprints-list')
+    const sprintItems = within(allSprintsList).getAllByTestId(/^all-sprint-item-/)
+    // Sorted: id 1 (done_at: null) on top, then id 3 (done_at: Sep 18), then id 2 (done_at: Sep 10)
+    expect(sprintItems.map(el => el.getAttribute('data-testid'))).toEqual([
+      'all-sprint-item-1',
+      'all-sprint-item-3',
+      'all-sprint-item-2',
+    ])
+
+    // Clicking an entry in All Sprints modal opens SprintDetailModal
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('all-sprint-item-1'))
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV/sprints/1')
+      expect(screen.getByTestId('sprint-status-display')).toHaveTextContent('In Progress')
+    })
+
+    // Mark Sprint 1 as Done via Mark as Done button
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('mark-sprint-done-button'))
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('sprint-status-display')).toHaveTextContent('Done')
+      expect(screen.getByTestId('sprint-done-at')).toBeInTheDocument()
+    })
+
+    // Close SprintDetailModal -> Sprint 1 is now removed from the project view page!
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Close/i }))
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+      expect(screen.queryByTestId('sprint-card-1')).not.toBeInTheDocument()
+    })
+
+    // Click Releases header to open All Releases modal
+    fireEvent.click(screen.getByTestId('open-all-releases-modal'))
+    const allReleasesList = await screen.findByTestId('all-releases-list')
+    const releaseItems = within(allReleasesList).getAllByTestId(/^all-release-item-/)
+    // Sorted: id 1 (done_at: null) on top, then id 2 (done_at: Sep 15)
+    expect(releaseItems.map(el => el.getAttribute('data-testid'))).toEqual([
+      'all-release-item-1',
+      'all-release-item-2',
+    ])
+
+    // Click Release 1 in All Releases modal -> opens ReleaseDetailModal
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('all-release-item-1'))
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV/releases/1')
+      expect(screen.getByTestId('release-status-display')).toHaveTextContent('Planned')
+    })
+
+    // Mark Release 1 as Done via Mark as Done button
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('mark-release-done-button'))
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('release-status-display')).toHaveTextContent('Done')
+      expect(screen.getByTestId('release-done-at')).toBeInTheDocument()
+    })
+
+    // Close ReleaseDetailModal -> Release 1 is now removed from the project view page!
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Close/i }))
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+      expect(screen.queryByTestId('release-card-1')).not.toBeInTheDocument()
+    })
   })
 })
 

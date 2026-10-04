@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, ChangeEvent } from 'react'
 import { Zap, Calendar, Target, ListTodo, ChevronRight, Trash2, AlertTriangle, Check } from 'lucide-react'
-import { Sprint, Release, WorkItem } from '../../types'
-import { PriorityBadge, StatusBadge } from '../Common/Badge'
+import { Sprint, Release, WorkItem, DEFAULT_SPRINT_RELEASE_STATUSES } from '../../types'
+import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 
 interface SprintDetailModalProps {
@@ -14,6 +14,7 @@ interface SprintDetailModalProps {
   onUpdate?: (data: {
     name?: string
     description?: string
+    status?: string
     start_date?: string | null
     end_date?: string | null
   }) => Promise<void>
@@ -33,6 +34,7 @@ export function SprintDetailModal({
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(sprint?.name || '')
   const [editDescription, setEditDescription] = useState(sprint?.description || '')
+  const [editStatus, setEditStatus] = useState(sprint?.status || 'planned')
   const [editStartDate, setEditStartDate] = useState(
     sprint?.start_date ? sprint.start_date.slice(0, 10) : ''
   )
@@ -45,12 +47,15 @@ export function SprintDetailModal({
     if (sprint) {
       setEditName(sprint.name)
       setEditDescription(sprint.description || '')
+      setEditStatus(sprint.status || 'planned')
       setEditStartDate(sprint.start_date ? sprint.start_date.slice(0, 10) : '')
       setEditEndDate(sprint.end_date ? sprint.end_date.slice(0, 10) : '')
     }
-  }, [sprint?.id, sprint?.name, sprint?.description, sprint?.start_date, sprint?.end_date])
+  }, [sprint?.id, sprint?.name, sprint?.description, sprint?.status, sprint?.start_date, sprint?.end_date])
 
   if (!sprint) return null
+
+  const currentStatus = (sprint.status || 'planned').toLowerCase()
 
   const handleSave = async () => {
     if (!onUpdate || !editName.trim()) return
@@ -59,6 +64,7 @@ export function SprintDetailModal({
       await onUpdate({
         name: editName.trim(),
         description: editDescription.trim(),
+        status: editStatus,
         start_date: editStartDate ? editStartDate : null,
         end_date: editEndDate ? editEndDate : null
       })
@@ -72,10 +78,20 @@ export function SprintDetailModal({
     if (sprint) {
       setEditName(sprint.name)
       setEditDescription(sprint.description || '')
+      setEditStatus(sprint.status || 'planned')
       setEditStartDate(sprint.start_date ? sprint.start_date.slice(0, 10) : '')
       setEditEndDate(sprint.end_date ? sprint.end_date.slice(0, 10) : '')
     }
     setIsEditing(false)
+  }
+
+  const handleStatusChange = async (e: ChangeEvent<HTMLSelectElement>) => {
+    const newStatus = e.target.value
+    if (isEditing) {
+      setEditStatus(newStatus)
+    } else if (onUpdate) {
+      await onUpdate({ status: newStatus })
+    }
   }
 
   const linkedRelease = releases.find(r => r.id === sprint.release_id)
@@ -111,6 +127,23 @@ export function SprintDetailModal({
                 <span>{isSaving ? 'Saving...' : 'Save'}</span>
               </button>
             </>
+          )}
+          {onUpdate && (
+            <button
+              type="button"
+              disabled={currentStatus === 'done'}
+              onClick={() => onUpdate({ status: 'done' })}
+              title={currentStatus === 'done' ? 'Sprint is Done' : 'Mark sprint as Done (Frontend-only)'}
+              aria-label={currentStatus === 'done' ? 'Sprint is Done' : 'Mark sprint as Done'}
+              data-testid="mark-sprint-done-button"
+              className={`p-1.5 rounded-lg transition ${
+                currentStatus === 'done'
+                  ? 'text-emerald-400 cursor-default'
+                  : 'text-zinc-500 hover:text-emerald-400 hover:bg-zinc-800 cursor-pointer'
+              }`}
+            >
+              <Check className="w-4 h-4" />
+            </button>
           )}
           {onDelete && (
             <button
@@ -158,7 +191,7 @@ export function SprintDetailModal({
         </div>
       }
     >
-      <div className="space-y-3.5">
+      <div className="space-y-3.5" data-testid="sprint-detail-modal">
         {showDeleteConfirm && (
           <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 text-rose-300 text-sm font-medium">
@@ -196,52 +229,85 @@ export function SprintDetailModal({
         )}
         {/* Info Strip */}
         <div className="flex flex-wrap items-center justify-between gap-2.5 p-2.5 bg-zinc-950/70 border border-zinc-800 rounded-lg text-sm">
-          {isEditing ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-zinc-400">Start:</span>
-                <input
-                  type="date"
-                  data-testid="edit-sprint-start-date-input"
-                  aria-label="Edit Sprint Start Date"
-                  value={editStartDate}
-                  onChange={e => setEditStartDate(e.target.value)}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px] text-zinc-400">End:</span>
-                <input
-                  type="date"
-                  data-testid="edit-sprint-end-date-input"
-                  aria-label="Edit Sprint End Date"
-                  value={editEndDate}
-                  onChange={e => setEditEndDate(e.target.value)}
-                  className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
-                />
-              </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Status */}
+            <div className="flex items-center gap-1.5" data-testid="sprint-status-display">
+              <span className="text-[11px] text-zinc-500">Status:</span>
+              {onUpdate ? (
+                <select
+                  value={isEditing ? editStatus : (sprint.status || 'planned')}
+                  onChange={handleStatusChange}
+                  data-testid="sprint-status-select"
+                  aria-label="Sprint Status"
+                  className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 focus:outline-none cursor-pointer"
+                >
+                  {DEFAULT_SPRINT_RELEASE_STATUSES.map(st => (
+                    <option key={st.id || st.name} value={st.name}>
+                      {formatStatus(st.name)}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <StatusBadge status={isEditing ? editStatus : (sprint.status || 'planned')} />
             </div>
-          ) : (
-            <div
-              onClick={() => onUpdate && setIsEditing(true)}
-              title={onUpdate ? 'Click to edit dates' : undefined}
-              data-testid="sprint-date-display"
-              className={`flex items-center gap-2 text-zinc-400 ${
-                onUpdate ? 'cursor-pointer hover:text-indigo-400 transition' : ''
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5 text-zinc-500" />
-              <span>
-                {sprint.start_date
-                  ? `${new Date(sprint.start_date).toLocaleDateString()} - ${
-                      sprint.end_date
-                        ? new Date(sprint.end_date).toLocaleDateString()
-                        : 'Ongoing'
-                    }`
-                  : 'Unscheduled'}
+
+            {sprint.done_at && (
+              <span
+                data-testid="sprint-done-at"
+                className="text-[11px] text-emerald-400 flex items-center gap-1 bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-800/30"
+              >
+                <Check className="w-3 h-3" />
+                <span>Done {new Date(sprint.done_at).toLocaleDateString()}</span>
               </span>
-            </div>
-          )}
+            )}
+
+            {isEditing ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-zinc-400">Start:</span>
+                  <input
+                    type="date"
+                    data-testid="edit-sprint-start-date-input"
+                    aria-label="Edit Sprint Start Date"
+                    value={editStartDate}
+                    onChange={e => setEditStartDate(e.target.value)}
+                    className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] text-zinc-400">End:</span>
+                  <input
+                    type="date"
+                    data-testid="edit-sprint-end-date-input"
+                    aria-label="Edit Sprint End Date"
+                    value={editEndDate}
+                    onChange={e => setEditEndDate(e.target.value)}
+                    className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 ring-1 ring-indigo-500 text-sm text-zinc-200 focus:outline-none"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => onUpdate && setIsEditing(true)}
+                title={onUpdate ? 'Click to edit dates' : undefined}
+                data-testid="sprint-date-display"
+                className={`flex items-center gap-2 text-zinc-400 ${
+                  onUpdate ? 'cursor-pointer hover:text-indigo-400 transition' : ''
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-zinc-500" />
+                <span>
+                  {sprint.start_date
+                    ? `${new Date(sprint.start_date).toLocaleDateString()} - ${
+                        sprint.end_date
+                          ? new Date(sprint.end_date).toLocaleDateString()
+                          : 'Ongoing'
+                      }`
+                    : 'Unscheduled'}
+                </span>
+              </div>
+            )}
+          </div>
 
           {linkedRelease && (
             <div className="flex items-center gap-1 text-[11px] text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/30 leading-none">

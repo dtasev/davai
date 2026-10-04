@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Dispatch, SetStateAction } from 'react'
+import { useState, useEffect, useCallback, startTransition, Dispatch, SetStateAction } from 'react'
 import { useParams, useNavigate, useLocation, Outlet } from 'react-router-dom'
 import {
   Project,
@@ -44,11 +44,11 @@ export interface ProjectDetailOutletContext {
   handleDeleteMonitoringLog: (key: string) => Promise<void>
   handleUpdateSprint: (
     sprintId: number,
-    data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
+    data: { name?: string; description?: string; status?: string; start_date?: string | null; end_date?: string | null }
   ) => Promise<Sprint>
   handleUpdateRelease: (
     releaseId: number,
-    data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
+    data: { name?: string; description?: string; status?: string; start_date?: string | null; end_date?: string | null }
   ) => Promise<Release>
   handleUpdateWorkItemDetails: (
     key: string,
@@ -138,8 +138,10 @@ export function ProjectDetailRoute() {
   }, [location.pathname])
 
   const handleSelectQuickJumpItem = (item: WorkItem) => {
-    setIsQuickJumpOpen(false)
-    navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)
+    startTransition(() => {
+      setIsQuickJumpOpen(false)
+      navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)
+    })
   }
 
   const currentProject = projects.find(p => p.key === projectKey?.toUpperCase()) || null
@@ -436,7 +438,7 @@ export function ProjectDetailRoute() {
 
   const handleUpdateSprint = async (
     sprintId: number,
-    data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
+    data: { name?: string; description?: string; status?: string; start_date?: string | null; end_date?: string | null }
   ) => {
     if (!projectKey) throw new Error('No project selected')
     const res = await apiFetch(`/api/projects/${projectKey}/sprints/${sprintId}`, {
@@ -448,8 +450,25 @@ export function ProjectDetailRoute() {
     })
     if (res.ok) {
       const updated: Sprint = await res.json()
-      setSprints(prev => prev.map(s => (s.id === sprintId ? updated : s)))
-      return updated
+      let mergedResult: Sprint = updated
+      setSprints(prev =>
+        prev.map(s => {
+          if (s.id !== sprintId) return s
+          const nextStatus = updated.status ?? data.status ?? s.status ?? 'planned'
+          const isDone = nextStatus.toLowerCase() === 'done'
+          const nextDoneAt = isDone
+            ? updated.done_at ?? s.done_at ?? new Date().toISOString()
+            : null
+          mergedResult = {
+            ...s,
+            ...updated,
+            status: nextStatus,
+            done_at: nextDoneAt
+          }
+          return mergedResult
+        })
+      )
+      return mergedResult
     } else {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.message || 'Failed to update sprint')
@@ -458,7 +477,7 @@ export function ProjectDetailRoute() {
 
   const handleUpdateRelease = async (
     releaseId: number,
-    data: { name?: string; description?: string; start_date?: string | null; end_date?: string | null }
+    data: { name?: string; description?: string; status?: string; start_date?: string | null; end_date?: string | null }
   ) => {
     if (!projectKey) throw new Error('No project selected')
     const res = await apiFetch(`/api/projects/${projectKey}/releases/${releaseId}`, {
@@ -470,8 +489,25 @@ export function ProjectDetailRoute() {
     })
     if (res.ok) {
       const updated: Release = await res.json()
-      setReleases(prev => prev.map(r => (r.id === releaseId ? updated : r)))
-      return updated
+      let mergedResult: Release = updated
+      setReleases(prev =>
+        prev.map(r => {
+          if (r.id !== releaseId) return r
+          const nextStatus = updated.status ?? data.status ?? r.status ?? 'planned'
+          const isDone = nextStatus.toLowerCase() === 'done'
+          const nextDoneAt = isDone
+            ? updated.done_at ?? r.done_at ?? new Date().toISOString()
+            : null
+          mergedResult = {
+            ...r,
+            ...updated,
+            status: nextStatus,
+            done_at: nextDoneAt
+          }
+          return mergedResult
+        })
+      )
+      return mergedResult
     } else {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.message || 'Failed to update release')
