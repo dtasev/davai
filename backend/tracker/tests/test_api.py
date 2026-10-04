@@ -255,7 +255,7 @@ class TestNinjaAPI:
         assert len(proj_data["statuses"]) == 7
 
         # Fetch statuses
-        statuses_res = ninja_client.get("/projects/CORE/statuses")
+        statuses_res = ninja_client.get("/projects/CORE/statuses", headers={"X-API-Key": raw_key})
         assert statuses_res.status_code == 200
         statuses = statuses_res.json()
         assert [s["name"] for s in statuses] == ["todo", "planned", "in progress", "blocked", "review", "done", "cancelled"]
@@ -339,20 +339,20 @@ class TestNinjaAPI:
         assert updated["priority"] == "LOW"
 
         # 4. Fetch parent item - verify subtasks are included as a list view with key and title
-        get_parent = ninja_client.get(f"/work-items/{parent_key}")
+        get_parent = ninja_client.get(f"/work-items/{parent_key}", headers={"X-API-Key": raw_key})
         assert get_parent.status_code == 200
         parent_data = get_parent.json()
         assert "subtasks" in parent_data
         assert parent_data["subtasks"] == [{"key": child_key, "title": "Subtask 1"}]
 
         # 5. Fetch child item - verify child has empty subtasks list
-        get_child = ninja_client.get(f"/work-items/{child_key}")
+        get_child = ninja_client.get(f"/work-items/{child_key}", headers={"X-API-Key": raw_key})
         assert get_child.status_code == 200
         child_data = get_child.json()
         assert child_data["subtasks"] == []
 
         # 6. List work items - verify subtasks are present in list results
-        list_res = ninja_client.get(f"/work-items?project_key={test_project.key}")
+        list_res = ninja_client.get(f"/work-items?project_key={test_project.key}", headers={"X-API-Key": raw_key})
         assert list_res.status_code == 200
         items_map = {item["key"]: item for item in list_res.json()}
         assert items_map[parent_key]["subtasks"] == [{"key": child_key, "title": "Subtask 1"}]
@@ -381,7 +381,7 @@ class TestNinjaAPI:
         assert put_ctx.json()["summary"] == ctx_markdown
 
         # 3. Get Context
-        get_ctx = ninja_client.get(f"/work-items/{item_key}/context")
+        get_ctx = ninja_client.get(f"/work-items/{item_key}/context", headers={"X-API-Key": raw_key})
         assert get_ctx.status_code == 200
         assert get_ctx.json()["summary"] == ctx_markdown
         assert get_ctx.json()["user"] == test_user.username
@@ -409,7 +409,7 @@ class TestNinjaAPI:
         assert "updated_at" in prog_data
 
         # 5. List progress
-        prog_list_res = ninja_client.get(f"/work-items/{item_key}/progress")
+        prog_list_res = ninja_client.get(f"/work-items/{item_key}/progress", headers={"X-API-Key": raw_key})
         assert prog_list_res.status_code == 200
         assert len(prog_list_res.json()) == 1
         assert prog_list_res.json()[0]["summary"] == "Implemented models and ran migrations"
@@ -474,7 +474,7 @@ class TestNinjaAPI:
         assert "Fact 1" not in res2.json()["summary"]
 
         # Confirm via GET that database stores only the latest state
-        get_res = ninja_client.get(f"/work-items/{item_key}/context")
+        get_res = ninja_client.get(f"/work-items/{item_key}/context", headers={"X-API-Key": raw_key})
         assert get_res.status_code == 200
         assert get_res.json()["summary"] == "Fact 2: Replaced architecture constraint"
         assert "Fact 1" not in get_res.json()["summary"]
@@ -519,7 +519,7 @@ class TestNinjaAPI:
         assert del_wi.json()["success"] is True
 
         # Verify 404 after deletion
-        assert ninja_client.get(f"/work-items/{wi_key}").status_code == 404
+        assert ninja_client.get(f"/work-items/{wi_key}", headers={"X-API-Key": raw_key}).status_code == 404
 
     def test_update_sprint_and_release(self, ninja_client, test_user, test_api_key):
         _, raw_key = test_api_key
@@ -672,17 +672,18 @@ class TestNinjaAPI:
         assert del_res.json()["success"] is True
 
         # Verify entry is completely gone from list
-        list_res = ninja_client.get(f"/work-items/{item_key}/progress")
+        list_res = ninja_client.get(f"/work-items/{item_key}/progress", headers={"X-API-Key": raw_key})
         assert list_res.status_code == 200
         assert len(list_res.json()) == 0
 
         # Verify work item details has 0 progress entries
-        get_wi = ninja_client.get(f"/work-items/{item_key}")
+        get_wi = ninja_client.get(f"/work-items/{item_key}", headers={"X-API-Key": raw_key})
         assert get_wi.status_code == 200
         assert len(get_wi.json()["progress"]) == 0
 
-    def test_list_users_optimized(self, ninja_client, test_user):
-        res = ninja_client.get("/users")
+    def test_list_users_optimized(self, ninja_client, test_user, test_api_key):
+        _, raw_key = test_api_key
+        res = ninja_client.get("/users", headers={"X-API-Key": raw_key})
         assert res.status_code == 200
         data = res.json()
         assert isinstance(data, list)
@@ -691,7 +692,7 @@ class TestNinjaAPI:
         assert user_item == {"id": test_user.id, "username": test_user.username}
 
         # Accepts project argument as well
-        res_with_project = ninja_client.get("/users?project=DAV")
+        res_with_project = ninja_client.get("/users?project=DAV", headers={"X-API-Key": raw_key})
         assert res_with_project.status_code == 200
         data_with_project = res_with_project.json()
         assert isinstance(data_with_project, list)
@@ -765,7 +766,7 @@ class TestNinjaAPI:
         assert patch_res4.status_code == 200
         assert patch_res4.json()["active_assignee"] is None
 
-    def test_unauthenticated_modifying_operations_require_auth_and_gets_are_open(
+    def test_unauthenticated_requests_require_auth(
         self, ninja_client, test_user, test_project, test_api_key
     ):
         _, raw_key = test_api_key
@@ -779,7 +780,7 @@ class TestNinjaAPI:
         assert create_res.status_code == 200
         item_key = create_res.json()["key"]
 
-        # 1. Verify GET operations are open without auth
+        # 1. Verify GET operations require auth and return 401 when unauthenticated
         get_endpoints = [
             "/work-items",
             "/work-items/preview",
@@ -789,11 +790,19 @@ class TestNinjaAPI:
             f"/projects/{test_project.key}/statuses",
             f"/projects/{test_project.key}/releases",
             f"/projects/{test_project.key}/sprints",
+            f"/projects/{test_project.key}/incidents",
+            f"/projects/{test_project.key}/monitoring-logs",
+            "/incidents",
+            "/monitoring-logs",
+            "/search",
             "/users",
         ]
         for endpoint in get_endpoints:
             res = ninja_client.get(endpoint)
-            assert res.status_code == 200, f"Expected 200 for open GET {endpoint}, got {res.status_code}"
+            assert res.status_code == 401, f"Expected 401 for unauthenticated GET {endpoint}, got {res.status_code}"
+
+            auth_res = ninja_client.get(endpoint, headers={"X-API-Key": raw_key})
+            assert auth_res.status_code == 200, f"Expected 200 for authenticated GET {endpoint}, got {auth_res.status_code}"
 
         # 2. Verify modifying operations require auth and return 401 when unauthenticated
         mutating_requests = [
@@ -871,18 +880,19 @@ class TestNinjaAPI:
         assert res_human.json()["status"] == "done"
 
         # Verify work item status is now "done"
-        get_res = ninja_client.get(f"/work-items/{item_key}")
+        get_res = ninja_client.get(f"/work-items/{item_key}", headers={"X-API-Key": raw_key})
         assert get_res.status_code == 200
         assert get_res.json()["status"] == "done"
 
     def test_work_item_status_derived_and_filtering(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
 
         # Item 1: No progress entries -> defaults to "todo"
         item1_res = ninja_client.post(
             "/work-items",
             json={"title": "Item Todo Only", "project_key": test_project.key},
-            headers={"X-API-Key": raw_key}
+            headers=headers
         )
         key1 = item1_res.json()["key"]
         assert item1_res.json()["status"] == "todo"
@@ -891,49 +901,50 @@ class TestNinjaAPI:
         item2_res = ninja_client.post(
             "/work-items",
             json={"title": "Item Planned", "project_key": test_project.key},
-            headers={"X-API-Key": raw_key}
+            headers=headers
         )
         key2 = item2_res.json()["key"]
         ninja_client.post(
             f"/work-items/{key2}/progress",
             json={"summary": "Plan ready", "status": "planned"},
-            headers={"X-API-Key": raw_key}
+            headers=headers
         )
 
         # Item 3: Progress entry with "in progress"
         item3_res = ninja_client.post(
             "/work-items",
             json={"title": "Item In Progress", "project_key": test_project.key},
-            headers={"X-API-Key": raw_key}
+            headers=headers
         )
         key3 = item3_res.json()["key"]
         ninja_client.post(
             f"/work-items/{key3}/progress",
             json={"summary": "Step 1 done", "status": "in progress"},
-            headers={"X-API-Key": raw_key}
+            headers=headers
         )
 
         # Filter by status=todo
-        todo_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=todo")
+        todo_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=todo", headers=headers)
         todo_keys = [i["key"] for i in todo_res.json()]
         assert key1 in todo_keys
         assert key2 not in todo_keys
         assert key3 not in todo_keys
 
         # Filter by status=planned
-        planned_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=planned")
+        planned_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=planned", headers=headers)
         planned_keys = [i["key"] for i in planned_res.json()]
         assert key2 in planned_keys
         assert key1 not in planned_keys
 
         # Filter by status=in progress
-        step_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=in progress")
+        step_res = ninja_client.get(f"/work-items?project_key={test_project.key}&status=in progress", headers=headers)
         step_keys = [i["key"] for i in step_res.json()]
         assert key3 in step_keys
         assert key1 not in step_keys
 
     def test_work_items_list_omits_details_and_detail_endpoint_includes_them(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
 
         # Create work item with description and context
         res = ninja_client.post(
@@ -944,7 +955,7 @@ class TestNinjaAPI:
                 "context": "Full technical plan markdown",
                 "project_key": test_project.key,
             },
-            headers={"X-API-Key": raw_key},
+            headers=headers,
         )
         assert res.status_code == 200
         item_key = res.json()["key"]
@@ -953,12 +964,12 @@ class TestNinjaAPI:
         prog_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
             json={"summary": "Progress entry 1", "status": "in progress"},
-            headers={"X-API-Key": raw_key},
+            headers=headers,
         )
         assert prog_res.status_code == 200
 
         # Verify GET /work-items omits description, context, and progress
-        list_res = ninja_client.get(f"/work-items?project_key={test_project.key}")
+        list_res = ninja_client.get(f"/work-items?project_key={test_project.key}", headers=headers)
         assert list_res.status_code == 200
         items = list_res.json()
         target = next(i for i in items if i["key"] == item_key)
@@ -968,7 +979,7 @@ class TestNinjaAPI:
         assert target["title"] == "Item With Details"
 
         # Verify GET /work-items/{key} includes full details
-        detail_res = ninja_client.get(f"/work-items/{item_key}")
+        detail_res = ninja_client.get(f"/work-items/{item_key}", headers=headers)
         assert detail_res.status_code == 200
         detail = detail_res.json()
         assert detail["description"] == "Full description markdown text"
@@ -1144,7 +1155,7 @@ class TestNinjaAPI:
         log_id = log_data["id"]
 
         # 4. Get incident by key and numeric id -> serializes linked log IDs without description
-        get_inc = ninja_client.get(f"/incidents/{inc_key}")
+        get_inc = ninja_client.get(f"/incidents/{inc_key}", headers=headers)
         assert get_inc.status_code == 200
         get_inc_data = get_inc.json()
         assert get_inc_data["monitoring_log_ids"] == [log_id]
@@ -1154,16 +1165,16 @@ class TestNinjaAPI:
         assert get_inc_data["monitoring_logs"][0]["key"] == log_key
         assert "description" not in get_inc_data["monitoring_logs"][0]
 
-        get_inc_by_id = ninja_client.get(f"/incidents/{inc_id}")
+        get_inc_by_id = ninja_client.get(f"/incidents/{inc_id}", headers=headers)
         assert get_inc_by_id.status_code == 200
         assert get_inc_by_id.json()["key"] == inc_key
 
         # 5. Get monitoring log by key and numeric id -> includes full description
-        get_log = ninja_client.get(f"/monitoring-logs/{log_key}")
+        get_log = ninja_client.get(f"/monitoring-logs/{log_key}", headers=headers)
         assert get_log.status_code == 200
         assert "exceeded threshold 800" in get_log.json()["description"]
 
-        get_log_by_id = ninja_client.get(f"/monitoring-logs/{log_id}")
+        get_log_by_id = ninja_client.get(f"/monitoring-logs/{log_id}", headers=headers)
         assert get_log_by_id.status_code == 200
         assert get_log_by_id.json()["key"] == log_key
 
@@ -1220,13 +1231,14 @@ class TestNinjaAPI:
         from tracker.embedding import flush_indexing_queue
         flush_indexing_queue()
 
-        search_res = ninja_client.get(f"/projects/{test_project.key}/incidents/search?q=Legacy+NFS")
+        search_res = ninja_client.get(f"/projects/{test_project.key}/incidents/search?q=Legacy+NFS", headers=headers)
         assert search_res.status_code == 200
         search_keys = [r["incident"]["key"] for r in search_res.json()["results"]]
         assert inc2_key not in search_keys
 
         search_kw = ninja_client.get(
-            f"/projects/{test_project.key}/incidents/search?q=Legacy&mode=keyword&status=no+longer+relevant"
+            f"/projects/{test_project.key}/incidents/search?q=Legacy&mode=keyword&status=no+longer+relevant",
+            headers=headers
         )
         assert search_kw.status_code == 200
         assert search_kw.json()["total"] == 0

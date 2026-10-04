@@ -91,7 +91,10 @@ class TestVectorSearchAndEmbedding:
         item.refresh_from_db()
         assert item.embedding.content_hash != original_hash
 
-    def test_search_api_hybrid_and_modes(self, ninja_client, test_project, test_user):
+    def test_search_api_hybrid_and_modes(self, ninja_client, test_project, test_user, test_api_key):
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+
         # Create work items with distinctive topics
         item1 = WorkItem.objects.create(
             project=test_project,
@@ -112,7 +115,7 @@ class TestVectorSearchAndEmbedding:
         flush_indexing_queue()
 
         # 1. Search with semantic query in project
-        res = ninja_client.get(f"/projects/{test_project.key}/search?q=k8s+cluster+networking")
+        res = ninja_client.get(f"/projects/{test_project.key}/search?q=k8s+cluster+networking", headers=headers)
         assert res.status_code == 200
         data = res.json()
         assert data["mode"] == "hybrid"
@@ -122,7 +125,7 @@ class TestVectorSearchAndEmbedding:
         assert top["score"] == 1.0
 
         # 2. Search mode=keyword
-        res_kw = ninja_client.get(f"/projects/{test_project.key}/search?q=flexbox&mode=keyword")
+        res_kw = ninja_client.get(f"/projects/{test_project.key}/search?q=flexbox&mode=keyword", headers=headers)
         assert res_kw.status_code == 200
         data_kw = res_kw.json()
         assert data_kw["mode"] == "keyword"
@@ -131,20 +134,20 @@ class TestVectorSearchAndEmbedding:
         assert data_kw["results"][0]["match_type"] == "keyword"
 
         # 3. Search with priority filter
-        res_filtered = ninja_client.get(f"/projects/{test_project.key}/search?q=upgrade&priority=LOW")
+        res_filtered = ninja_client.get(f"/projects/{test_project.key}/search?q=upgrade&priority=LOW", headers=headers)
         assert res_filtered.status_code == 200
         data_filtered = res_filtered.json()
         for r in data_filtered["results"]:
             assert r["work_item"]["priority"] == "LOW"
 
         # 4. Global search endpoint
-        res_global = ninja_client.get("/search?q=Kubernetes")
+        res_global = ninja_client.get("/search?q=Kubernetes", headers=headers)
         assert res_global.status_code == 200
         data_global = res_global.json()
         assert any(r["work_item"]["key"] == item1.key for r in data_global["results"])
 
         # 5. Empty query returns recent items
-        res_empty = ninja_client.get(f"/projects/{test_project.key}/search?q=")
+        res_empty = ninja_client.get(f"/projects/{test_project.key}/search?q=", headers=headers)
         assert res_empty.status_code == 200
         assert res_empty.json()["total"] >= 2
 
@@ -170,7 +173,10 @@ class TestVectorSearchAndEmbedding:
         assert hasattr(item, "embedding")
         assert len(item.embedding.embedding) == 384
 
-    def test_incident_embedding_and_search(self, ninja_client, test_project, test_user):
+    def test_incident_embedding_and_search(self, ninja_client, test_project, test_user, test_api_key):
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+
         inc1 = Incident.objects.create(
             project=test_project,
             key=f"{test_project.key}-INC-101",
@@ -196,7 +202,7 @@ class TestVectorSearchAndEmbedding:
         assert "cert-manager" in format_incident_text(inc1)
 
         # Hybrid search finds inc1 and excludes inc_irrelevant
-        res = ninja_client.get(f"/projects/{test_project.key}/incidents/search?q=k8s+ingress+certificate")
+        res = ninja_client.get(f"/projects/{test_project.key}/incidents/search?q=k8s+ingress+certificate", headers=headers)
         assert res.status_code == 200
         data = res.json()
         assert data["mode"] == "hybrid"

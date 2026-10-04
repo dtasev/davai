@@ -39,6 +39,7 @@ api = NinjaAPI(
     title="Davai API",
     version="1.0.0",
     description="Cutting-edge, lean Jira-like project tracking engine powered by Django ORM & Django Ninja",
+    auth=api_key_auth,
     # csrf=False,
 )
 
@@ -446,7 +447,7 @@ class CreateAPIKeyOut(Schema):
 # Public & System Endpoints
 # ---------------------------------------------------------------------------
 
-@api.get("/hello")
+@api.get("/hello", auth=None)
 def hello(request):
     return {
         "message": "Hello from Django Ninja!",
@@ -455,7 +456,7 @@ def hello(request):
     }
 
 
-@api.get("/health")
+@api.get("/health", auth=None)
 def health(request):
     return {
         "status": "healthy",
@@ -465,7 +466,7 @@ def health(request):
     }
 
 
-@api.get("/info")
+@api.get("/info", auth=None)
 def info(request):
     return {
         "python": sys.version.split()[0],

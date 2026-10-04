@@ -1038,7 +1038,7 @@ describe('Davai Frontend App with React Router', () => {
     })
   })
 
-  it('renders the LoginRoute at "/login" when unauthenticated', async () => {
+  it('hides the application and renders the dedicated OIDC Login screen when unauthenticated', async () => {
     const origFetch = globalThis.fetch
     globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
       const urlStr = url.toString()
@@ -1052,13 +1052,18 @@ describe('Davai Frontend App with React Router', () => {
       return origFetch(url, init)
     })
 
-    const { router } = await renderWithRouter(['/login'])
-    expect(router.state.location.pathname).toBe('/login')
-    expect(screen.getByText('Redirecting to Login...')).toBeInTheDocument()
+    await renderWithRouter(['/projects/DAV'])
+    expect(screen.getByTestId('oidc-login-screen')).toBeInTheDocument()
+    expect(screen.getByText('Sign in to Davai')).toBeInTheDocument()
     expect(screen.getByText(/ECMWF \/ Authelia Single Sign-On/i)).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: /Click here if not redirected automatically/i })
+      screen.getByRole('button', { name: /Log in with Single Sign-On/i })
     ).toBeInTheDocument()
+
+    // Main app views and navigation tabs must be hidden when unauthenticated
+    expect(screen.queryByText('Projects Dashboard')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('project-detail-view')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Settings & API Keys/i })).not.toBeInTheDocument()
   })
 
   it('supports copying work item details in WorkItemDetailModal to clipboard', async () => {

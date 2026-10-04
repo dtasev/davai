@@ -36,7 +36,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [oidcToken, setOidcToken] = useState<string | null>(() => getStoredOidcToken())
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [apiKeys, setApiKeys] = useState<APIKeyItem[]>([])
-  const [loadingAuth, setLoadingAuth] = useState<boolean>(false)
+  const [loadingAuth, setLoadingAuth] = useState<boolean>(true)
   const [authError, setAuthError] = useState<string | null>(null)
 
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'error'>('checking')
@@ -71,6 +71,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const fetchProjects = async () => {
+    setLoadingProjects(true)
+    try {
+      const res = await apiFetch('/api/projects', {
+        credentials: 'same-origin'
+      })
+      if (res.ok) {
+        const data: Project[] = await res.json()
+        setProjects(data)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingProjects(false)
+    }
+  }
+
   const loadUserData = async () => {
     setLoadingAuth(true)
     setAuthError(null)
@@ -84,9 +101,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const meData = await meRes.json()
         setUserProfile(meData)
 
-        const keysRes = await apiFetch('/api/auth/keys', {
-          credentials: 'same-origin'
-        })
+        const [keysRes] = await Promise.all([
+          apiFetch('/api/auth/keys', {
+            credentials: 'same-origin'
+          }),
+          fetchProjects()
+        ])
         if (keysRes.ok) {
           const keysData = await keysRes.json()
           setApiKeys(keysData)
@@ -94,11 +114,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserProfile(null)
         setApiKeys([])
+        setProjects([])
+        setLoadingProjects(false)
       }
     } catch (err: any) {
       setAuthError(`Connection error: ${err.message}`)
       setUserProfile(null)
       setApiKeys([])
+      setProjects([])
+      setLoadingProjects(false)
     } finally {
       setLoadingAuth(false)
     }
@@ -162,23 +186,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setOidcToken(null)
     setUserProfile(null)
     setApiKeys([])
-  }
-
-  const fetchProjects = async () => {
-    setLoadingProjects(true)
-    try {
-      const res = await apiFetch('/api/projects', {
-        credentials: 'same-origin'
-      })
-      if (res.ok) {
-        const data: Project[] = await res.json()
-        setProjects(data)
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoadingProjects(false)
-    }
+    setProjects([])
   }
 
   const handleCreateProject = async (
@@ -213,7 +221,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       checkBackend()
-      fetchProjects()
       loadUserData()
     }
 
