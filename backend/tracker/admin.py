@@ -30,8 +30,21 @@ class ProjectStatusInline(admin.TabularInline):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("key", "name", "last_work_item_number", "last_incident_number", "last_monitoring_log_number", "created_at")
-    readonly_fields = ("last_work_item_number", "last_incident_number", "last_monitoring_log_number")
+    list_display = (
+        "key",
+        "name",
+        "last_work_item_number",
+        "last_user_support_number",
+        "last_incident_number",
+        "last_monitoring_log_number",
+        "created_at",
+    )
+    readonly_fields = (
+        "last_work_item_number",
+        "last_user_support_number",
+        "last_incident_number",
+        "last_monitoring_log_number",
+    )
     search_fields = ("key", "name")
     inlines = [ProjectStatusInline]
 
@@ -69,8 +82,8 @@ class ProgressInline(admin.TabularInline):
 
 @admin.register(WorkItem)
 class WorkItemAdmin(admin.ModelAdmin):
-    list_display = ("key", "title", "project", "status", "priority", "active_assignee", "updated")
-    list_filter = ("priority", "project", "sprint", "release")
+    list_display = ("key", "title", "project", "is_support", "status", "priority", "active_assignee", "updated")
+    list_filter = ("is_support", "priority", "project", "sprint", "release")
     search_fields = ("key", "title", "description", "active_assignee__username")
     inlines = [ContextInline, ProgressInline]
 

@@ -41,6 +41,10 @@ class Project(models.Model):
         default=0,
         help_text="Counter for sequential monitoring log keys within this project",
     )
+    last_user_support_number = models.PositiveIntegerField(
+        default=0,
+        help_text="Counter for sequential user support keys within this project",
+    )
 
     class Meta:
         ordering = ["key"]
@@ -70,6 +74,22 @@ class Project(models.Model):
                     break
             proj.save(update_fields=["last_work_item_number"])
             self.last_work_item_number = proj.last_work_item_number
+            return candidate_key
+
+    def generate_next_user_support_key(self) -> str:
+        """
+        Atomically generates and reserves the next sequential user support key for this project (e.g. DAV-SUP-1).
+        """
+        from django.db import transaction
+        with transaction.atomic():
+            proj = Project.objects.select_for_update().get(pk=self.pk)
+            while True:
+                proj.last_user_support_number += 1
+                candidate_key = f"{proj.key}-SUP-{proj.last_user_support_number}"
+                if not self.work_items.filter(key=candidate_key).exists():
+                    break
+            proj.save(update_fields=["last_user_support_number"])
+            self.last_user_support_number = proj.last_user_support_number
             return candidate_key
 
     def generate_next_incident_key(self) -> str:
@@ -240,7 +260,12 @@ class WorkItem(models.Model):
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="work_items")
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name="subtasks")
-    key = models.CharField(max_length=30, unique=True, db_index=True)
+    key = models.CharField(max_length=40, unique=True, db_index=True)
+    is_support = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="True if this item is a User Support ticket (<PROJECT>-SUP-<ID>)",
+    )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -271,8 +296,16 @@ class WorkItem(models.Model):
         return latest.status if latest else "todo"
 
     def save(self, *args, **kwargs):
+        if self.key and "-SUP-" in self.key.upper():
+            self.is_support = True
         if not self.key and self.project_id:
-            self.key = self.project.generate_next_work_item_key()
+            if self.is_support:
+                self.key = self.project.generate_next_user_support_key()
+            else:
+                self.key = self.project.generate_next_work_item_key()
+        if self.is_support:
+            self.sprint = None
+            self.release = None
         super().save(*args, **kwargs)
 
     def __str__(self):

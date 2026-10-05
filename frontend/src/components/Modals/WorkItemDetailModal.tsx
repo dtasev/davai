@@ -320,6 +320,8 @@ export function WorkItemDetailModal({
 
   if (!item) return null
 
+  const isSupport = Boolean(item.is_support || /^[^-]+-SUP-\d+$/i.test(item.key))
+
   const handleSaveDetails = async () => {
     if (!onUpdateDetails || !editTitle.trim()) return
     setIsSavingDetails(true)
@@ -328,8 +330,12 @@ export function WorkItemDetailModal({
         title: editTitle.trim(),
         description: editDescription.trim(),
         priority: editPriority,
-        sprint_id: editSprintId === null ? 0 : editSprintId,
-        release_id: editReleaseId === null ? 0 : editReleaseId,
+        ...(isSupport
+          ? {}
+          : {
+              sprint_id: editSprintId === null ? 0 : editSprintId,
+              release_id: editReleaseId === null ? 0 : editReleaseId
+            }),
         start_date: editStartDate ? editStartDate : null,
         target_date: editTargetDate ? editTargetDate : null,
         active_assignee_username: editAssignee
@@ -762,75 +768,79 @@ export function WorkItemDetailModal({
               )}
             </div>
 
-            {/* Sprint Selector */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-zinc-500 flex items-center gap-1">
-                <Zap className="w-3 h-3 text-amber-400" />
-                <span>Sprint:</span>
-              </span>
-              {onUpdateDetails ? (
-                <select
-                  value={isEditingDetails ? (editSprintId ?? '') : (item.sprint_id ?? '')}
-                  onChange={handleSprintChange}
-                  data-testid={isEditingDetails ? 'edit-work-item-sprint-select' : 'work-item-sprint-select'}
-                  aria-label="Work Item Sprint"
-                  className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
-                    (isEditingDetails ? editSprintId : item.sprint_id)
-                      ? 'text-amber-300 bg-amber-950/30 border-amber-800/40'
-                      : 'text-zinc-400 bg-zinc-900 border-zinc-800'
-                  } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
-                >
-                  <option value="" className="bg-zinc-900 text-zinc-400">No Sprint</option>
-                  {sprints.map(sp => (
-                    <option key={sp.id} value={sp.id} className="bg-zinc-900 text-zinc-200">
-                      {sp.name}
-                    </option>
-                  ))}
-                </select>
-              ) : sprint ? (
-                <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-950/30 px-2 py-0.5 rounded border border-amber-800/30 leading-none">
-                  <Zap className="w-2.5 h-2.5" />
-                  <span>{sprint.name}</span>
-                </div>
-              ) : (
-                <span className="text-sm text-zinc-500 italic">None</span>
-              )}
-            </div>
+            {/* Sprint Selector (omitted for User Support tickets) */}
+            {!isSupport && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+                  <Zap className="w-3 h-3 text-amber-400" />
+                  <span>Sprint:</span>
+                </span>
+                {onUpdateDetails ? (
+                  <select
+                    value={isEditingDetails ? (editSprintId ?? '') : (item.sprint_id ?? '')}
+                    onChange={handleSprintChange}
+                    data-testid={isEditingDetails ? 'edit-work-item-sprint-select' : 'work-item-sprint-select'}
+                    aria-label="Work Item Sprint"
+                    className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
+                      (isEditingDetails ? editSprintId : item.sprint_id)
+                        ? 'text-amber-300 bg-amber-950/30 border-amber-800/40'
+                        : 'text-zinc-400 bg-zinc-900 border-zinc-800'
+                    } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
+                  >
+                    <option value="" className="bg-zinc-900 text-zinc-400">No Sprint</option>
+                    {sprints.map(sp => (
+                      <option key={sp.id} value={sp.id} className="bg-zinc-900 text-zinc-200">
+                        {sp.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : sprint ? (
+                  <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-950/30 px-2 py-0.5 rounded border border-amber-800/30 leading-none">
+                    <Zap className="w-2.5 h-2.5" />
+                    <span>{sprint.name}</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-zinc-500 italic">None</span>
+                )}
+              </div>
+            )}
 
-            {/* Release Selector */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-zinc-500 flex items-center gap-1">
-                <Rocket className="w-3 h-3 text-indigo-400" />
-                <span>Release:</span>
-              </span>
-              {onUpdateDetails ? (
-                <select
-                  value={isEditingDetails ? (editReleaseId ?? '') : (item.release_id ?? '')}
-                  onChange={handleReleaseChange}
-                  data-testid={isEditingDetails ? 'edit-work-item-release-select' : 'work-item-release-select'}
-                  aria-label="Work Item Release"
-                  className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
-                    (isEditingDetails ? editReleaseId : item.release_id)
-                      ? 'text-indigo-300 bg-indigo-950/30 border-indigo-800/40'
-                      : 'text-zinc-400 bg-zinc-900 border-zinc-800'
-                  } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
-                >
-                  <option value="" className="bg-zinc-900 text-zinc-400">No Release</option>
-                  {releases.map(rel => (
-                    <option key={rel.id} value={rel.id} className="bg-zinc-900 text-zinc-200">
-                      {rel.name}
-                    </option>
-                  ))}
-                </select>
-              ) : release ? (
-                <div className="flex items-center gap-1 text-[10px] text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/30 leading-none">
-                  <Rocket className="w-2.5 h-2.5" />
-                  <span>{release.name}</span>
-                </div>
-              ) : (
-                <span className="text-sm text-zinc-500 italic">None</span>
-              )}
-            </div>
+            {/* Release Selector (omitted for User Support tickets) */}
+            {!isSupport && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-zinc-500 flex items-center gap-1">
+                  <Rocket className="w-3 h-3 text-indigo-400" />
+                  <span>Release:</span>
+                </span>
+                {onUpdateDetails ? (
+                  <select
+                    value={isEditingDetails ? (editReleaseId ?? '') : (item.release_id ?? '')}
+                    onChange={handleReleaseChange}
+                    data-testid={isEditingDetails ? 'edit-work-item-release-select' : 'work-item-release-select'}
+                    aria-label="Work Item Release"
+                    className={`px-2 py-0.5 rounded text-sm border focus:outline-none cursor-pointer transition ${
+                      (isEditingDetails ? editReleaseId : item.release_id)
+                        ? 'text-indigo-300 bg-indigo-950/30 border-indigo-800/40'
+                        : 'text-zinc-400 bg-zinc-900 border-zinc-800'
+                    } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
+                  >
+                    <option value="" className="bg-zinc-900 text-zinc-400">No Release</option>
+                    {releases.map(rel => (
+                      <option key={rel.id} value={rel.id} className="bg-zinc-900 text-zinc-200">
+                        {rel.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : release ? (
+                  <div className="flex items-center gap-1 text-[10px] text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/30 leading-none">
+                    <Rocket className="w-2.5 h-2.5" />
+                    <span>{release.name}</span>
+                  </div>
+                ) : (
+                  <span className="text-sm text-zinc-500 italic">None</span>
+                )}
+              </div>
+            )}
 
             {/* Start Date */}
             <div className="flex items-center gap-1.5">

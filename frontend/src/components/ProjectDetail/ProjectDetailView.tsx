@@ -1,22 +1,28 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { ArrowLeft, RefreshCw, LayoutList, Kanban, Search, Flame, Activity } from 'lucide-react'
+import { ArrowLeft, RefreshCw, LayoutList, Kanban, Search, Flame, Activity, LifeBuoy } from 'lucide-react'
 import { Project, Sprint, Release, WorkItem, Incident, MonitoringLog, DEFAULT_PROJECT_STATUSES } from '../../types'
 import { ProjectListView } from './ProjectListView'
 import { AllSprintsModal } from './SprintList'
 import { AllReleasesModal } from './ReleaseList'
 import { KanbanBoard } from './KanbanBoard'
+import { UserSupportList } from './UserSupportList'
 import { IncidentList } from './IncidentList'
 import { MonitoringLogList } from './MonitoringLogList'
 import { useOptionalApp } from '../../context/AppContext'
 
-export type ProjectViewMode = 'list' | 'board' | 'incidents' | 'monitoring-logs'
+export type ProjectViewMode = 'list' | 'board' | 'user-support' | 'incidents' | 'monitoring-logs'
+
+export function isUserSupportItem(item: WorkItem): boolean {
+  return Boolean(item.is_support || /^[^-]+-SUP-\d+$/i.test(item.key))
+}
 
 interface ProjectDetailViewProps {
   project: Project
   sprints: Sprint[]
   releases: Release[]
   workItems: WorkItem[]
+  userSupportItems?: WorkItem[]
   incidents?: Incident[]
   monitoringLogs?: MonitoringLog[]
   loading: boolean
@@ -26,6 +32,7 @@ interface ProjectDetailViewProps {
   onSelectSprint: (sprint: Sprint) => void
   onSelectRelease: (release: Release) => void
   onSelectWorkItem: (item: WorkItem) => void
+  onSelectUserSupportItem?: (item: WorkItem) => void
   onSelectIncident?: (incident: Incident) => void
   onSelectMonitoringLog?: (log: MonitoringLog) => void
   onUpdateStatus?: (key: string, newStatus: string) => Promise<void>
@@ -51,6 +58,13 @@ interface ProjectDetailViewProps {
     sprint_id?: number | null
     release_id?: number | null
   }) => Promise<void>
+  onCreateUserSupportItem?: (data: {
+    title: string
+    description: string
+    status: string
+    priority: 'LOW' | 'MEDIUM' | 'HIGH'
+    parent_key?: string | null
+  }) => Promise<void>
   onCreateIncident?: (data: {
     title: string
     cause: string
@@ -72,6 +86,7 @@ export function ProjectDetailView({
   sprints,
   releases,
   workItems,
+  userSupportItems,
   incidents = [],
   monitoringLogs = [],
   loading,
@@ -81,12 +96,14 @@ export function ProjectDetailView({
   onSelectSprint,
   onSelectRelease,
   onSelectWorkItem,
+  onSelectUserSupportItem,
   onSelectIncident,
   onSelectMonitoringLog,
   onUpdateStatus,
   onCreateSprint,
   onCreateRelease,
   onCreateWorkItem,
+  onCreateUserSupportItem,
   onCreateIncident,
   onCreateMonitoringLog
 }: ProjectDetailViewProps) {
@@ -97,11 +114,26 @@ export function ProjectDetailView({
   const activeView: ProjectViewMode =
     viewParam === 'board'
       ? 'board'
+      : viewParam === 'user-support'
+      ? 'user-support'
       : viewParam === 'incidents'
       ? 'incidents'
       : viewParam === 'monitoring-logs'
       ? 'monitoring-logs'
       : 'list'
+
+  const regularWorkItems = useMemo(
+    () => workItems.filter(item => !isUserSupportItem(item)),
+    [workItems]
+  )
+
+  const effectiveSupportItems = useMemo(
+    () =>
+      userSupportItems !== undefined
+        ? userSupportItems.filter(item => isUserSupportItem(item))
+        : workItems.filter(item => isUserSupportItem(item)),
+    [userSupportItems, workItems]
+  )
 
   const handleSelectView = (view: ProjectViewMode) => {
     setSearchParams(prev => {
@@ -189,7 +221,7 @@ export function ProjectDetailView({
               <strong className="text-zinc-200">{releases.length}</strong> Releases
             </button>
             <span className="px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800">
-              <strong className="text-zinc-200">{workItems.length}</strong> Items
+              <strong className="text-zinc-200">{regularWorkItems.length}</strong> Items
             </span>
           </div>
 
@@ -259,6 +291,19 @@ export function ProjectDetailView({
             </button>
 
             <button
+              onClick={() => handleSelectView('user-support')}
+              data-testid="view-option-user-support"
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
+                activeView === 'user-support'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+              }`}
+            >
+              <LifeBuoy className="w-4 h-4" />
+              <span>User Support</span>
+            </button>
+
+            <button
               onClick={() => handleSelectView('incidents')}
               data-testid="view-option-incidents"
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition ${
@@ -292,7 +337,7 @@ export function ProjectDetailView({
             </div>
             <div className="space-y-1.5 text-sm">
               {statuses.map(st => {
-                const count = workItems.filter(
+                const count = regularWorkItems.filter(
                   item => (item.status || 'todo').toLowerCase() === st.name.toLowerCase()
                 ).length
                 return (
@@ -318,7 +363,7 @@ export function ProjectDetailView({
               projectKey={project.key}
               sprints={sprints}
               releases={releases}
-              workItems={workItems}
+              workItems={regularWorkItems}
               statuses={statuses}
               myIssuesOnly={myIssuesOnly}
               onToggleMyIssues={handleToggleMyIssues}
@@ -335,7 +380,7 @@ export function ProjectDetailView({
           )}
           {activeView === 'board' && (
             <KanbanBoard
-              workItems={workItems}
+              workItems={regularWorkItems}
               statuses={statuses}
               sprints={sprints}
               releases={releases}
@@ -345,6 +390,24 @@ export function ProjectDetailView({
               onSelectWorkItem={onSelectWorkItem}
               onUpdateStatus={onUpdateStatus}
               onCreateWorkItem={onCreateWorkItem}
+            />
+          )}
+          {activeView === 'user-support' && (
+            <UserSupportList
+              projectKey={project.key}
+              userSupportItems={effectiveSupportItems}
+              statuses={statuses}
+              myIssuesOnly={myIssuesOnly}
+              onToggleMyIssues={handleToggleMyIssues}
+              currentUsername={app?.userProfile?.username}
+              onSelectUserSupportItem={item => (onSelectUserSupportItem || onSelectWorkItem)(item)}
+              onCreateUserSupportItem={async data => {
+                if (onCreateUserSupportItem) {
+                  await onCreateUserSupportItem(data)
+                } else {
+                  await onCreateWorkItem(data)
+                }
+              }}
             />
           )}
           {activeView === 'incidents' && (

@@ -2236,7 +2236,167 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.queryByTestId('release-card-1')).not.toBeInTheDocument()
     })
   })
+
+  it('places User Support 3rd in sidebar views, isolates XXXX-SUP-NN tickets from list/board views, and omits Sprints and Releases in User Support view and detail modal', async () => {
+    const origFetch = globalThis.fetch
+    let supportTickets = [
+      {
+        id: 501,
+        key: 'DAV-SUP-1',
+        is_support: true,
+        parent_key: null,
+        title: 'User cannot download GRIB2 forecast',
+        description: '403 error on CDS download endpoint',
+        status: 'todo',
+        priority: 'HIGH',
+        project_key: 'DAV',
+        active_assignee: 'dimitar',
+        created_by: 'dimitar',
+        updated_by: null,
+        assigned: ['dimitar'],
+        watching: [],
+        source: 'support-portal',
+        start_date: null,
+        target_date: null,
+        sprint_id: null,
+        release_id: null,
+        created: '2026-10-05T09:00:00Z',
+        updated: '2026-10-05T09:00:00Z',
+        context: null,
+        progress: [],
+        subtasks: [],
+      },
+    ]
+
+    globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = url.toString()
+      const method = init?.method?.toUpperCase() || 'GET'
+      if (method === 'GET' && urlStr.includes('/api/projects/DAV/user-support')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(supportTickets),
+        } as Response)
+      }
+      if (method === 'POST' && urlStr.includes('/api/projects/DAV/user-support')) {
+        const body = init?.body ? JSON.parse(init.body as string) : {}
+        const created = {
+          id: 502,
+          key: 'DAV-SUP-2',
+          is_support: true,
+          parent_key: body.parent_key || null,
+          title: body.title,
+          description: body.description || '',
+          status: body.status || 'todo',
+          priority: body.priority || 'MEDIUM',
+          project_key: 'DAV',
+          active_assignee: 'dimitar',
+          created_by: 'dimitar',
+          updated_by: null,
+          assigned: ['dimitar'],
+          watching: [],
+          source: '',
+          start_date: null,
+          target_date: null,
+          sprint_id: null,
+          release_id: null,
+          created: '2026-10-05T10:00:00Z',
+          updated: '2026-10-05T10:00:00Z',
+          context: null,
+          progress: [],
+          subtasks: [],
+        }
+        supportTickets = [created, ...supportTickets]
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(created),
+        } as Response)
+      }
+      if (method === 'GET' && urlStr.includes('/api/work-items/DAV-SUP-1')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(supportTickets[supportTickets.length - 1]),
+        } as Response)
+      }
+      return origFetch(url, init)
+    })
+
+    const { router } = await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-detail-view')).toBeInTheDocument()
+    })
+
+    // 1. Verify sidebar view order: List View, Board View, User Support (3rd), Incidents, Monitoring Logs
+    const sidebar = screen.getByTestId('project-sidebar-menu')
+    const viewButtons = within(sidebar).getAllByTestId(/^view-option-/)
+    expect(viewButtons.map(b => b.getAttribute('data-testid'))).toEqual([
+      'view-option-list',
+      'view-option-board',
+      'view-option-user-support',
+      'view-option-incidents',
+      'view-option-monitoring-logs',
+    ])
+    expect(screen.getByTestId('view-option-user-support')).toHaveTextContent('User Support')
+
+    // 2. In List View: regular work item (DAV-1) is shown, User Support ticket (DAV-SUP-1) is NOT shown
+    expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    expect(screen.queryByTestId('user-support-item-DAV-SUP-1')).not.toBeInTheDocument()
+    expect(screen.queryByText('User cannot download GRIB2 forecast')).not.toBeInTheDocument()
+
+    // 3. In Board View: regular work item (DAV-1) is shown, User Support ticket (DAV-SUP-1) is NOT shown
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('view-option-board'))
+    })
+    expect(screen.queryByText('User cannot download GRIB2 forecast')).not.toBeInTheDocument()
+
+    // 4. Switch to User Support view: DAV-SUP-1 is shown, DAV-1 is NOT shown, and Sprints/Releases sections are absent
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('view-option-user-support'))
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('user-support-list-view')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('user-support-item-DAV-SUP-1')).toBeInTheDocument()
+    expect(screen.getByText('User cannot download GRIB2 forecast')).toBeInTheDocument()
+    expect(screen.queryByTestId('work-item-DAV-1')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('open-all-sprints-modal')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('open-all-releases-modal')).not.toBeInTheDocument()
+
+    // 5. Click DAV-SUP-1 to open detail modal -> Sprint and Release selectors are omitted!
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('user-support-item-DAV-SUP-1'))
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-detail-modal')).toBeInTheDocument()
+    })
+    expect(screen.queryByTestId('work-item-sprint-select')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('work-item-release-select')).not.toBeInTheDocument()
+
+    // Close detail modal
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Close/i }))
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+    })
+
+    // 6. Create a new User Support ticket (DAV-SUP-2)
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('create-user-support-button'))
+    })
+    fireEvent.change(screen.getByTestId('user-support-title-input'), {
+      target: { value: 'Help with MARS retrieval script' },
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('submit-user-support-button'))
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('user-support-item-DAV-SUP-2')).toBeInTheDocument()
+      expect(screen.getByText('Help with MARS retrieval script')).toBeInTheDocument()
+    })
+  })
 })
+
 
 
 

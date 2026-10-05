@@ -50,6 +50,10 @@ export const routes: RouteObject[] = [
             element: <WorkItemModalRoute />
           },
           {
+            path: 'user-support/:itemKey',
+            element: <WorkItemModalRoute />
+          },
+          {
             path: 'incidents/:incidentKey',
             element: <IncidentModalRoute />
           },

@@ -120,6 +120,7 @@ class SubtaskSummaryType:
 class WorkItemType:
     id: int
     key: str
+    is_support: bool
     parent_key: Optional[str]
     title: str
     description: str
@@ -169,6 +170,7 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
     return WorkItemType(
         id=item.id,
         key=item.key,
+        is_support=bool(item.is_support),
         parent_key=item.parent.key if item.parent else None,
         title=item.title,
         description=item.description or "",
@@ -201,11 +203,16 @@ class Query:
         return await sync_to_async(_get)()
 
     @strawberry.field(permission_classes=[HasApiKey])
-    async def work_items(self, status: Optional[str] = None, project_key: Optional[str] = None) -> List[WorkItemType]:
+    async def work_items(
+        self,
+        status: Optional[str] = None,
+        project_key: Optional[str] = None,
+        is_support: bool = False,
+    ) -> List[WorkItemType]:
         def _get():
             qs = WorkItemModel.objects.select_related(
                 "project", "parent", "active_assignee", "created_by", "context"
-            ).prefetch_related("progress", "subtasks").all()
+            ).prefetch_related("progress", "subtasks").filter(is_support=is_support)
             if status:
                 normalized = status.strip().lower().replace("_", " ")
                 latest_status_subquery = Subquery(

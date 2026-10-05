@@ -521,3 +521,99 @@ class DavaiClient:
         """Fetch a single monitoring log by its numeric ID or key (e.g. 'DAV-LOG-1')."""
         return self._request("GET", f"/monitoring-logs/{log_id}")
 
+    # -----------------------------------------------------------------------
+    # User Support Tickets (<PROJECT>-SUP-<ID>)
+    # -----------------------------------------------------------------------
+
+    def list_user_support_tickets(
+        self,
+        status: Optional[str] = None,
+        project_key: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """List user support tickets (<PROJECT>-SUP-<ID>), optionally filtered by status and project."""
+        params = {}
+        if status:
+            params["status"] = status
+        if project_key:
+            params["project_key"] = project_key
+        return self._request("GET", "/user-support", params=params)
+
+    def get_user_support_ticket(self, key: str) -> Dict[str, Any]:
+        """Fetch a single user support ticket by its key (e.g. 'DAV-SUP-1')."""
+        return self._request("GET", f"/user-support/{key}")
+
+    def create_user_support_ticket(
+        self,
+        title: str,
+        description: str = "",
+        priority: str = "MEDIUM",
+        status: Optional[str] = None,
+        project_key: str = "DAV",
+        active_assignee_username: Optional[str] = None,
+        parent_key: Optional[str] = None,
+        source: str = "",
+        start_date: Optional[str] = None,
+        target_date: Optional[str] = None,
+        context: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a new user support ticket (<PROJECT>-SUP-<ID>)."""
+        payload: Dict[str, Any] = {
+            "title": title,
+            "description": description,
+            "priority": priority,
+            "project_key": project_key,
+            "source": source,
+        }
+        if status:
+            payload["status"] = status
+        if active_assignee_username is not None:
+            payload["active_assignee_username"] = active_assignee_username
+        if parent_key:
+            payload["parent_key"] = parent_key
+        if start_date is not None:
+            payload["start_date"] = start_date
+        if target_date is not None:
+            payload["target_date"] = target_date
+        if context is not None:
+            payload["context"] = context
+        return self._request("POST", "/user-support", data=payload)
+
+    def update_user_support_ticket(
+        self,
+        key: str,
+        title: Optional[str] = None,
+        description: Optional[str] = None,
+        status: Optional[str] = None,
+        priority: Optional[str] = None,
+        active_assignee_username: Optional[str] = None,
+        parent_key: Optional[str] = None,
+        start_date: Any = _UNSET,
+        target_date: Any = _UNSET,
+    ) -> Dict[str, Any]:
+        """Update fields of an existing user support ticket (<PROJECT>-SUP-<ID>)."""
+        payload: Dict[str, Any] = {}
+        if title is not None:
+            payload["title"] = title
+        if description is not None:
+            payload["description"] = description
+        if status is not None:
+            payload["status"] = status
+        if priority is not None:
+            payload["priority"] = priority
+        if active_assignee_username is not None:
+            payload["active_assignee_username"] = active_assignee_username
+        if parent_key is not None:
+            payload["parent_key"] = parent_key
+        if start_date is not _UNSET:
+            if start_date in (None, "", "null", "none", "clear"):
+                payload["start_date"] = None
+            else:
+                payload["start_date"] = start_date
+        if target_date is not _UNSET:
+            if target_date in (None, "", "null", "none", "clear"):
+                payload["target_date"] = None
+            else:
+                payload["target_date"] = target_date
+        return self._request("PATCH", f"/user-support/{key}", data=payload)
+
+

@@ -11,7 +11,7 @@ import {
   DEFAULT_PROJECT_STATUSES
 } from '../types'
 import { useApp } from '../context/AppContext'
-import { ProjectDetailView } from '../components/ProjectDetail/ProjectDetailView'
+import { ProjectDetailView, isUserSupportItem } from '../components/ProjectDetail/ProjectDetailView'
 import { QuickJumpModal } from '../components/ProjectDetail/QuickJumpModal'
 import { apiFetch } from '../utils/apiFetch'
 
@@ -20,9 +20,11 @@ export interface ProjectDetailOutletContext {
   sprints: Sprint[]
   releases: Release[]
   workItems: WorkItem[]
+  userSupportItems: WorkItem[]
   incidents: Incident[]
   monitoringLogs: MonitoringLog[]
   setWorkItems: Dispatch<SetStateAction<WorkItem[]>>
+  setUserSupportItems: Dispatch<SetStateAction<WorkItem[]>>
   setIncidents: Dispatch<SetStateAction<Incident[]>>
   setMonitoringLogs: Dispatch<SetStateAction<MonitoringLog[]>>
   handleUpdateStatus: (key: string, newStatus: string) => Promise<void>
@@ -94,6 +96,7 @@ export function ProjectDetailRoute() {
   const [sprints, setSprints] = useState<Sprint[]>([])
   const [releases, setReleases] = useState<Release[]>([])
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
+  const [userSupportItems, setUserSupportItems] = useState<WorkItem[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [monitoringLogs, setMonitoringLogs] = useState<MonitoringLog[]>([])
   const [loadingDetails, setLoadingDetails] = useState(true)
@@ -120,8 +123,8 @@ export function ProjectDetailRoute() {
         return
       }
 
-      // Check if a sub-modal route (items, sprints, releases, incidents, monitoring-logs) is currently open
-      const isSubModalRoute = /^\/projects\/[^/]+\/(items|sprints|releases|incidents|monitoring-logs)(\/|$)/i.test(location.pathname)
+      // Check if a sub-modal route (items, user-support, sprints, releases, incidents, monitoring-logs) is currently open
+      const isSubModalRoute = /^\/projects\/[^/]+\/(items|user-support|sprints|releases|incidents|monitoring-logs)(\/|$)/i.test(location.pathname)
       if (isSubModalRoute) return
 
       // Check if another modal has locked body scroll
@@ -150,10 +153,11 @@ export function ProjectDetailRoute() {
     if (!projectKey) return
     setLoadingDetails(true)
     try {
-      const [sprintsRes, releasesRes, itemsRes, incidentsRes, logsRes] = await Promise.all([
+      const [sprintsRes, releasesRes, itemsRes, supportRes, incidentsRes, logsRes] = await Promise.all([
         apiFetch(`/api/projects/${projectKey}/sprints`),
         apiFetch(`/api/projects/${projectKey}/releases`),
         apiFetch(`/api/work-items?project_key=${projectKey}`),
+        apiFetch(`/api/projects/${projectKey}/user-support`).catch(() => null),
         apiFetch(`/api/projects/${projectKey}/incidents`).catch(() => null),
         apiFetch(`/api/projects/${projectKey}/monitoring-logs`).catch(() => null)
       ])
@@ -166,9 +170,23 @@ export function ProjectDetailRoute() {
         const data = await releasesRes.json().catch(() => null)
         if (Array.isArray(data)) setReleases(data)
       }
+      let fallbackSupportFromWorkItems: WorkItem[] = []
       if (itemsRes?.ok) {
         const data = await itemsRes.json().catch(() => null)
-        if (Array.isArray(data)) setWorkItems(data)
+        if (Array.isArray(data)) {
+          setWorkItems(data.filter(item => !isUserSupportItem(item)))
+          fallbackSupportFromWorkItems = data.filter(item => isUserSupportItem(item))
+        }
+      }
+      if (supportRes?.ok) {
+        const data = await supportRes.json().catch(() => null)
+        if (Array.isArray(data)) {
+          setUserSupportItems(data.filter(item => isUserSupportItem(item)))
+        } else if (fallbackSupportFromWorkItems.length > 0) {
+          setUserSupportItems(fallbackSupportFromWorkItems)
+        }
+      } else if (fallbackSupportFromWorkItems.length > 0) {
+        setUserSupportItems(fallbackSupportFromWorkItems)
       }
       if (incidentsRes?.ok) {
         const data = await incidentsRes.json().catch(() => null)
@@ -268,6 +286,31 @@ export function ProjectDetailRoute() {
     }
   }
 
+  const handleCreateUserSupportItem = async (data: {
+    title: string
+    description: string
+    status: string
+    priority: 'LOW' | 'MEDIUM' | 'HIGH'
+    parent_key?: string | null
+  }) => {
+    if (!projectKey) return
+    const res = await apiFetch(`/api/projects/${projectKey}/user-support`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ...data,
+        project_key: projectKey
+      })
+    })
+
+    if (res.ok) {
+      await fetchDetails()
+      await fetchProjects()
+    }
+  }
+
   const handleUpdateStatus = async (key: string, newStatus: string) => {
     const res = await apiFetch(`/api/work-items/${key}`, {
       method: 'PATCH',
@@ -280,6 +323,7 @@ export function ProjectDetailRoute() {
     if (res.ok) {
       const updated: WorkItem = await res.json()
       setWorkItems(prev => prev.map(item => (item.key === key ? updated : item)))
+      setUserSupportItems(prev => prev.map(item => (item.key === key ? updated : item)))
     }
   }
 
@@ -295,6 +339,11 @@ export function ProjectDetailRoute() {
     if (res.ok) {
       const contextData = await res.json()
       setWorkItems(prev =>
+        prev.map(item =>
+          item.key === key ? { ...item, context: contextData } : item
+        )
+      )
+      setUserSupportItems(prev =>
         prev.map(item =>
           item.key === key ? { ...item, context: contextData } : item
         )
@@ -321,7 +370,7 @@ export function ProjectDetailRoute() {
 
     if (res.ok) {
       const newProgress = await res.json()
-      setWorkItems(prev =>
+      const applyProgress = (prev: WorkItem[]) =>
         prev.map(item => {
           if (item.key !== key) return item
           const updatedList = [...(item.progress || []), newProgress]
@@ -331,7 +380,8 @@ export function ProjectDetailRoute() {
             progress: updatedList
           }
         })
-      )
+      setWorkItems(applyProgress)
+      setUserSupportItems(applyProgress)
     }
   }
 
@@ -350,7 +400,7 @@ export function ProjectDetailRoute() {
 
     if (res.ok) {
       const updatedProgress: ProgressEntry = await res.json()
-      setWorkItems(prev =>
+      const applyUpdate = (prev: WorkItem[]) =>
         prev.map(item => {
           if (item.key !== key) return item
           const updatedList = (item.progress || []).map(p =>
@@ -362,7 +412,8 @@ export function ProjectDetailRoute() {
             progress: updatedList
           }
         })
-      )
+      setWorkItems(applyUpdate)
+      setUserSupportItems(applyUpdate)
       return updatedProgress
     } else {
       const err = await res.json().catch(() => ({}))
@@ -377,7 +428,7 @@ export function ProjectDetailRoute() {
     })
 
     if (res.ok) {
-      setWorkItems(prev =>
+      const applyDelete = (prev: WorkItem[]) =>
         prev.map(item => {
           if (item.key !== key) return item
           const updatedList = (item.progress || []).filter(p => p.id !== progressId)
@@ -387,7 +438,8 @@ export function ProjectDetailRoute() {
             progress: updatedList
           }
         })
-      )
+      setWorkItems(applyDelete)
+      setUserSupportItems(applyDelete)
     } else {
       const err = await res.json().catch(() => ({}))
       throw new Error(err.message || 'Failed to delete progress entry')
@@ -537,6 +589,7 @@ export function ProjectDetailRoute() {
     if (res.ok) {
       const updated: WorkItem = await res.json()
       setWorkItems(prev => prev.map(item => (item.key === key ? updated : item)))
+      setUserSupportItems(prev => prev.map(item => (item.key === key ? updated : item)))
       return updated
     } else {
       const err = await res.json().catch(() => ({}))
@@ -686,6 +739,7 @@ export function ProjectDetailRoute() {
         sprints={sprints}
         releases={releases}
         workItems={workItems}
+        userSupportItems={userSupportItems}
         incidents={incidents}
         monitoringLogs={monitoringLogs}
         loading={loadingDetails}
@@ -700,6 +754,9 @@ export function ProjectDetailRoute() {
         onSelectWorkItem={item =>
           navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)
         }
+        onSelectUserSupportItem={item =>
+          navigate(`/projects/${projectKey}/items/${item.key}${location.search}`)
+        }
         onSelectIncident={incident =>
           navigate(`/projects/${projectKey}/incidents/${incident.key}${location.search}`)
         }
@@ -710,6 +767,7 @@ export function ProjectDetailRoute() {
         onCreateSprint={handleCreateSprint}
         onCreateRelease={handleCreateRelease}
         onCreateWorkItem={handleCreateWorkItem}
+        onCreateUserSupportItem={handleCreateUserSupportItem}
         onCreateIncident={handleCreateIncident}
         onCreateMonitoringLog={handleCreateMonitoringLog}
         onOpenQuickJump={() => setIsQuickJumpOpen(true)}
@@ -729,9 +787,11 @@ export function ProjectDetailRoute() {
           sprints,
           releases,
           workItems,
+          userSupportItems,
           incidents,
           monitoringLogs,
           setWorkItems,
+          setUserSupportItems,
           setIncidents,
           setMonitoringLogs,
           handleUpdateStatus,

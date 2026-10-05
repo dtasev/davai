@@ -624,6 +624,129 @@ def get_monitoring_log(log_id: str) -> Dict[str, Any]:
     """
     return get_client().get_monitoring_log(log_id=log_id)
 
+@mcp_server.tool()
+def list_user_support_tickets(status: Optional[str] = None, project_key: Optional[str] = None) -> List[Dict[str, Any]]:
+    """
+    List user support tickets (<PROJECT>-SUP-<ID>) in Davai.
+    Includes key, title, status, priority, assignees, subtasks list (key and title), and metadata.
+    Omits description, context, and progress entries for brevity (use get_user_support_ticket to fetch complete details).
+    Args:
+        status: Optional status filter ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled', 'done').
+        project_key: Optional project key filter (e.g. 'DAV').
+    """
+    return get_client().list_user_support_tickets(status=status, project_key=project_key)
+
+@mcp_server.tool()
+def get_user_support_ticket(key: str) -> Dict[str, Any]:
+    """
+    Retrieve details of a specific user support ticket by key (e.g. 'DAV-SUP-1'), including subtasks, context, and progress entries.
+    Args:
+        key: The user support ticket key (e.g. 'DAV-SUP-1').
+    """
+    return get_client().get_user_support_ticket(key=key)
+
+@mcp_server.tool()
+def create_user_support_ticket(
+    title: str,
+    description: str = "",
+    context: Optional[str] = None,
+    priority: str = "MEDIUM",
+    status: Optional[str] = None,
+    project_key: str = "DAV",
+    active_assignee_username: Optional[str] = None,
+    parent_key: Optional[str] = None,
+    source: str = "",
+    start_date: Optional[str] = None,
+    target_date: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Create a new user support ticket (<PROJECT>-SUP-<ID>) in Davai.
+    User support tickets share all fields with work items except they do not use sprints or releases and are isolated in the User Support view.
+
+    Args:
+        title: Title of the user support ticket.
+        description: Original user support request/description.
+        context: Optional initial technical context or analysis deduced by the LLM agent (markdown supported).
+        priority: Priority level ('LOW', 'MEDIUM', 'HIGH'). Defaults to 'MEDIUM'.
+        status: Status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Defaults to 'todo'. Note: 'done' is not permitted via MCP.
+        project_key: Target project key (defaults to 'DAV').
+        active_assignee_username: Optional username of assigned user. Defaults to the current user (creator) if omitted. Pass empty string to leave unassigned.
+        parent_key: Optional parent ticket key for subtasks.
+        source: Optional source reference (e.g. requester or external URL).
+        start_date: Optional start date (YYYY-MM-DD or ISO format).
+        target_date: Optional target completion date (YYYY-MM-DD or ISO format).
+    """
+    if status is not None:
+        clean_status = status.strip().lower()
+        if clean_status == "done":
+            raise ValueError("The 'done' status can only be set by a human via the frontend.")
+        if clean_status not in MCP_ALLOWED_STATUSES:
+            raise ValueError(f"Invalid status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_STATUSES)}.")
+        status = clean_status
+
+    return get_client().create_user_support_ticket(
+        title=title,
+        description=description,
+        priority=priority,
+        status=status,
+        project_key=project_key,
+        active_assignee_username=active_assignee_username,
+        parent_key=parent_key,
+        source=source,
+        start_date=start_date,
+        target_date=target_date,
+        context=context,
+    )
+
+@mcp_server.tool()
+def update_user_support_ticket(
+    key: str,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    active_assignee_username: Optional[str] = None,
+    parent_key: Optional[str] = None,
+    start_date: Optional[str] = None,
+    target_date: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Update fields of an existing user support ticket (<PROJECT>-SUP-<ID>), including setting or clearing dates.
+    Args:
+        key: User support ticket key (e.g. 'DAV-SUP-1').
+        title: Optional new title.
+        description: Optional new description.
+        status: Optional new status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Note: 'done' is not permitted via MCP.
+        priority: Optional new priority ('LOW', 'MEDIUM', 'HIGH').
+        active_assignee_username: Optional username to assign to. Pass empty string to unassign.
+        parent_key: Optional parent key to reparent or nest this ticket.
+        start_date: Optional start date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
+        target_date: Optional target date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
+    """
+    kwargs: Dict[str, Any] = {}
+    if title is not None:
+        kwargs["title"] = title
+    if description is not None:
+        kwargs["description"] = description
+    if status is not None:
+        clean_status = status.strip().lower()
+        if clean_status == "done":
+            raise ValueError("The 'done' status can only be set by a human via the frontend.")
+        if clean_status not in MCP_ALLOWED_STATUSES:
+            raise ValueError(f"Invalid status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_STATUSES)}.")
+        kwargs["status"] = clean_status
+    if priority is not None:
+        kwargs["priority"] = priority
+    if active_assignee_username is not None:
+        kwargs["active_assignee_username"] = active_assignee_username
+    if parent_key is not None:
+        kwargs["parent_key"] = parent_key
+    if start_date is not None:
+        kwargs["start_date"] = start_date
+    if target_date is not None:
+        kwargs["target_date"] = target_date
+    return get_client().update_user_support_ticket(key=key, **kwargs)
+
 @mcp_server.resource("davai://board/state")
 def get_board_state() -> str:
     """Read the complete real-time JSON state of the Davai work board."""

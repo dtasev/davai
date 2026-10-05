@@ -161,3 +161,38 @@ class TestDomainModels:
         # Next auto key skips SEQ-3 to avoid collision
         item4 = WorkItem.objects.create(project=proj, title="Task 4", created_by=test_user)
         assert item4.key == "SEQ-4"
+
+    def test_sequential_user_support_key_generation_and_no_sprint_release(self, test_user):
+        proj = Project.objects.create(key="SUPP", name="Support Project")
+        assert proj.last_user_support_number == 0
+
+        rel = Release.objects.create(project=proj, name="v1.0")
+        sp = Sprint.objects.create(project=proj, release=rel, name="Sprint 1")
+
+        # Auto-generated support key when is_support=True
+        sup1 = WorkItem.objects.create(
+            project=proj,
+            is_support=True,
+            title="Support Ticket 1",
+            created_by=test_user,
+            sprint=sp,
+            release=rel,
+        )
+        assert sup1.key == "SUPP-SUP-1"
+        assert sup1.is_support is True
+        # Sprints and releases are cleared automatically on support tickets
+        assert sup1.sprint is None
+        assert sup1.release is None
+        proj.refresh_from_db()
+        assert proj.last_user_support_number == 1
+
+        sup2 = WorkItem.objects.create(
+            project=proj,
+            is_support=True,
+            title="Support Ticket 2",
+            created_by=test_user,
+        )
+        assert sup2.key == "SUPP-SUP-2"
+        proj.refresh_from_db()
+        assert proj.last_user_support_number == 2
+

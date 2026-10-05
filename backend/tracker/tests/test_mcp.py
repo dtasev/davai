@@ -408,3 +408,65 @@ class TestMCPWithApiClient:
         assert search_res["total"] >= 1
         assert any(r["incident"]["key"] == inc_key for r in search_res["results"])
 
+        # 16. User Support Tickets via MCP tools (<PROJECT>-SUP-<ID>)
+        from mcp_server.server import (
+            create_user_support_ticket,
+            get_user_support_ticket,
+            list_user_support_tickets,
+            update_user_support_ticket,
+        )
+
+        with pytest.raises(ValueError, match="can only be set by a human"):
+            create_user_support_ticket(
+                title="Done not allowed via MCP",
+                status="done",
+                project_key=test_project.key,
+            )
+
+        sup_ticket = create_user_support_ticket(
+            title="User cannot access Mars archive",
+            description="Permission denied for group ecmwf-mars",
+            context="Check LDAP group membership",
+            priority="HIGH",
+            status="planned",
+            project_key=test_project.key,
+        )
+        assert sup_ticket["key"] == f"{test_project.key}-SUP-1"
+        assert sup_ticket["is_support"] is True
+        assert sup_ticket["sprint_id"] is None
+        assert sup_ticket["release_id"] is None
+        assert sup_ticket["status"] == "planned"
+        assert sup_ticket["context"]["summary"] == "Check LDAP group membership"
+        sup_key = sup_ticket["key"]
+
+        # Verify isolation: list_work_items does NOT include DAV-SUP-1, and list_user_support_tickets only includes DAV-SUP-1
+        regular_items = list_work_items(project_key=test_project.key)
+        assert all(i["key"] != sup_key for i in regular_items)
+
+        support_items = list_user_support_tickets(project_key=test_project.key)
+        assert [i["key"] for i in support_items] == [sup_key]
+
+        # Update user support ticket via MCP
+        with pytest.raises(ValueError, match="can only be set by a human"):
+            update_user_support_ticket(key=sup_key, status="done")
+
+        updated_sup = update_user_support_ticket(
+            key=sup_key,
+            title="User cannot access Mars archive (resolved group)",
+            status="in progress",
+            priority="MEDIUM",
+        )
+        assert updated_sup["title"] == "User cannot access Mars archive (resolved group)"
+        assert updated_sup["status"] == "in progress"
+        assert updated_sup["priority"] == "MEDIUM"
+
+        # Context & progress tools work seamlessly on DAV-SUP-1
+        set_work_item_context(key=sup_key, summary="Updated support context")
+        log_work_item_progress(key=sup_key, summary="Granted group permission", proof="ldap-change-42", status="review")
+
+        fetched_sup = get_user_support_ticket(key=sup_key)
+        assert fetched_sup["key"] == sup_key
+        assert fetched_sup["status"] == "review"
+        assert fetched_sup["context"]["summary"] == "Updated support context"
+
+

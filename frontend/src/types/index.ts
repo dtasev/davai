@@ -119,6 +119,7 @@ export interface SubtaskSummary {
 export interface WorkItem {
   id: number | string
   key: string
+  is_support?: boolean
   parent_key: string | null
   title: string
   description?: string

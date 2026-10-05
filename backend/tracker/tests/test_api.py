@@ -1330,6 +1330,107 @@ class TestNinjaAPI:
         assert sp_human_done.json()["status"] == "done"
         assert sp_human_done.json()["done_at"] is not None
 
+    def test_user_support_tickets_api_and_view_isolation(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+        mcp_headers = {"X-API-Key": raw_key, "User-Agent": "Davai-MCP-Client/1.0"}
+
+        # 1. Create a regular work item (DAV-1)
+        wi_res = ninja_client.post(
+            "/work-items",
+            json={"title": "Regular Feature Task", "project_key": test_project.key},
+            headers=headers,
+        )
+        assert wi_res.status_code == 200
+        wi_data = wi_res.json()
+        assert wi_data["key"] == f"{test_project.key}-1"
+        assert wi_data["is_support"] is False
+
+        # 2. Create User Support ticket via /projects/{key}/user-support -> DAV-SUP-1
+        sup1_res = ninja_client.post(
+            f"/projects/{test_project.key}/user-support",
+            json={
+                "title": "User cannot download GRIB file",
+                "description": "403 error on CDS download endpoint",
+                "priority": "HIGH",
+                "context": "Investigate token scope",
+            },
+            headers=headers,
+        )
+        assert sup1_res.status_code == 200
+        sup1 = sup1_res.json()
+        assert sup1["key"] == f"{test_project.key}-SUP-1"
+        assert sup1["is_support"] is True
+        assert sup1["sprint_id"] is None
+        assert sup1["release_id"] is None
+        assert sup1["context"]["summary"] == "Investigate token scope"
+
+        # 3. Create second User Support ticket via /user-support -> DAV-SUP-2
+        sup2_res = ninja_client.post(
+            "/user-support",
+            json={
+                "project_key": test_project.key,
+                "title": "API key rotation question",
+                "status": "in progress",
+            },
+            headers=headers,
+        )
+        assert sup2_res.status_code == 200
+        sup2 = sup2_res.json()
+        assert sup2["key"] == f"{test_project.key}-SUP-2"
+        assert sup2["is_support"] is True
+        assert sup2["status"] == "in progress"
+
+        # 4. MCP cannot create or update User Support ticket with status="done"
+        mcp_done_res = ninja_client.post(
+            "/user-support",
+            json={"project_key": test_project.key, "title": "MCP Done", "status": "done"},
+            headers=mcp_headers,
+        )
+        assert mcp_done_res.status_code == 400
+
+        # 5. Strict isolation in list endpoints:
+        # GET /work-items only returns regular work items (not DAV-SUP-*)
+        reg_list = ninja_client.get(f"/work-items?project_key={test_project.key}", headers=headers).json()
+        reg_keys = [i["key"] for i in reg_list]
+        assert wi_data["key"] in reg_keys
+        assert sup1["key"] not in reg_keys
+        assert sup2["key"] not in reg_keys
+
+        # GET /projects/{key}/user-support only returns support tickets (not DAV-1)
+        sup_list = ninja_client.get(f"/projects/{test_project.key}/user-support", headers=headers).json()
+        sup_keys = [i["key"] for i in sup_list]
+        assert sup1["key"] in sup_keys
+        assert sup2["key"] in sup_keys
+        assert wi_data["key"] not in sup_keys
+
+        # 6. Strict isolation in search endpoints:
+        reg_search = ninja_client.get(
+            f"/projects/{test_project.key}/search?q=GRIB&mode=keyword", headers=headers
+        ).json()
+        assert all(r["work_item"]["key"] != sup1["key"] for r in reg_search["results"])
+
+        sup_search = ninja_client.get(
+            f"/projects/{test_project.key}/user-support/search?q=GRIB&mode=keyword", headers=headers
+        ).json()
+        assert [r["work_item"]["key"] for r in sup_search["results"]] == [sup1["key"]]
+
+        # 7. Update User Support ticket via PATCH /user-support/{key}
+        patch_res = ninja_client.patch(
+            f"/user-support/{sup1['key']}",
+            json={"title": "Updated GRIB download issue", "priority": "LOW"},
+            headers=headers,
+        )
+        assert patch_res.status_code == 200
+        assert patch_res.json()["title"] == "Updated GRIB download issue"
+        assert patch_res.json()["priority"] == "LOW"
+
+        # 8. Delete User Support ticket
+        del_res = ninja_client.delete(f"/user-support/{sup2['key']}", headers=headers)
+        assert del_res.status_code == 200
+        assert del_res.json()["success"] is True
+
+
 
 
 

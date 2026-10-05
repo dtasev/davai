@@ -101,6 +101,7 @@ export function WorkItemModalRoute() {
   const {
     project,
     workItems,
+    userSupportItems = [],
     sprints,
     releases,
     handleUpdateStatus,
@@ -115,7 +116,8 @@ export function WorkItemModalRoute() {
   const [detailItem, setDetailItem] = useState<WorkItem | null>(null)
 
   const foundItem =
-    workItems.find(w => w.key.toUpperCase() === itemKey?.toUpperCase())
+    workItems.find(w => w.key.toUpperCase() === itemKey?.toUpperCase()) ||
+    userSupportItems.find(w => w.key.toUpperCase() === itemKey?.toUpperCase())
   const activeItem = (detailItem && detailItem.key.toUpperCase() === itemKey?.toUpperCase())
     ? detailItem
     : ((foundItem as unknown as WorkItem) || null)

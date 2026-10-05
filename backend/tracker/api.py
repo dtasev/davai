@@ -76,7 +76,9 @@ class ProjectOut(Schema):
 
     @staticmethod
     def resolve_item_count(obj: Project) -> int:
-        return obj.work_items.count()
+        if hasattr(obj, "_prefetched_objects_cache") and "work_items" in obj._prefetched_objects_cache:
+            return sum(1 for w in obj.work_items.all() if not w.is_support)
+        return obj.work_items.filter(is_support=False).count()
 
     @staticmethod
     def resolve_statuses(obj: Project) -> List[ProjectStatusOut]:
@@ -281,6 +283,7 @@ class SubtaskSummaryOut(Schema):
 class WorkItemListOut(Schema):
     id: int
     key: str
+    is_support: bool = False
     parent_key: Optional[str] = None
     title: str
     status: str
@@ -299,6 +302,10 @@ class WorkItemListOut(Schema):
     created: str
     updated: str
     subtasks: List[SubtaskSummaryOut] = []
+
+    @staticmethod
+    def resolve_is_support(obj: WorkItem) -> bool:
+        return bool(obj.is_support)
 
     @staticmethod
     def resolve_subtasks(obj: WorkItem) -> List[SubtaskSummaryOut]:
@@ -398,6 +405,7 @@ class CreateWorkItemIn(Schema):
     sprint_id: Optional[int] = None
     release_id: Optional[int] = None
     context: Optional[str] = None
+    is_support: bool = False
 
 
 class UpdateWorkItemIn(Schema):
@@ -412,6 +420,32 @@ class UpdateWorkItemIn(Schema):
     target_date: Optional[datetime] = None
     sprint_id: Optional[int] = None
     release_id: Optional[int] = None
+
+
+class CreateUserSupportIn(Schema):
+    title: str
+    description: str = ""
+    project_key: str = "DAV"
+    parent_key: Optional[str] = None
+    status: Optional[str] = None
+    priority: str = "MEDIUM"
+    active_assignee_username: Optional[str] = None
+    source: str = ""
+    start_date: Optional[datetime] = None
+    target_date: Optional[datetime] = None
+    context: Optional[str] = None
+
+
+class UpdateUserSupportIn(Schema):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    parent_key: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    active_assignee_username: Optional[str] = None
+    source: Optional[str] = None
+    start_date: Optional[datetime] = None
+    target_date: Optional[datetime] = None
 
 
 class APIKeyOut(Schema):
@@ -752,12 +786,13 @@ def perform_work_item_search(
     release_id: Optional[int] = None,
     assignee: Optional[str] = None,
     limit: int = 20,
+    is_support: bool = False,
 ) -> dict:
     mode = mode.lower().strip() if mode else "hybrid"
     if mode not in ("hybrid", "vector", "keyword"):
         mode = "hybrid"
 
-    base_qs = WorkItem.objects.select_related(
+    base_qs = WorkItem.objects.filter(is_support=is_support).select_related(
         "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
     ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by")
 
@@ -767,10 +802,10 @@ def perform_work_item_search(
     if priority:
         base_qs = base_qs.filter(priority__iexact=priority)
 
-    if sprint_id:
+    if sprint_id and not is_support:
         base_qs = base_qs.filter(sprint_id=sprint_id)
 
-    if release_id:
+    if release_id and not is_support:
         base_qs = base_qs.filter(release_id=release_id)
 
     if assignee:
@@ -934,6 +969,7 @@ def search_project_work_items(
     release_id: Optional[int] = None,
     assignee: Optional[str] = None,
     limit: int = 20,
+    is_support: bool = False,
 ):
     project = get_object_or_404(Project, key=project_key.upper())
     return perform_work_item_search(
@@ -946,6 +982,7 @@ def search_project_work_items(
         release_id=release_id,
         assignee=assignee,
         limit=limit,
+        is_support=is_support,
     )
 
 
@@ -961,6 +998,7 @@ def search_work_items(
     release_id: Optional[int] = None,
     assignee: Optional[str] = None,
     limit: int = 20,
+    is_support: bool = False,
 ):
     return perform_work_item_search(
         q=q,
@@ -972,13 +1010,14 @@ def search_work_items(
         release_id=release_id,
         assignee=assignee,
         limit=limit,
+        is_support=is_support,
     )
 
 
 @api.get("/work-items", response=List[WorkItemListOut], summary="List Work Items")
 @api.get("/work-items/preview", response=List[WorkItemListOut], summary="Public Preview of Work Items", operation_id="tracker_api_list_work_items_preview")
-def list_work_items(request, status: Optional[str] = None, project_key: Optional[str] = None):
-    qs = WorkItem.objects.select_related(
+def list_work_items(request, status: Optional[str] = None, project_key: Optional[str] = None, is_support: bool = False):
+    qs = WorkItem.objects.filter(is_support=is_support).select_related(
         "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release"
     ).prefetch_related("assigned", "watching", "subtasks").all()
 
@@ -1024,11 +1063,11 @@ def create_work_item(request, payload: CreateWorkItemIn):
         assignee = user
 
     sprint = None
-    if payload.sprint_id:
+    if payload.sprint_id and not payload.is_support:
         sprint = Sprint.objects.filter(id=payload.sprint_id, project=project).first()
 
     release = None
-    if payload.release_id:
+    if payload.release_id and not payload.is_support:
         release = Release.objects.filter(id=payload.release_id, project=project).first()
 
     clean_status = payload.status.strip().lower() if payload.status else None
@@ -1041,11 +1080,16 @@ def create_work_item(request, payload: CreateWorkItemIn):
                 raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
 
     with transaction.atomic():
-        item_key = project.generate_next_work_item_key()
+        item_key = (
+            project.generate_next_user_support_key()
+            if payload.is_support
+            else project.generate_next_work_item_key()
+        )
         item = WorkItem.objects.create(
             project=project,
             parent=parent,
             key=item_key,
+            is_support=bool(payload.is_support),
             title=payload.title,
             description=payload.description,
             priority=payload.priority.upper(),
@@ -1116,16 +1160,17 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
         item.start_date = payload.start_date
     if "target_date" in payload.model_fields_set:
         item.target_date = payload.target_date
-    if payload.sprint_id is not None:
-        if payload.sprint_id == 0:
-            item.sprint = None
-        else:
-            item.sprint = Sprint.objects.filter(id=payload.sprint_id, project=item.project).first()
-    if payload.release_id is not None:
-        if payload.release_id == 0:
-            item.release = None
-        else:
-            item.release = Release.objects.filter(id=payload.release_id, project=item.project).first()
+    if not item.is_support:
+        if payload.sprint_id is not None:
+            if payload.sprint_id == 0:
+                item.sprint = None
+            else:
+                item.sprint = Sprint.objects.filter(id=payload.sprint_id, project=item.project).first()
+        if payload.release_id is not None:
+            if payload.release_id == 0:
+                item.release = None
+            else:
+                item.release = Release.objects.filter(id=payload.release_id, project=item.project).first()
 
     item.updated_by = user
     item.save()
@@ -1137,6 +1182,160 @@ def delete_work_item(request, key: str):
     item = get_object_or_404(WorkItem, key=key.upper())
     item.delete()
     return {"success": True, "message": f"Work item {key.upper()} deleted"}
+
+
+# ---------------------------------------------------------------------------
+# User Support Ticket Endpoints (<PROJECT>-SUP-<ID>)
+# ---------------------------------------------------------------------------
+
+@api.get("/projects/{project_key}/user-support/search", response=SearchResponseOut, summary="Search User Support Tickets in Project")
+def search_project_user_support(
+    request,
+    project_key: str,
+    q: str = "",
+    mode: str = "hybrid",
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    assignee: Optional[str] = None,
+    limit: int = 20,
+):
+    project = get_object_or_404(Project, key=project_key.upper())
+    return perform_work_item_search(
+        q=q,
+        project_key=project.key,
+        mode=mode,
+        status=status,
+        priority=priority,
+        assignee=assignee,
+        limit=limit,
+        is_support=True,
+    )
+
+
+@api.get("/user-support/search", response=SearchResponseOut, summary="Global Search User Support Tickets")
+def search_user_support(
+    request,
+    q: str = "",
+    project_key: Optional[str] = None,
+    mode: str = "hybrid",
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    assignee: Optional[str] = None,
+    limit: int = 20,
+):
+    return perform_work_item_search(
+        q=q,
+        project_key=project_key,
+        mode=mode,
+        status=status,
+        priority=priority,
+        assignee=assignee,
+        limit=limit,
+        is_support=True,
+    )
+
+
+@api.get("/projects/{project_key}/user-support", response=List[WorkItemListOut], summary="List Project User Support Tickets")
+def list_project_user_support(request, project_key: str, status: Optional[str] = None):
+    project = get_object_or_404(Project, key=project_key.upper())
+    return list_work_items(request, status=status, project_key=project.key, is_support=True)
+
+
+@api.get("/user-support", response=List[WorkItemListOut], summary="List User Support Tickets")
+def list_user_support(request, status: Optional[str] = None, project_key: Optional[str] = None):
+    return list_work_items(request, status=status, project_key=project_key, is_support=True)
+
+
+@api.get("/user-support/{key}", response=WorkItemOut, summary="Get Single User Support Ticket")
+def get_user_support(request, key: str):
+    return get_object_or_404(
+        WorkItem.objects.filter(is_support=True).select_related(
+            "project", "parent", "active_assignee", "created_by", "updated_by", "sprint", "release", "context"
+        ).prefetch_related("assigned", "watching", "progress__created_by", "progress__updated_by", "subtasks"),
+        key=key.upper()
+    )
+
+
+def _create_user_support_for_project(request, project: Project, payload: CreateUserSupportIn) -> WorkItem:
+    user = request.auth
+    parent = None
+    if payload.parent_key:
+        parent = WorkItem.objects.filter(key=payload.parent_key.upper()).first()
+
+    assignee = None
+    if "active_assignee_username" in payload.model_fields_set:
+        if payload.active_assignee_username:
+            assignee = User.objects.filter(username=payload.active_assignee_username).first()
+        else:
+            assignee = None
+    else:
+        assignee = user
+
+    clean_status = payload.status.strip().lower() if payload.status else None
+    if clean_status:
+        if clean_status not in ALL_PROGRESS_STATUSES:
+            raise errors.HttpError(400, f"Invalid status '{payload.status}'. Allowed statuses are: {', '.join(ALL_PROGRESS_STATUSES)}.")
+        if clean_status == "done":
+            user_agent = request.headers.get("User-Agent", "")
+            if "Davai-MCP" in user_agent:
+                raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
+
+    with transaction.atomic():
+        item_key = project.generate_next_user_support_key()
+        item = WorkItem.objects.create(
+            project=project,
+            parent=parent,
+            key=item_key,
+            is_support=True,
+            title=payload.title,
+            description=payload.description,
+            priority=payload.priority.upper(),
+            active_assignee=assignee,
+            created_by=user,
+            source=payload.source,
+            start_date=payload.start_date,
+            target_date=payload.target_date,
+            sprint=None,
+            release=None,
+        )
+        if clean_status and clean_status != "todo":
+            Progress.objects.create(
+                work_item=item,
+                created_by=user,
+                summary=f"Initial status set to {clean_status}",
+                status=clean_status,
+            )
+        if payload.context:
+            context_obj = Context.objects.create(work_item=item, user=user, summary=payload.context)
+            item.context = context_obj
+    return item
+
+
+@api.post("/projects/{project_key}/user-support", response=WorkItemOut, auth=api_key_auth, summary="Create Project User Support Ticket")
+def create_project_user_support(request, project_key: str, payload: CreateUserSupportIn):
+    project = get_object_or_404(Project, key=project_key.upper())
+    return _create_user_support_for_project(request, project, payload)
+
+
+@api.post("/user-support", response=WorkItemOut, auth=api_key_auth, summary="Create User Support Ticket")
+def create_user_support(request, payload: CreateUserSupportIn):
+    project = get_object_or_404(Project, key=payload.project_key.upper())
+    return _create_user_support_for_project(request, project, payload)
+
+
+@api.patch("/user-support/{key}", response=WorkItemOut, auth=api_key_auth, summary="Update User Support Ticket")
+def update_user_support(request, key: str, payload: UpdateUserSupportIn):
+    get_object_or_404(WorkItem, key=key.upper(), is_support=True)
+    update_fields = payload.model_dump(exclude_unset=True)
+    work_item_payload = UpdateWorkItemIn(**update_fields)
+    return update_work_item(request, key, work_item_payload)
+
+
+@api.delete("/user-support/{key}", auth=api_key_auth, summary="Delete User Support Ticket")
+def delete_user_support(request, key: str):
+    item = get_object_or_404(WorkItem, key=key.upper(), is_support=True)
+    item.delete()
+    return {"success": True, "message": f"User support ticket {key.upper()} deleted"}
 
 
 # ---------------------------------------------------------------------------
