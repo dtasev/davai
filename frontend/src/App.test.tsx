@@ -2395,10 +2395,71 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByText('Help with MARS retrieval script')).toBeInTheDocument()
     })
   })
+
+  it('sorts assigned work items in sprint and release detail views by status order (todo, planned, in progress, blocked, review, done, cancelled)', async () => {
+    const unorderedItems: WorkItem[] = [
+      { ...mockWorkItem, id: 10, key: 'DAV-10', title: 'Cancelled Item', status: 'cancelled', sprint_id: 1, release_id: 1 },
+      { ...mockWorkItem, id: 11, key: 'DAV-11', title: 'Done Item', status: 'done', sprint_id: 1, release_id: 1 },
+      { ...mockWorkItem, id: 12, key: 'DAV-12', title: 'Review Item', status: 'review', sprint_id: 1, release_id: 1 },
+      { ...mockWorkItem, id: 13, key: 'DAV-13', title: 'Blocked Item', status: 'blocked', sprint_id: 1, release_id: 1 },
+      { ...mockWorkItem, id: 14, key: 'DAV-14', title: 'In Progress Item', status: 'in progress', sprint_id: 1, release_id: 1 },
+      { ...mockWorkItem, id: 15, key: 'DAV-15', title: 'Planned Item', status: 'planned', sprint_id: 1, release_id: 1 },
+      { ...mockWorkItem, id: 16, key: 'DAV-16', title: 'Todo Item', status: 'todo', sprint_id: 1, release_id: 1 },
+    ]
+
+    const origFetch = globalThis.fetch
+    globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+      const urlStr = url.toString()
+      if (urlStr.includes('/api/work-items?project_key=DAV')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(unorderedItems),
+        } as Response)
+      }
+      return origFetch(url, init)
+    })
+
+    // 1. Check Sprint detail modal sorting
+    const { router } = await renderWithRouter(['/projects/DAV/sprints/1'])
+    await waitFor(() => {
+      expect(screen.getByTestId('sprint-detail-modal')).toBeInTheDocument()
+    })
+
+    const sprintModal = screen.getByTestId('sprint-detail-modal')
+    const sprintKeys = within(sprintModal)
+      .getAllByText(/^DAV-1\d$/)
+      .map(el => el.textContent)
+    expect(sprintKeys).toEqual([
+      'DAV-16', // todo
+      'DAV-15', // planned
+      'DAV-14', // in progress
+      'DAV-13', // blocked
+      'DAV-12', // review
+      'DAV-11', // done
+      'DAV-10', // cancelled
+    ])
+
+    // 2. Check Release detail modal sorting
+    await act(async () => {
+      router.navigate('/projects/DAV/releases/1')
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('release-detail-modal')).toBeInTheDocument()
+    })
+
+    const releaseModal = screen.getByTestId('release-detail-modal')
+    const releaseKeys = within(releaseModal)
+      .getAllByText(/^DAV-1\d$/)
+      .map(el => el.textContent)
+    expect(releaseKeys).toEqual([
+      'DAV-16', // todo
+      'DAV-15', // planned
+      'DAV-14', // in progress
+      'DAV-13', // blocked
+      'DAV-12', // review
+      'DAV-11', // done
+      'DAV-10', // cancelled
+    ])
+  })
 })
-
-
-
-
-
 

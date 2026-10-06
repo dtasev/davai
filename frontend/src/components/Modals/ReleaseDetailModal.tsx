@@ -1,8 +1,20 @@
 import { useState, useEffect, ChangeEvent } from 'react'
 import { Rocket, Calendar, Zap, ListTodo, ChevronRight, Trash2, AlertTriangle, Check } from 'lucide-react'
-import { Release, Sprint, WorkItem, DEFAULT_SPRINT_RELEASE_STATUSES } from '../../types'
+import { Release, Sprint, WorkItem, DEFAULT_SPRINT_RELEASE_STATUSES, STANDARD_STATUSES } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+
+function getStatusOrder(status: string | null | undefined): number {
+  const s = (status || 'todo').toLowerCase().replace(/_/g, ' ').trim()
+  const normalized =
+    s === 'step completed' || s === 'completed'
+      ? 'in progress'
+      : s === 'awaiting review' || s === 'waiting'
+      ? 'review'
+      : s
+  const idx = STANDARD_STATUSES.indexOf(normalized as (typeof STANDARD_STATUSES)[number])
+  return idx !== -1 ? idx : STANDARD_STATUSES.length
+}
 
 interface ReleaseDetailModalProps {
   release: Release | null
@@ -97,7 +109,9 @@ export function ReleaseDetailModal({
   }
 
   const linkedSprints = sprints.filter(s => s.release_id === release.id)
-  const releaseItems = workItems.filter(item => item.release_id === release.id)
+  const releaseItems = workItems
+    .filter(item => item.release_id === release.id)
+    .sort((a, b) => getStatusOrder(a.status) - getStatusOrder(b.status))
 
   return (
     <Modal
