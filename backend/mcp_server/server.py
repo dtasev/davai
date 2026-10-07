@@ -192,6 +192,7 @@ def set_work_item_context(key: str, summary: str) -> Dict[str, Any]:
 def log_work_item_progress(
     key: str,
     summary: str,
+    agent_id: str,
     proof: str = "",
     status: str = "in progress"
 ) -> Dict[str, Any]:
@@ -200,21 +201,32 @@ def log_work_item_progress(
     Args:
         key: Work item key (e.g. 'DAV-1').
         summary: Summary of the step completed, decision made, or current obstacle.
+        agent_id: Required agent/model/session identifier in the format '<agent>/<model>/<session-id>' (e.g. 'claude-code/claude-sonnet-4-5/sess-123').
         proof: If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact.
         status: Step status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Defaults to 'in progress'. Note: 'done' is reserved for human verification in the frontend and is refused by MCP.
     """
+    clean_agent_id = (agent_id or "").strip()
+    if not clean_agent_id:
+        raise ValueError("The 'agent_id' argument is required when logging progress via MCP.")
     clean_status = (status or "in progress").strip().lower()
     if clean_status == "done":
         raise ValueError("The 'done' status can only be set by a human via the frontend.")
     if clean_status not in MCP_ALLOWED_STATUSES:
         raise ValueError(f"Invalid status '{status}'. Allowed statuses via MCP are: {', '.join(MCP_ALLOWED_STATUSES)}.")
-    return get_client().log_work_item_progress(key=key, summary=summary, proof=proof, status=clean_status)
+    return get_client().log_work_item_progress(
+        key=key,
+        summary=summary,
+        agent_id=clean_agent_id,
+        proof=proof,
+        status=clean_status,
+    )
 
 @mcp_server.tool()
 def update_work_item_progress(
     key: str,
     progress_id: int,
     summary: Optional[str] = None,
+    agent_id: Optional[str] = None,
     proof: Optional[str] = None,
     status: Optional[str] = None
 ) -> Dict[str, Any]:
@@ -224,12 +236,15 @@ def update_work_item_progress(
         key: Work item key (e.g. 'DAV-1').
         progress_id: ID of the progress entry to update.
         summary: Optional new summary or description of the progress/step.
+        agent_id: Optional updated agent/model/session identifier (e.g. '<agent>/<model>/<session-id>').
         proof: Optional new proof (git sha, feature branch, or artifact link).
         status: Optional new status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Note: 'done' is reserved for human verification in the frontend and is refused by MCP.
     """
     kwargs: Dict[str, Any] = {}
     if summary is not None:
         kwargs["summary"] = summary
+    if agent_id is not None:
+        kwargs["agent_id"] = agent_id
     if proof is not None:
         kwargs["proof"] = proof
     if status is not None:
@@ -587,7 +602,7 @@ def update_incident(
 @mcp_server.tool()
 def create_monitoring_log(
     description: str,
-    who_are_you: str = "",
+    agent_id: str = "",
     status: str = "OK",
     project_key: str = "DAV",
     incident_id: Optional[str] = None,
@@ -597,7 +612,7 @@ def create_monitoring_log(
     Create a monitoring log entry to report a check or monitoring run.
     Args:
         description: Full description or log output of the run.
-        who_are_you: Agent/runner identity or context description filled out by the LLM.
+        agent_id: Agent/model/session identifier in the format '<agent>/<model>/<session-id>' filled out by the LLM.
         status: Run status ('OK' or 'Error'). Set by the LLM on creation.
         project_key: Project key (default 'DAV').
         incident_id: Optional Davai incident ID or key (e.g. 'DAV-INC-1') to link this run to, otherwise null.
@@ -608,7 +623,7 @@ def create_monitoring_log(
         raise ValueError(f"Invalid monitoring log status '{status}'. Allowed statuses are: OK, Error.")
     return get_client().create_monitoring_log(
         description=description,
-        who_are_you=who_are_you,
+        agent_id=agent_id,
         status=clean_status,
         project_key=project_key,
         incident_id=incident_id,

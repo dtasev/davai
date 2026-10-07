@@ -59,7 +59,7 @@ export function AllSprintsModal({
                     onSelectSprint(s)
                   })
                 }}
-                className="group p-3 rounded-lg bg-zinc-900/80 border border-zinc-800 hover:border-amber-500/40 transition cursor-pointer flex items-center justify-between gap-3"
+                className="group p-3 rounded-lg bg-zinc-900/80 border border-zinc-800 hover:border-amber-500/40 transition cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3"
                 data-testid={`all-sprint-item-${s.id}`}
               >
                 <div className="min-w-0 flex-1">
@@ -82,7 +82,7 @@ export function AllSprintsModal({
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0 text-[11px] text-zinc-500">
+                <div className="flex flex-wrap items-center gap-3 shrink-0 text-[11px] text-zinc-500">
                   {s.done_at && (
                     <span
                       className="flex items-center gap-1 text-emerald-400 font-mono"
@@ -104,7 +104,7 @@ export function AllSprintsModal({
                         : 'Unscheduled'}
                     </span>
                   </span>
-                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform text-zinc-400" />
+                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform text-zinc-400 ml-auto sm:ml-0" />
                 </div>
               </div>
             )
@@ -175,19 +175,19 @@ export function SprintList({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <button
           type="button"
           onClick={() =>
             onOpenAllSprints ? onOpenAllSprints() : setInternalAllOpen(true)
           }
-          className="flex items-center gap-2.5 text-left group cursor-pointer"
+          className="flex items-center gap-2.5 text-left group cursor-pointer min-w-0"
           data-testid="open-all-sprints-modal"
         >
-          <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:border-amber-500/50 transition">
+          <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 group-hover:border-amber-500/50 transition shrink-0">
             <Zap className="w-3.5 h-3.5" />
           </div>
-          <div>
+          <div className="min-w-0">
             <h3 className="font-bold text-sm text-zinc-100 group-hover:text-amber-400 transition flex items-center gap-1.5">
               <span>Sprints</span>
               <span className="text-sm font-mono text-zinc-500 font-normal">
@@ -202,7 +202,7 @@ export function SprintList({
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium flex items-center gap-1 transition border border-zinc-700/60"
+          className="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-sm font-medium flex items-center gap-1 transition border border-zinc-700/60 shrink-0"
           data-testid="create-sprint-button"
         >
           <Plus className="w-3 h-3" />

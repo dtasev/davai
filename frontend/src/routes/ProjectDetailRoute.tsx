@@ -31,12 +31,12 @@ export interface ProjectDetailOutletContext {
   handleUpdateContext: (key: string, contextText: string) => Promise<void>
   handleAddProgress: (
     key: string,
-    entry: { summary: string; proof: string; status: string }
+    entry: { summary: string; proof: string; status: string; agent_id?: string }
   ) => Promise<void>
   handleUpdateProgress: (
     key: string,
     progressId: number,
-    entry: { summary?: string; proof?: string; status?: string }
+    entry: { summary?: string; proof?: string; status?: string; agent_id?: string }
   ) => Promise<ProgressEntry>
   handleDeleteProgress: (key: string, progressId: number) => Promise<void>
   handleDeleteSprint: (sprintId: number) => Promise<void>
@@ -78,7 +78,7 @@ export interface ProjectDetailOutletContext {
   handleUpdateMonitoringLog: (
     key: string,
     data: {
-      who_are_you?: string
+      agent_id?: string
       description?: string
       status?: string
       incident_id?: string | null
@@ -358,7 +358,7 @@ export function ProjectDetailRoute() {
 
   const handleAddProgress = async (
     key: string,
-    entry: { summary: string; proof: string; status: string }
+    entry: { summary: string; proof: string; status: string; agent_id?: string }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}/progress`, {
       method: 'POST',
@@ -388,7 +388,7 @@ export function ProjectDetailRoute() {
   const handleUpdateProgress = async (
     key: string,
     progressId: number,
-    entry: { summary?: string; proof?: string; status?: string }
+    entry: { summary?: string; proof?: string; status?: string; agent_id?: string }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}/progress/${progressId}`, {
       method: 'PATCH',
@@ -621,7 +621,7 @@ export function ProjectDetailRoute() {
   }
 
   const handleCreateMonitoringLog = async (data: {
-    who_are_you: string
+    agent_id: string
     description: string
     status: string
     incident_id?: string | null
@@ -673,7 +673,7 @@ export function ProjectDetailRoute() {
   const handleUpdateMonitoringLog = async (
     key: string,
     data: {
-      who_are_you?: string
+      agent_id?: string
       description?: string
       status?: string
       incident_id?: string | null

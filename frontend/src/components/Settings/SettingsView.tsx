@@ -234,8 +234,8 @@ export function SettingsView({
 
         {/* MCP Stdio Config */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-sm text-zinc-400">
-            <span>Claude Code / Antigravity MCP Config (<code>claude_desktop_config.json</code>)</span>
+          <div className="flex items-center justify-between gap-2 text-sm text-zinc-400">
+            <span className="min-w-0">Claude Code / Antigravity MCP Config (<code>claude_desktop_config.json</code>)</span>
             <button
               onClick={() => {
                 const snippet = JSON.stringify(
@@ -256,7 +256,7 @@ export function SettingsView({
                 )
                 copyToClipboard(snippet, 'mcp')
               }}
-              className="flex items-center gap-1 hover:text-white transition text-sm"
+              className="flex items-center gap-1 hover:text-white transition text-sm shrink-0"
             >
               {copiedSnippet === 'mcp' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
               <span>{copiedSnippet === 'mcp' ? 'Copied' : 'Copy JSON'}</span>
@@ -280,14 +280,14 @@ export function SettingsView({
 
         {/* GraphQL Curl Snippet */}
         <div className="space-y-1.5">
-          <div className="flex items-center justify-between text-sm text-zinc-400">
-            <span>GraphQL Query via Curl</span>
+          <div className="flex items-center justify-between gap-2 text-sm text-zinc-400">
+            <span className="min-w-0">GraphQL Query via Curl</span>
             <button
               onClick={() => {
                 const cmd = `curl -X POST http://127.0.0.1:6477/graphql/ -H "Content-Type: application/json" -H "X-API-Key: YOUR_API_KEY" -d '{"query": "query { workItems { key title status } }"}'`
                 copyToClipboard(cmd, 'curl')
               }}
-              className="flex items-center gap-1 hover:text-white transition text-sm"
+              className="flex items-center gap-1 hover:text-white transition text-sm shrink-0"
             >
               {copiedSnippet === 'curl' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
               <span>{copiedSnippet === 'curl' ? 'Copied' : 'Copy Curl'}</span>

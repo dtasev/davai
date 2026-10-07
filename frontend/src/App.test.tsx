@@ -47,6 +47,7 @@ describe('Davai Frontend App with React Router', () => {
           id: 1,
           work_item_key: 'DAV-1',
           created_by: 'admin',
+          agent_id: 'claude-code/sonnet/sess-1',
           summary: 'Completed models',
           proof: 'git:e93f18a',
           status: 'in progress',
@@ -104,6 +105,7 @@ describe('Davai Frontend App with React Router', () => {
           if (prog) {
             if (body.summary !== undefined) prog.summary = body.summary
             if (body.proof !== undefined) prog.proof = body.proof
+            if (body.agent_id !== undefined) prog.agent_id = body.agent_id
             if (body.status !== undefined) prog.status = body.status
             prog.updated_by = 'admin'
             prog.updated_at = '2026-09-20T01:00:00Z'
@@ -293,7 +295,7 @@ describe('Davai Frontend App with React Router', () => {
                         id: 1,
                         key: 'DAV-LOG-1',
                         status: 'error',
-                        who_are_you: 'redis-watchdog',
+                        agent_id: 'redis-watchdog',
                         created_at: '2026-09-20T00:00:00Z'
                       }
                     ],
@@ -329,7 +331,7 @@ describe('Davai Frontend App with React Router', () => {
                 id: 1,
                 key: 'DAV-LOG-1',
                 status: 'error',
-                who_are_you: 'redis-watchdog',
+                agent_id: 'redis-watchdog',
                 created_at: '2026-09-20T00:00:00Z'
               }
             ],
@@ -375,7 +377,7 @@ describe('Davai Frontend App with React Router', () => {
             id: 1,
             key: 'DAV-LOG-1',
             project_key: 'DAV',
-            who_are_you: 'redis-watchdog',
+            agent_id: 'redis-watchdog',
             description: 'ERROR: Redis sentinel failover triggered on primary-01',
             status: 'error',
             incident_id: 1,
@@ -1098,10 +1100,27 @@ describe('Davai Frontend App with React Router', () => {
     expect(copiedText).toContain('ID: 1')
     expect(copiedText).toContain('Key: DAV-1')
     expect(copiedText).toContain('Title: Build AI-Native Data Models')
+    expect(copiedText).toContain(`URL: ${window.location.href}`)
     expect(copiedText).toContain('Description:\nDjango ORM schema and models')
     expect(copiedText).toContain('Context:\nSpecifications for AI data models')
 
     expect(copyBtn).toHaveAttribute('title', 'Copied to clipboard!')
+
+    const playBtn = screen.getByTestId('copy-agent-prompt-button')
+    await act(async () => {
+      fireEvent.click(playBtn)
+    })
+
+    expect(writeTextMock).toHaveBeenCalledTimes(2)
+    const startPromptText = writeTextMock.mock.calls[1][0]
+    expect(startPromptText).toContain('ID: 1')
+    expect(startPromptText).toContain('Key: DAV-1')
+    expect(startPromptText).toContain('Title: Build AI-Native Data Models')
+    expect(startPromptText).toContain(`URL: ${window.location.href}`)
+    expect(startPromptText).toContain(
+      'This is a Davai MCP item. Rename your session to a sensible slug, prefixed with the item key-ID-<short-slug-summary>'
+    )
+    expect(playBtn).toHaveAttribute('title', 'Copied to clipboard!')
   })
 
   it('supports setting and updating start_date and end_date on sprint and release detail modals', async () => {
@@ -1504,7 +1523,14 @@ describe('Davai Frontend App with React Router', () => {
     // Progress entry exists
     expect(screen.getByTestId('progress-entry-1')).toBeInTheDocument()
     expect(screen.getByTestId('progress-summary-1')).toHaveTextContent('Completed models')
-    expect(screen.getByTestId('progress-proof-1')).toHaveTextContent('git:e93f18a')
+    const proofBadge = screen.getByTestId('progress-proof-1')
+    const agentBadge = screen.getByTestId('progress-agent-id-1')
+    expect(proofBadge).toHaveTextContent('git:e93f18a')
+    expect(agentBadge).toHaveTextContent('claude-code/sonnet/sess-1')
+    expect(
+      Boolean(proofBadge.compareDocumentPosition(agentBadge) & Node.DOCUMENT_POSITION_FOLLOWING)
+    ).toBe(true)
+    expect(screen.getByTestId('add-progress-agent-id-input')).toBeInTheDocument()
 
     // 1. EDIT PROGRESS ENTRY
     const editBtn = screen.getByTestId('edit-progress-button-1')
@@ -1515,10 +1541,12 @@ describe('Davai Frontend App with React Router', () => {
     expect(screen.getByTestId('edit-progress-form-1')).toBeInTheDocument()
     const summaryInput = screen.getByTestId('edit-progress-summary-1')
     const proofInput = screen.getByTestId('edit-progress-proof-1')
+    const agentInput = screen.getByTestId('edit-progress-agent-id-1')
     const statusSelect = screen.getByTestId('edit-progress-status-1')
 
     fireEvent.change(summaryInput, { target: { value: 'Completed models and updated API' } })
     fireEvent.change(proofInput, { target: { value: 'git:e93f18b' } })
+    fireEvent.change(agentInput, { target: { value: 'claude-code/sonnet/sess-2' } })
     fireEvent.change(statusSelect, { target: { value: 'planned' } })
 
     const saveBtn = screen.getByTestId('save-progress-1')
@@ -1530,6 +1558,7 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.queryByTestId('edit-progress-form-1')).not.toBeInTheDocument()
       expect(screen.getByTestId('progress-summary-1')).toHaveTextContent('Completed models and updated API')
       expect(screen.getByTestId('progress-proof-1')).toHaveTextContent('git:e93f18b')
+      expect(screen.getByTestId('progress-agent-id-1')).toHaveTextContent('claude-code/sonnet/sess-2')
     })
 
     // (edited) indicator appears
@@ -1798,9 +1827,11 @@ describe('Davai Frontend App with React Router', () => {
     expect(markDoneBtn.className).toContain('text-zinc-500')
     expect(markDoneBtn).toHaveAttribute('title', 'Mark work item as Done')
 
-    // Mark done button is on the left of the Copy work item details button
+    // Play button is between Mark done button and Copy work item details button
+    const playBtn = screen.getByTestId('copy-agent-prompt-button')
     const copyBtn = screen.getByTestId('copy-work-item-button')
-    expect(markDoneBtn.nextElementSibling).toBe(copyBtn)
+    expect(markDoneBtn.nextElementSibling).toBe(playBtn)
+    expect(playBtn.nextElementSibling).toBe(copyBtn)
 
     // Confirmation banner is initially not shown
     expect(screen.queryByTestId('mark-done-confirm')).not.toBeInTheDocument()
@@ -2018,7 +2049,7 @@ describe('Davai Frontend App with React Router', () => {
     await waitFor(() => {
       expect(screen.getByTestId('monitoring-log-detail-modal')).toBeInTheDocument()
     })
-    expect(screen.getByTestId('monitoring-log-who-are-you')).toHaveTextContent('redis-watchdog')
+    expect(screen.getByTestId('monitoring-log-agent-id')).toHaveTextContent('redis-watchdog')
     expect(screen.getByTestId('monitoring-log-description')).toHaveTextContent(
       'ERROR: Redis sentinel failover triggered on primary-01'
     )
@@ -2460,6 +2491,32 @@ describe('Davai Frontend App with React Router', () => {
       'DAV-11', // done
       'DAV-10', // cancelled
     ])
+  })
+
+  it('excludes sprints and releases marked as "done" from WorkItemDetailModal dropdowns', () => {
+    render(
+      <WorkItemDetailModal
+        item={mockWorkItem}
+        sprints={[
+          { id: 1, project_key: 'DAV', name: 'Active Sprint', description: '', status: 'in progress', release_id: null, start_date: null, end_date: null, done_at: null, created_at: '2026-10-01T00:00:00Z' },
+          { id: 2, project_key: 'DAV', name: 'Completed Sprint', description: '', status: 'done', release_id: null, start_date: null, end_date: null, done_at: '2026-10-01T00:00:00Z', created_at: '2026-10-01T00:00:00Z' }
+        ]}
+        releases={[
+          { id: 1, project_key: 'DAV', name: 'Planned Release', description: '', status: 'planned', start_date: null, end_date: null, done_at: null, created_at: '2026-10-01T00:00:00Z' },
+          { id: 2, project_key: 'DAV', name: 'Done Release', description: '', status: 'done', start_date: null, end_date: null, done_at: '2026-10-01T00:00:00Z', created_at: '2026-10-01T00:00:00Z' }
+        ]}
+        onClose={vi.fn()}
+        onUpdateDetails={vi.fn()}
+      />
+    )
+
+    const sprintSelect = screen.getByTestId('work-item-sprint-select')
+    const sprintOptions = within(sprintSelect).getAllByRole('option').map(o => o.textContent)
+    expect(sprintOptions).toEqual(['No Sprint', 'Active Sprint'])
+
+    const releaseSelect = screen.getByTestId('work-item-release-select')
+    const releaseOptions = within(releaseSelect).getAllByRole('option').map(o => o.textContent)
+    expect(releaseOptions).toEqual(['No Release', 'Planned Release'])
   })
 })
 

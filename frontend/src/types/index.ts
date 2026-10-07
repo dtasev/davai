@@ -103,6 +103,7 @@ export interface ProgressEntry {
   id: number
   work_item_key: string
   created_by: string | null
+  agent_id?: string
   summary: string
   proof: string
   status: ProgressStatus
@@ -224,7 +225,7 @@ export interface MonitoringLogLink {
   id: number
   key: string
   status: MonitoringLogStatus
-  who_are_you: string
+  agent_id: string
   created_at: string
 }
 
@@ -269,7 +270,7 @@ export interface MonitoringLog {
   id: number
   key: string
   project_key: string
-  who_are_you: string
+  agent_id: string
   description: string
   status: MonitoringLogStatus
   incident_id: number | null

@@ -484,10 +484,10 @@ export function IncidentDetailModal({
                       {log.key}
                     </span>
                     <StatusBadge status={log.status} />
-                    {log.who_are_you && (
+                    {log.agent_id && (
                       <span className="flex items-center gap-1 text-[10px] font-mono text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-800/40 leading-none">
                         <Bot className="w-2.5 h-2.5 text-indigo-400" />
-                        <span>{log.who_are_you}</span>
+                        <span>{log.agent_id}</span>
                       </span>
                     )}
                     <span className="text-[11px] font-mono text-zinc-400">

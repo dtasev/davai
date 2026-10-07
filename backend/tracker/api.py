@@ -235,6 +235,7 @@ class ProgressOut(Schema):
     id: int
     work_item_key: str
     created_by: Optional[str] = None
+    agent_id: str = ""
     summary: str
     proof: str
     status: str
@@ -251,6 +252,10 @@ class ProgressOut(Schema):
         return obj.created_by.username if obj.created_by else None
 
     @staticmethod
+    def resolve_agent_id(obj: Progress) -> str:
+        return obj.agent_id or ""
+
+    @staticmethod
     def resolve_created_at(obj: Progress) -> str:
         return obj.created_at.isoformat()
 
@@ -265,12 +270,14 @@ class ProgressOut(Schema):
 
 class CreateProgressIn(Schema):
     summary: str
+    agent_id: str = ""
     proof: str = ""
     status: str = "in progress"
 
 
 class UpdateProgressIn(Schema):
     summary: Optional[str] = None
+    agent_id: Optional[str] = None
     proof: Optional[str] = None
     status: Optional[str] = None
 
@@ -1372,6 +1379,15 @@ def list_work_item_progress(request, key: str):
     return item.progress.select_related("created_by", "updated_by").all()
 
 
+def _is_api_key_or_mcp_request(request) -> bool:
+    user_agent = request.headers.get("User-Agent", "")
+    if "Davai-MCP" in user_agent:
+        return True
+    if request.headers.get("X-API-Key") or request.GET.get("api_key"):
+        return True
+    return False
+
+
 @api.post("/work-items/{key}/progress", response=ProgressOut, auth=api_key_auth, summary="Log Progress Entry")
 def log_work_item_progress(request, key: str, payload: CreateProgressIn):
     """
@@ -1386,9 +1402,13 @@ def log_work_item_progress(request, key: str, payload: CreateProgressIn):
         user_agent = request.headers.get("User-Agent", "")
         if "Davai-MCP" in user_agent:
             raise errors.HttpError(400, "The 'done' status can only be set by a human via the frontend, not via MCP.")
+    clean_agent_id = (payload.agent_id or "").strip()
+    if not clean_agent_id and _is_api_key_or_mcp_request(request):
+        raise errors.HttpError(400, "The 'agent_id' field is required when logging progress via API or MCP.")
     return Progress.objects.create(
         work_item=item,
         created_by=user,
+        agent_id=clean_agent_id,
         summary=payload.summary,
         proof=payload.proof,
         status=clean_status
@@ -1414,6 +1434,8 @@ def update_work_item_progress(request, key: str, progress_id: int, payload: Upda
 
     if payload.summary is not None:
         progress.summary = payload.summary
+    if payload.agent_id is not None:
+        progress.agent_id = payload.agent_id.strip()
     if payload.proof is not None:
         progress.proof = payload.proof
     if payload.status is not None:
@@ -1456,7 +1478,7 @@ class MonitoringLogLinkOut(Schema):
     id: int
     key: str
     status: str
-    who_are_you: str
+    agent_id: str
     created_at: str
 
     @staticmethod
@@ -1571,7 +1593,7 @@ class MonitoringLogOut(Schema):
     id: int
     key: str
     project_key: str
-    who_are_you: str
+    agent_id: str
     description: str
     status: str
     incident_id: Optional[int] = None
@@ -1603,7 +1625,7 @@ class MonitoringLogOut(Schema):
 
 class CreateMonitoringLogIn(Schema):
     project_key: str = "DAV"
-    who_are_you: str = ""
+    agent_id: str = ""
     description: str
     status: str = "ok"
     incident_id: Optional[Any] = None
@@ -1612,7 +1634,7 @@ class CreateMonitoringLogIn(Schema):
 
 
 class UpdateMonitoringLogIn(Schema):
-    who_are_you: Optional[str] = None
+    agent_id: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
     incident_id: Optional[Any] = None
@@ -2130,7 +2152,7 @@ def _create_monitoring_log_for_project(request, project: Project, payload: Creat
         log_obj = MonitoringLog.objects.create(
             project=project,
             key=log_key,
-            who_are_you=payload.who_are_you,
+            agent_id=payload.agent_id,
             description=payload.description,
             status=clean_status,
             incident=incident,
@@ -2156,8 +2178,8 @@ def create_monitoring_log(request, payload: CreateMonitoringLogIn):
 def update_monitoring_log(request, log_id: str, payload: UpdateMonitoringLogIn):
     log_obj = _get_monitoring_log_by_identifier(log_id)
 
-    if payload.who_are_you is not None:
-        log_obj.who_are_you = payload.who_are_you
+    if payload.agent_id is not None:
+        log_obj.agent_id = payload.agent_id
     if payload.description is not None:
         log_obj.description = payload.description
     if payload.status is not None:

@@ -313,7 +313,7 @@ export function MonitoringLogModalRoute() {
   } : undefined
 
   const handleUpdate = activeLog || logKey ? async (data: {
-    who_are_you?: string
+    agent_id?: string
     description?: string
     status?: string
     incident_id?: string | null

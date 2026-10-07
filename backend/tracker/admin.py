@@ -96,9 +96,9 @@ class ContextAdmin(admin.ModelAdmin):
 
 @admin.register(Progress)
 class ProgressAdmin(admin.ModelAdmin):
-    list_display = ("work_item", "created_by", "status", "proof", "created_at", "updated_at")
+    list_display = ("work_item", "created_by", "agent_id", "status", "proof", "created_at", "updated_at")
     list_filter = ("status", "created_at", "updated_at")
-    search_fields = ("work_item__key", "summary", "proof")
+    search_fields = ("work_item__key", "agent_id", "summary", "proof")
 
 
 @admin.register(WorkItemEmbedding)
@@ -124,7 +124,7 @@ class IncidentEmbeddingAdmin(admin.ModelAdmin):
 
 @admin.register(MonitoringLog)
 class MonitoringLogAdmin(admin.ModelAdmin):
-    list_display = ("key", "project", "status", "who_are_you", "incident", "jira_url", "created_at")
+    list_display = ("key", "project", "status", "agent_id", "incident", "jira_url", "created_at")
     list_filter = ("status", "project")
-    search_fields = ("key", "who_are_you", "description", "jira_url", "incident__key")
+    search_fields = ("key", "agent_id", "description", "jira_url", "incident__key")
 

@@ -20,7 +20,7 @@ interface MonitoringLogDetailModalProps {
   onClose: () => void
   onSelectIncident?: (incidentKey: string) => void
   onUpdateLog?: (data: {
-    who_are_you?: string
+    agent_id?: string
     description?: string
     status?: string
     incident_id?: string | null
@@ -37,7 +37,7 @@ export function MonitoringLogDetailModal({
   onDelete
 }: MonitoringLogDetailModalProps) {
   const [isEditing, setIsEditing] = useState(false)
-  const [editWhoAreYou, setEditWhoAreYou] = useState(log?.who_are_you || '')
+  const [editAgentId, setEditAgentId] = useState(log?.agent_id || '')
   const [editDescription, setEditDescription] = useState(log?.description || '')
   const [editStatus, setEditStatus] = useState(log?.status || 'ok')
   const [editIncidentKey, setEditIncidentKey] = useState(log?.incident_key || '')
@@ -50,7 +50,7 @@ export function MonitoringLogDetailModal({
 
   useEffect(() => {
     if (log) {
-      setEditWhoAreYou(log.who_are_you || '')
+      setEditAgentId(log.agent_id || '')
       setEditDescription(log.description || '')
       setEditStatus(log.status || 'ok')
       setEditIncidentKey(log.incident_key || '')
@@ -59,7 +59,7 @@ export function MonitoringLogDetailModal({
     }
   }, [
     log?.key,
-    log?.who_are_you,
+    log?.agent_id,
     log?.description,
     log?.status,
     log?.incident_key,
@@ -73,7 +73,7 @@ export function MonitoringLogDetailModal({
     setIsSaving(true)
     try {
       await onUpdateLog({
-        who_are_you: editWhoAreYou.trim(),
+        agent_id: editAgentId.trim(),
         description: editDescription.trim(),
         status: editStatus,
         incident_id: editIncidentKey.trim() || null,
@@ -86,7 +86,7 @@ export function MonitoringLogDetailModal({
   }
 
   const handleCancelEdit = () => {
-    setEditWhoAreYou(log.who_are_you || '')
+    setEditAgentId(log.agent_id || '')
     setEditDescription(log.description || '')
     setEditStatus(log.status || 'ok')
     setEditIncidentKey(log.incident_key || '')
@@ -96,7 +96,7 @@ export function MonitoringLogDetailModal({
 
   const handleCopyDetails = () => {
     const textToCopy = [
-      `ID: ${log.id}\nKey: ${log.key}\nStatus: ${log.status}\nWho Are You: ${log.who_are_you || 'N/A'}`,
+      `ID: ${log.id}\nKey: ${log.key}\nStatus: ${log.status}\nAgent ID: ${log.agent_id || 'N/A'}`,
       `Incident: ${log.incident_key || 'None'}\nJIRA: ${log.jira_url || 'None'}`,
       `Run Description:\n${log.description}`
     ].join('\n\n')
@@ -247,22 +247,23 @@ export function MonitoringLogDetailModal({
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-zinc-500 flex items-center gap-1">
                 <Bot className="w-3 h-3 text-indigo-400" />
-                <span>Who Are You:</span>
+                <span>Agent ID:</span>
               </span>
               {isEditing ? (
                 <input
                   type="text"
-                  data-testid="edit-monitoring-log-who-input"
-                  value={editWhoAreYou}
-                  onChange={e => setEditWhoAreYou(e.target.value)}
+                  placeholder="agent/model/session-id"
+                  data-testid="edit-monitoring-log-agent-id-input"
+                  value={editAgentId}
+                  onChange={e => setEditAgentId(e.target.value)}
                   className="px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 text-xs text-zinc-200"
                 />
-              ) : log.who_are_you ? (
+              ) : log.agent_id ? (
                 <span
-                  data-testid="monitoring-log-who-are-you"
+                  data-testid="monitoring-log-agent-id"
                   className="font-mono text-xs text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/40"
                 >
-                  {log.who_are_you}
+                  {log.agent_id}
                 </span>
               ) : (
                 <span className="text-xs text-zinc-500 italic">Not specified</span>
@@ -275,10 +276,10 @@ export function MonitoringLogDetailModal({
                 target="_blank"
                 rel="noopener noreferrer"
                 data-testid="monitoring-log-jira-link"
-                className="flex items-center gap-1 text-xs font-mono text-sky-400 hover:text-sky-300 bg-sky-950/30 px-2 py-0.5 rounded border border-sky-800/40 transition"
+                className="flex items-center gap-1 text-xs font-mono text-sky-400 hover:text-sky-300 bg-sky-950/30 px-2 py-0.5 rounded border border-sky-800/40 transition max-w-full truncate"
               >
-                <ExternalLink className="w-3 h-3" />
-                <span>{log.jira_url}</span>
+                <ExternalLink className="w-3 h-3 shrink-0" />
+                <span className="truncate">{log.jira_url}</span>
               </a>
             )}
           </div>

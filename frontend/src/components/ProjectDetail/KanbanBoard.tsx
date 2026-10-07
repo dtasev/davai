@@ -206,9 +206,9 @@ export function KanbanBoard({
   return (
     <div className="space-y-4" data-testid="kanban-board-section">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
             <Columns3 className="w-3.5 h-3.5" />
           </div>
           <div>
@@ -224,16 +224,16 @@ export function KanbanBoard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search bar */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Search items..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-32 sm:w-44"
+              className="pl-7 pr-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-full sm:w-44"
             />
           </div>
 
@@ -519,11 +519,13 @@ export function KanbanBoard({
                 className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="">No Sprint (Backlog)</option>
-                {sprints.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
+                {sprints
+                  .filter(s => (s.status || 'planned').toLowerCase() !== 'done')
+                  .map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -537,11 +539,13 @@ export function KanbanBoard({
                 className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="">No Release Assigned</option>
-                {releases.map(r => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
+                {releases
+                  .filter(r => (r.status || 'planned').toLowerCase() !== 'done')
+                  .map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>

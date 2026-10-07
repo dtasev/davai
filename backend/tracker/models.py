@@ -327,6 +327,12 @@ class Progress(models.Model):
 
     work_item = models.ForeignKey(WorkItem, on_delete=models.CASCADE, related_name="progress")
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_progress_entries")
+    agent_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Agent/model/session identification (e.g. <agent>/<model>/<session-id>) filled out by the LLM"
+    )
     summary = models.TextField(help_text="Progress log, completed step, decision, or blocker note")
     proof = models.CharField(
         max_length=500,
@@ -432,10 +438,11 @@ class MonitoringLog(models.Model):
 
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="monitoring_logs")
     key = models.CharField(max_length=40, unique=True, db_index=True)
-    who_are_you = models.CharField(
+    agent_id = models.CharField(
         max_length=255,
         blank=True,
-        help_text="Agent/runner identification filled out by the LLM"
+        default="",
+        help_text="Agent/model/session identification (e.g. <agent>/<model>/<session-id>) filled out by the LLM"
     )
     description = models.TextField(help_text="Description/log of the monitoring run")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ok")

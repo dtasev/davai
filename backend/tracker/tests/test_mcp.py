@@ -153,14 +153,23 @@ class TestMCPWithApiClient:
         assert fetched_after_ctx["context"]["updated_by"] == test_user.username
         assert "timestamp" in fetched_after_ctx["context"]
 
-        # 6. Log progress with proof via MCP tool (rejects 'done' and invalid statuses, accepts valid lowercase)
+        # 6. Log progress with proof via MCP tool (rejects 'done', invalid statuses, and empty agent_id; accepts valid lowercase)
         with pytest.raises(ValueError, match="The 'done' status can only be set by a human"):
-            log_work_item_progress(key=item_key, summary="Try done", status="done")
+            log_work_item_progress(key=item_key, summary="Try done", agent_id="claude-code/sonnet/sess-1", status="done")
         with pytest.raises(ValueError, match="Invalid status 'completed'"):
-            log_work_item_progress(key=item_key, summary="Try completed", status="completed")
+            log_work_item_progress(key=item_key, summary="Try completed", agent_id="claude-code/sonnet/sess-1", status="completed")
+        with pytest.raises(ValueError, match="agent_id"):
+            log_work_item_progress(key=item_key, summary="Missing agent_id", agent_id="   ", status="in progress")
 
-        prog = log_work_item_progress(key=item_key, summary="Shipped MCP integration", proof="git:sha-987abc", status="in progress")
+        prog = log_work_item_progress(
+            key=item_key,
+            summary="Shipped MCP integration",
+            agent_id="claude-code/sonnet-4-5/sess-1",
+            proof="git:sha-987abc",
+            status="in progress"
+        )
         assert prog["summary"] == "Shipped MCP integration"
+        assert prog["agent_id"] == "claude-code/sonnet-4-5/sess-1"
         assert prog["proof"] == "git:sha-987abc"
         assert prog["status"] == "in progress"
         assert prog["created_by"] == test_user.username
@@ -178,10 +187,12 @@ class TestMCPWithApiClient:
             progress_id=prog_id,
             summary="Shipped MCP integration with tests",
             proof="git:sha-final",
+            agent_id="claude-code/sonnet-4-5/sess-2",
             status="review"
         )
         assert updated_prog["summary"] == "Shipped MCP integration with tests"
         assert updated_prog["proof"] == "git:sha-final"
+        assert updated_prog["agent_id"] == "claude-code/sonnet-4-5/sess-2"
         assert updated_prog["status"] == "review"
         assert updated_prog["created_by"] == test_user.username
         assert updated_prog["updated_by"] == test_user.username
@@ -371,7 +382,7 @@ class TestMCPWithApiClient:
 
         # Create monitoring log via MCP
         mcp_log = create_monitoring_log(
-            who_are_you="db-replication-monitor-llm",
+            agent_id="db-replication-monitor/sonnet/sess-1",
             description="Replication lag 45s on replica-01",
             status="Error",
             incident_id=inc_key,
@@ -395,7 +406,7 @@ class TestMCPWithApiClient:
         fetched_log = get_monitoring_log(log_key)
         assert fetched_log["key"] == log_key
         assert fetched_log["description"] == "Replication lag 45s on replica-01"
-        assert fetched_log["who_are_you"] == "db-replication-monitor-llm"
+        assert fetched_log["agent_id"] == "db-replication-monitor/sonnet/sess-1"
 
         # Search incidents via MCP
         from tracker.embedding import flush_indexing_queue
@@ -462,7 +473,13 @@ class TestMCPWithApiClient:
 
         # Context & progress tools work seamlessly on DAV-SUP-1
         set_work_item_context(key=sup_key, summary="Updated support context")
-        log_work_item_progress(key=sup_key, summary="Granted group permission", proof="ldap-change-42", status="review")
+        log_work_item_progress(
+            key=sup_key,
+            summary="Granted group permission",
+            agent_id="support-agent/sonnet/sess-42",
+            proof="ldap-change-42",
+            status="review"
+        )
 
         fetched_sup = get_user_support_ticket(key=sup_key)
         assert fetched_sup["key"] == sup_key

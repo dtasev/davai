@@ -73,7 +73,7 @@ interface ProjectDetailViewProps {
     work_item_keys?: string[]
   }) => Promise<void>
   onCreateMonitoringLog?: (data: {
-    who_are_you: string
+    agent_id: string
     description: string
     status: string
     incident_id?: string | null
@@ -202,8 +202,8 @@ export function ProjectDetailView({
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="flex items-center gap-1.5 text-sm text-zinc-400">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-1.5 text-sm text-zinc-400">
             <button
               type="button"
               onClick={() => setIsAllSprintsOpen(true)}

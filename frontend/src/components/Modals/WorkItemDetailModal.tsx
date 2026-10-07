@@ -14,9 +14,11 @@ import {
   AlertTriangle,
   Check,
   Copy,
+  Play,
   Calendar,
   ListTree,
-  ChevronRight
+  ChevronRight,
+  Bot
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus, UserSummary, PROGRESS_STATUS_OPTIONS } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
@@ -55,12 +57,12 @@ interface WorkItemDetailModalProps {
   onUpdateContext?: (key: string, contextText: string) => Promise<void>
   onAddProgress?: (
     key: string,
-    entry: { summary: string; proof: string; status: string }
+    entry: { summary: string; proof: string; status: string; agent_id?: string }
   ) => Promise<void>
   onUpdateProgress?: (
     key: string,
     progressId: number,
-    entry: { summary?: string; proof?: string; status?: string }
+    entry: { summary?: string; proof?: string; status?: string; agent_id?: string }
   ) => Promise<any>
   onDeleteProgress?: (key: string, progressId: number) => Promise<void>
   onDelete?: () => Promise<void>
@@ -162,6 +164,7 @@ export function WorkItemDetailModal({
   // Add progress state
   const [progressText, setProgressText] = useState('')
   const [progressProof, setProgressProof] = useState('')
+  const [progressAgentId, setProgressAgentId] = useState('')
   const [progressStatus, setProgressStatus] = useState('in progress')
   const [submittingProgress, setSubmittingProgress] = useState(false)
 
@@ -169,6 +172,7 @@ export function WorkItemDetailModal({
   const [editingProgressId, setEditingProgressId] = useState<number | null>(null)
   const [editProgressSummary, setEditProgressSummary] = useState('')
   const [editProgressProof, setEditProgressProof] = useState('')
+  const [editProgressAgentId, setEditProgressAgentId] = useState('')
   const [editProgressStatus, setEditProgressStatus] = useState('in progress')
   const [savingProgressId, setSavingProgressId] = useState<number | null>(null)
   const [deletingProgressId, setDeletingProgressId] = useState<number | null>(null)
@@ -230,10 +234,11 @@ export function WorkItemDetailModal({
     })
   }, [item?.progress])
 
-  const startEditProgress = (p: { id: number; summary: string; proof?: string; status: string }) => {
+  const startEditProgress = (p: { id: number; summary: string; proof?: string; agent_id?: string; status: string }) => {
     setEditingProgressId(p.id)
     setEditProgressSummary(p.summary)
     setEditProgressProof(p.proof || '')
+    setEditProgressAgentId(p.agent_id || '')
     setEditProgressStatus(p.status || 'in progress')
   }
 
@@ -248,6 +253,7 @@ export function WorkItemDetailModal({
       await onUpdateProgress(item.key, progressId, {
         summary: editProgressSummary.trim(),
         proof: editProgressProof.trim(),
+        agent_id: editProgressAgentId.trim(),
         status: editProgressStatus
       })
       setEditingProgressId(null)
@@ -269,15 +275,34 @@ export function WorkItemDetailModal({
 
   // Copy details state
   const [hasCopied, setHasCopied] = useState(false)
+  const [hasCopiedStartPrompt, setHasCopiedStartPrompt] = useState(false)
+
+  const handleCopyStartPrompt = () => {
+    if (!item) return
+    const title = isEditingDetails ? editTitle : item.title
+    const url = typeof window !== 'undefined' ? window.location.href : ''
+
+    const textToCopy = [
+      `ID: ${item.id}\nKey: ${item.key}\nTitle: ${title}\nURL: ${url}`,
+      `This is a Davai MCP item. Rename your session to a sensible slug, prefixed with the item key-ID-<short-slug-summary> (${item.key}-<short-slug-summary>)`
+    ].join('\n\n')
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(textToCopy).catch(() => {})
+    }
+    setHasCopiedStartPrompt(true)
+    setTimeout(() => setHasCopiedStartPrompt(false), 2000)
+  }
 
   const handleCopyDetails = () => {
     if (!item) return
     const title = isEditingDetails ? editTitle : item.title
     const description = isEditingDetails ? editDescription : (item.description || '')
     const context = isEditingContext ? contextInput : (item.context?.summary || '')
+    const url = typeof window !== 'undefined' ? window.location.href : ''
 
     const textToCopy = [
-      `ID: ${item.id}\nKey: ${item.key}\nTitle: ${title}`,
+      `ID: ${item.id}\nKey: ${item.key}\nTitle: ${title}\nURL: ${url}`,
       `Description:\n${description}`,
       `Context:\n${context}`
     ].join('\n\n')
@@ -442,10 +467,12 @@ export function WorkItemDetailModal({
       await onAddProgress(item.key, {
         summary: progressText.trim(),
         proof: progressProof.trim(),
+        agent_id: progressAgentId.trim(),
         status: progressStatus
       })
       setProgressText('')
       setProgressProof('')
+      setProgressAgentId('')
     } finally {
       setSubmittingProgress(false)
     }
@@ -520,6 +547,20 @@ export function WorkItemDetailModal({
               <Check className="w-4 h-4" />
             </button>
           )}
+          <button
+            type="button"
+            onClick={handleCopyStartPrompt}
+            title={hasCopiedStartPrompt ? 'Copied to clipboard!' : 'Copy agent start prompt'}
+            aria-label="Copy agent start prompt"
+            data-testid="copy-agent-prompt-button"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition cursor-pointer"
+          >
+            {hasCopiedStartPrompt ? (
+              <Check className="w-4 h-4 text-emerald-400" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
+          </button>
           <button
             type="button"
             onClick={handleCopyDetails}
@@ -788,11 +829,13 @@ export function WorkItemDetailModal({
                     } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
                   >
                     <option value="" className="bg-zinc-900 text-zinc-400">No Sprint</option>
-                    {sprints.map(sp => (
-                      <option key={sp.id} value={sp.id} className="bg-zinc-900 text-zinc-200">
-                        {sp.name}
-                      </option>
-                    ))}
+                    {sprints
+                      .filter(sp => (sp.status || 'planned').toLowerCase() !== 'done')
+                      .map(sp => (
+                        <option key={sp.id} value={sp.id} className="bg-zinc-900 text-zinc-200">
+                          {sp.name}
+                        </option>
+                      ))}
                   </select>
                 ) : sprint ? (
                   <div className="flex items-center gap-1 text-[10px] text-amber-300 bg-amber-950/30 px-2 py-0.5 rounded border border-amber-800/30 leading-none">
@@ -825,11 +868,13 @@ export function WorkItemDetailModal({
                     } ${isEditingDetails ? 'ring-1 ring-indigo-500 border-indigo-500' : ''}`}
                   >
                     <option value="" className="bg-zinc-900 text-zinc-400">No Release</option>
-                    {releases.map(rel => (
-                      <option key={rel.id} value={rel.id} className="bg-zinc-900 text-zinc-200">
-                        {rel.name}
-                      </option>
-                    ))}
+                    {releases
+                      .filter(rel => (rel.status || 'planned').toLowerCase() !== 'done')
+                      .map(rel => (
+                        <option key={rel.id} value={rel.id} className="bg-zinc-900 text-zinc-200">
+                          {rel.name}
+                        </option>
+                      ))}
                   </select>
                 ) : release ? (
                   <div className="flex items-center gap-1 text-[10px] text-indigo-300 bg-indigo-950/30 px-2 py-0.5 rounded border border-indigo-800/30 leading-none">
@@ -1010,13 +1055,23 @@ export function WorkItemDetailModal({
               />
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-                <input
-                  type="text"
-                  placeholder="Git SHA / Proof"
-                  value={progressProof}
-                  onChange={e => setProgressProof(e.target.value)}
-                  className="sm:w-64 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
-                />
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-1">
+                  <input
+                    type="text"
+                    placeholder="Git SHA / Proof"
+                    value={progressProof}
+                    onChange={e => setProgressProof(e.target.value)}
+                    className="sm:w-52 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Agent ID (agent/model/session-id)"
+                    value={progressAgentId}
+                    onChange={e => setProgressAgentId(e.target.value)}
+                    data-testid="add-progress-agent-id-input"
+                    className="sm:w-56 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
 
                 <div className="flex items-center justify-between sm:justify-end gap-2">
                   <select
@@ -1093,14 +1148,24 @@ export function WorkItemDetailModal({
                         className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 focus:outline-none focus:border-indigo-500 resize-y leading-relaxed"
                       />
 
-                      <input
-                        type="text"
-                        placeholder="Git SHA / Proof"
-                        value={editProgressProof}
-                        onChange={e => setEditProgressProof(e.target.value)}
-                        data-testid={`edit-progress-proof-${p.id}`}
-                        className="w-full px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
-                      />
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Git SHA / Proof"
+                          value={editProgressProof}
+                          onChange={e => setEditProgressProof(e.target.value)}
+                          data-testid={`edit-progress-proof-${p.id}`}
+                          className="flex-1 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Agent ID (agent/model/session-id)"
+                          value={editProgressAgentId}
+                          onChange={e => setEditProgressAgentId(e.target.value)}
+                          data-testid={`edit-progress-agent-id-${p.id}`}
+                          className="flex-1 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
 
                       <div className="flex items-center justify-end gap-2 pt-1">
                         <button
@@ -1177,6 +1242,15 @@ export function WorkItemDetailModal({
                             {p.proof}
                           </span>
                         )}
+                        {p.agent_id && (
+                          <span
+                            data-testid={`progress-agent-id-${p.id}`}
+                            className="flex items-center gap-1 text-[10px] font-mono text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-800/40 leading-none"
+                          >
+                            <Bot className="w-2.5 h-2.5 text-indigo-400" />
+                            <span>{p.agent_id}</span>
+                          </span>
+                        )}
                       </div>
                       <p data-testid={`progress-summary-${p.id}`} className="text-zinc-300 text-sm break-words whitespace-pre-wrap leading-relaxed">
                         {p.summary}
@@ -1239,7 +1313,7 @@ export function WorkItemDetailModal({
 
         {/* LLM / Agent Context Section */}
         <div className="space-y-2 border-t border-zinc-800/80 pt-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-purple-400" />
@@ -1252,7 +1326,7 @@ export function WorkItemDetailModal({
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {item.context && item.context.timestamp && (
                 <span
                   data-testid="context-staleness"

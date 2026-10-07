@@ -160,7 +160,7 @@ export function Header({
           )}
 
           {/* Navigation Tabs */}
-          <nav className="flex items-center gap-1 bg-zinc-900/80 p-1 rounded-lg border border-zinc-800 shrink-0">
+          <nav className="hidden sm:flex items-center gap-1 bg-zinc-900/80 p-1 rounded-lg border border-zinc-800 shrink-0">
             <Link
               to="/"
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition ${isDashboard

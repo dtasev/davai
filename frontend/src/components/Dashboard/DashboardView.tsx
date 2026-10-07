@@ -54,10 +54,10 @@ export function DashboardView({
 
       {/* Projects Grid Section */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-bold tracking-tight text-zinc-100 flex items-center gap-2">
-              <Layers className="w-5 h-5 text-indigo-400" />
+              <Layers className="w-5 h-5 text-indigo-400 shrink-0" />
               <span>Projects Dashboard</span>
             </h2>
             <p className="text-sm text-zinc-400 mt-0.5">
@@ -65,7 +65,7 @@ export function DashboardView({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
             <button
               onClick={onRefresh}
               className="p-2 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 transition"
@@ -76,7 +76,7 @@ export function DashboardView({
 
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm flex items-center gap-1.5 transition shadow-sm"
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm flex items-center gap-1.5 transition shadow-sm shrink-0"
               data-testid="create-project-button"
             >
               <Plus className="w-3.5 h-3.5" />

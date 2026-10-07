@@ -22,7 +22,7 @@ interface MonitoringLogListProps {
   monitoringLogs: MonitoringLog[]
   onSelectMonitoringLog: (log: MonitoringLog) => void
   onCreateMonitoringLog: (data: {
-    who_are_you: string
+    agent_id: string
     description: string
     status: string
     incident_id?: string | null
@@ -44,7 +44,7 @@ export function MonitoringLogList({
   )
 
   // Form state
-  const [whoAreYou, setWhoAreYou] = useState('')
+  const [agentId, setAgentId] = useState('')
   const [description, setDescription] = useState('')
   const [status, setStatus] = useState('ok')
   const [incidentIdInput, setIncidentIdInput] = useState('')
@@ -58,7 +58,7 @@ export function MonitoringLogList({
           const q = search.toLowerCase()
           const matchesSearch =
             log.key.toLowerCase().includes(q) ||
-            (log.who_are_you && log.who_are_you.toLowerCase().includes(q)) ||
+            (log.agent_id && log.agent_id.toLowerCase().includes(q)) ||
             (log.description && log.description.toLowerCase().includes(q)) ||
             (log.incident_key && log.incident_key.toLowerCase().includes(q)) ||
             (log.jira_url && log.jira_url.toLowerCase().includes(q))
@@ -83,14 +83,14 @@ export function MonitoringLogList({
     setSubmitting(true)
     try {
       await onCreateMonitoringLog({
-        who_are_you: whoAreYou.trim(),
+        agent_id: agentId.trim(),
         description: description.trim(),
         status,
         incident_id: incidentIdInput.trim() || null,
         jira_url: jiraUrl.trim()
       })
       setIsModalOpen(false)
-      setWhoAreYou('')
+      setAgentId('')
       setDescription('')
       setStatus('ok')
       setIncidentIdInput('')
@@ -103,9 +103,9 @@ export function MonitoringLogList({
   return (
     <div className="space-y-3" data-testid="monitoring-log-list-view">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+          <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
             <Activity className="w-3.5 h-3.5" />
           </div>
           <div>
@@ -121,10 +121,10 @@ export function MonitoringLogList({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search bar & mode toggle */}
-          <div className="flex items-center gap-1.5">
-            <div className="relative">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -132,7 +132,7 @@ export function MonitoringLogList({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 data-testid="monitoring-log-search-input"
-                className="pl-7 pr-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-36 sm:w-52"
+                className="pl-7 pr-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-full sm:w-52"
               />
             </div>
 
@@ -170,7 +170,7 @@ export function MonitoringLogList({
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm"
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm shrink-0"
             data-testid="create-monitoring-log-button"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -203,10 +203,10 @@ export function MonitoringLogList({
 
                   <StatusBadge status={log.status} />
 
-                  {log.who_are_you && (
+                  {log.agent_id && (
                     <span className="flex items-center gap-1 text-[10px] font-mono text-indigo-300 bg-indigo-950/40 px-1.5 py-0.5 rounded border border-indigo-800/40 leading-none">
                       <Bot className="w-2.5 h-2.5 text-indigo-400" />
-                      <span>{log.who_are_you}</span>
+                      <span>{log.agent_id}</span>
                     </span>
                   )}
 
@@ -276,14 +276,14 @@ export function MonitoringLogList({
 
             <div>
               <label className="block text-[10px] font-semibold text-zinc-400 mb-1">
-                Who Are You (Agent / Runner)
+                Agent ID (agent/model/session-id)
               </label>
               <input
                 type="text"
-                placeholder="e.g. cron-k8s-health-agent"
-                value={whoAreYou}
-                onChange={e => setWhoAreYou(e.target.value)}
-                data-testid="create-monitoring-log-who-input"
+                placeholder="e.g. agent/model/session-id"
+                value={agentId}
+                onChange={e => setAgentId(e.target.value)}
+                data-testid="create-monitoring-log-agent-id-input"
                 className="w-full px-2.5 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               />
             </div>

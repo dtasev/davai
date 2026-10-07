@@ -135,7 +135,7 @@ export function StatusFilterDropdown({
       {isOpen && (
         <div
           data-testid="status-filter-dropdown-menu"
-          className="absolute right-0 sm:left-0 sm:right-auto mt-1.5 w-64 bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 py-1 overflow-hidden"
+          className="absolute left-0 sm:left-auto sm:right-0 mt-1.5 w-60 sm:w-64 max-w-[calc(100vw-2rem)] bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl z-50 py-1 overflow-hidden"
         >
           {/* Header Actions */}
           <div className="px-3 py-1.5 border-b border-zinc-800/80 flex items-center justify-between text-[11px] text-zinc-400">

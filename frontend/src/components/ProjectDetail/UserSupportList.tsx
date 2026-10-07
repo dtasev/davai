@@ -246,9 +246,9 @@ export function UserSupportList({
   return (
     <div className="space-y-3" data-testid="user-support-list-view">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
             <LifeBuoy className="w-3.5 h-3.5" />
           </div>
           <div>
@@ -264,10 +264,10 @@ export function UserSupportList({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search bar & mode toggle */}
-          <div className="flex items-center gap-1.5">
-            <div className="relative">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -275,7 +275,7 @@ export function UserSupportList({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 data-testid="user-support-search-input"
-                className="pl-7 pr-7 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-36 sm:w-52"
+                className="pl-7 pr-7 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-full sm:w-52"
               />
               {isSearching && (
                 <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2" />
@@ -346,7 +346,7 @@ export function UserSupportList({
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm"
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm shrink-0"
             data-testid="create-user-support-button"
           >
             <Plus className="w-3.5 h-3.5" />

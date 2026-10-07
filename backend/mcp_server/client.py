@@ -185,11 +185,12 @@ class DavaiClient:
         self,
         key: str,
         summary: str,
+        agent_id: str,
         proof: str = "",
         status: str = "in progress"
     ) -> Dict[str, Any]:
-        """Log a progress step with optional git sha, feature branch, or artifact proof."""
-        payload = {"summary": summary, "proof": proof, "status": status}
+        """Log a progress step with required agent_id (<agent>/<model>/<session-id>) and optional git sha, feature branch, or artifact proof."""
+        payload = {"summary": summary, "agent_id": agent_id, "proof": proof, "status": status}
         return self._request("POST", f"/work-items/{key}/progress", data=payload)
 
     def update_work_item_progress(
@@ -197,6 +198,7 @@ class DavaiClient:
         key: str,
         progress_id: int,
         summary: Optional[str] = None,
+        agent_id: Optional[str] = None,
         proof: Optional[str] = None,
         status: Optional[str] = None
     ) -> Dict[str, Any]:
@@ -204,6 +206,8 @@ class DavaiClient:
         payload: Dict[str, Any] = {}
         if summary is not None:
             payload["summary"] = summary
+        if agent_id is not None:
+            payload["agent_id"] = agent_id
         if proof is not None:
             payload["proof"] = proof
         if status is not None:
@@ -499,7 +503,7 @@ class DavaiClient:
     def create_monitoring_log(
         self,
         description: str,
-        who_are_you: str = "",
+        agent_id: str = "",
         status: str = "ok",
         project_key: str = "DAV",
         incident_id: Optional[Any] = None,
@@ -508,7 +512,7 @@ class DavaiClient:
         """Create a monitoring log entry."""
         payload: Dict[str, Any] = {
             "project_key": project_key,
-            "who_are_you": who_are_you,
+            "agent_id": agent_id,
             "description": description,
             "status": status,
             "jira_url": jira_url,

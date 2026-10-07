@@ -388,11 +388,25 @@ class TestNinjaAPI:
         assert get_ctx.json()["updated_by"] == test_user.username
         assert "timestamp" in get_ctx.json()
 
-        # 4. Log Progress with Proof (git sha)
+        # 4. Log Progress with Proof (git sha) and agent_id
+        # Missing agent_id via API key is rejected with 400
+        missing_who_res = ninja_client.post(
+            f"/work-items/{item_key}/progress",
+            json={
+                "summary": "Missing agent identifier",
+                "proof": "git:8f3a9e2",
+                "status": "in progress"
+            },
+            headers={"X-API-Key": raw_key}
+        )
+        assert missing_who_res.status_code == 400
+        assert "agent_id" in missing_who_res.json()["detail"]
+
         prog_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
             json={
                 "summary": "Implemented models and ran migrations",
+                "agent_id": "claude-code/sonnet/sess-1",
                 "proof": "git:8f3a9e2",
                 "status": "in progress"
             },
@@ -401,6 +415,7 @@ class TestNinjaAPI:
         assert prog_res.status_code == 200
         prog_data = prog_res.json()
         assert prog_data["summary"] == "Implemented models and ran migrations"
+        assert prog_data["agent_id"] == "claude-code/sonnet/sess-1"
         assert prog_data["proof"] == "git:8f3a9e2"
         assert prog_data["status"] == "in progress"
         assert prog_data["created_by"] == test_user.username
@@ -413,9 +428,26 @@ class TestNinjaAPI:
         assert prog_list_res.status_code == 200
         assert len(prog_list_res.json()) == 1
         assert prog_list_res.json()[0]["summary"] == "Implemented models and ran migrations"
+        assert prog_list_res.json()[0]["agent_id"] == "claude-code/sonnet/sess-1"
         assert prog_list_res.json()[0]["proof"] == "git:8f3a9e2"
         assert prog_list_res.json()[0]["created_by"] == test_user.username
         assert "created_at" in prog_list_res.json()[0]
+
+        # 6. Human / session-authenticated request without API key can omit agent_id (defaults to "")
+        human_prog_res = ninja_client.post(
+            f"/work-items/{item_key}/progress",
+            json={
+                "summary": "Human UI progress update",
+                "proof": "git:9a1b2c3",
+                "status": "review"
+            },
+            headers={
+                "Remote-User": test_user.username,
+                "Remote-Email": test_user.email,
+            }
+        )
+        assert human_prog_res.status_code == 200
+        assert human_prog_res.json()["agent_id"] == ""
 
     def test_create_work_item_with_context(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
@@ -570,11 +602,12 @@ class TestNinjaAPI:
         # 1. Log initial progress
         post_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
-            json={"summary": "Initial step", "proof": "git:abc1", "status": "planned"},
+            json={"summary": "Initial step", "agent_id": "agent-1", "proof": "git:abc1", "status": "planned"},
             headers={"X-API-Key": raw_key}
         )
         assert post_res.status_code == 200
         prog_id = post_res.json()["id"]
+        assert post_res.json()["agent_id"] == "agent-1"
         assert post_res.json()["created_by"] == test_user.username
         assert post_res.json()["updated_by"] is None
         assert "updated_at" in post_res.json()
@@ -582,13 +615,14 @@ class TestNinjaAPI:
         # 2. PATCH progress entry (happy path)
         patch_res = ninja_client.patch(
             f"/work-items/{item_key}/progress/{prog_id}",
-            json={"summary": "Updated step", "proof": "git:def2", "status": "in progress"},
+            json={"summary": "Updated step", "agent_id": "agent-1-updated", "proof": "git:def2", "status": "in progress"},
             headers={"X-API-Key": raw_key}
         )
         assert patch_res.status_code == 200
         updated = patch_res.json()
         assert updated["id"] == prog_id
         assert updated["summary"] == "Updated step"
+        assert updated["agent_id"] == "agent-1-updated"
         assert updated["proof"] == "git:def2"
         assert updated["status"] == "in progress"
         assert updated["created_by"] == test_user.username
@@ -619,7 +653,7 @@ class TestNinjaAPI:
         # other_user can create, edit, and delete their own progress entry
         other_post = ninja_client.post(
             f"/work-items/{item_key}/progress",
-            json={"summary": "Other user progress", "proof": "git:other1"},
+            json={"summary": "Other user progress", "agent_id": "other-agent", "proof": "git:other1"},
             headers={"X-API-Key": other_key}
         )
         assert other_post.status_code == 200
@@ -873,7 +907,7 @@ class TestNinjaAPI:
         human_headers = {"X-API-Key": raw_key, "User-Agent": "Mozilla/5.0"}
         res_human = ninja_client.post(
             f"/work-items/{item_key}/progress",
-            json={"summary": "Human verified and completed", "status": "done"},
+            json={"summary": "Human verified and completed", "agent_id": "human-tester", "status": "done"},
             headers=human_headers
         )
         assert res_human.status_code == 200
@@ -906,7 +940,7 @@ class TestNinjaAPI:
         key2 = item2_res.json()["key"]
         ninja_client.post(
             f"/work-items/{key2}/progress",
-            json={"summary": "Plan ready", "status": "planned"},
+            json={"summary": "Plan ready", "agent_id": "agent-planner", "status": "planned"},
             headers=headers
         )
 
@@ -919,7 +953,7 @@ class TestNinjaAPI:
         key3 = item3_res.json()["key"]
         ninja_client.post(
             f"/work-items/{key3}/progress",
-            json={"summary": "Step 1 done", "status": "in progress"},
+            json={"summary": "Step 1 done", "agent_id": "agent-builder", "status": "in progress"},
             headers=headers
         )
 
@@ -963,7 +997,7 @@ class TestNinjaAPI:
         # Add a progress entry
         prog_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
-            json={"summary": "Progress entry 1", "status": "in progress"},
+            json={"summary": "Progress entry 1", "agent_id": "agent-runner", "status": "in progress"},
             headers=headers,
         )
         assert prog_res.status_code == 200
@@ -1022,7 +1056,7 @@ class TestNinjaAPI:
         # 3. Log progress with invalid status -> 400
         prog_res = ninja_client.post(
             f"/work-items/{key}/progress",
-            json={"summary": "Invalid progress", "status": "completed"},
+            json={"summary": "Invalid progress", "agent_id": "agent-validator", "status": "completed"},
             headers=headers
         )
         assert prog_res.status_code == 400
@@ -1031,7 +1065,7 @@ class TestNinjaAPI:
         # Valid progress log
         prog_valid = ninja_client.post(
             f"/work-items/{key}/progress",
-            json={"summary": "Valid progress", "status": "in progress"},
+            json={"summary": "Valid progress", "agent_id": "agent-validator", "status": "in progress"},
             headers=headers
         )
         assert prog_valid.status_code == 200
@@ -1134,7 +1168,7 @@ class TestNinjaAPI:
         log_res = ninja_client.post(
             f"/projects/{test_project.key}/monitoring-logs",
             json={
-                "who_are_you": "ecmwf-watchdog-agent-v1",
+                "agent_id": "ecmwf-watchdog/sonnet/sess-1",
                 "description": "ERROR: redis_connected_clients=1024 exceeded threshold 800 on node-03",
                 "status": "Error",
                 "incident_id": inc_key,
@@ -1145,7 +1179,7 @@ class TestNinjaAPI:
         assert log_res.status_code == 200
         log_data = log_res.json()
         assert log_data["key"] == f"{test_project.key}-LOG-1"
-        assert log_data["who_are_you"] == "ecmwf-watchdog-agent-v1"
+        assert log_data["agent_id"] == "ecmwf-watchdog/sonnet/sess-1"
         assert log_data["status"] == "error"
         assert log_data["incident_id"] == inc_id
         assert log_data["incident_key"] == inc_key

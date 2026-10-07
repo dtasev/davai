@@ -297,9 +297,9 @@ export function WorkItemList({
   return (
     <div className="space-y-3">
       {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
             <ListTodo className="w-3.5 h-3.5" />
           </div>
           <div>
@@ -315,17 +315,17 @@ export function WorkItemList({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search bar & mode toggle */}
-          <div className="flex items-center gap-1.5">
-            <div className="relative">
+          <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial">
               <Search className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder={searchMode === 'hybrid' ? 'Semantic search...' : 'Search items...'}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-7 pr-7 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-36 sm:w-52"
+                className="pl-7 pr-7 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 w-full sm:w-52"
               />
               {isSearching && (
                 <Loader2 className="w-3.5 h-3.5 text-purple-400 animate-spin absolute right-2.5 top-1/2 -translate-y-1/2" />
@@ -392,7 +392,7 @@ export function WorkItemList({
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm"
+            className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm shrink-0"
             data-testid="create-work-item-button"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -611,11 +611,13 @@ export function WorkItemList({
                 className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="">No Sprint (Backlog)</option>
-                {sprints.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
+                {sprints
+                  .filter(s => (s.status || 'planned').toLowerCase() !== 'done')
+                  .map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -629,11 +631,13 @@ export function WorkItemList({
                 className="w-full px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm text-zinc-200"
               >
                 <option value="">No Release Assigned</option>
-                {releases.map(r => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
+                {releases
+                  .filter(r => (r.status || 'planned').toLowerCase() !== 'done')
+                  .map(r => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
