@@ -201,7 +201,7 @@ def log_work_item_progress(
     Args:
         key: Work item key (e.g. 'DAV-1').
         summary: Summary of the step completed, decision made, or current obstacle.
-        agent_id: Required agent/model/session identifier in the format '<agent>/<model>/<session-id>' (e.g. 'claude-code/claude-sonnet-4-5/sess-123').
+        agent_id: Required agent/model/session identifier in the format '<agent>/<model>/<session-id>' (e.g. 'claude-code/claude-sonnet-4-5/sess-123'). If you can also prefix the hostname that would be even better.
         proof: If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact.
         status: Step status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Defaults to 'in progress'. Note: 'done' is reserved for human verification in the frontend and is refused by MCP.
     """
