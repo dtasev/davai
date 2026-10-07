@@ -1,3 +1,6 @@
+## Quickstart
+Ideally should be `docker compose up`.
+
 ## What is this?
 Davai is an issue tracker. You've used issue trackers. This is like them.
 
