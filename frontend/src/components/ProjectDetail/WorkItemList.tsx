@@ -392,11 +392,12 @@ export function WorkItemList({
 
           <button
             onClick={() => setIsModalOpen(true)}
+            title="New Item"
+            aria-label="New Item"
             className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm shrink-0"
             data-testid="create-work-item-button"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>New Item</span>
+            <Plus className="w-3.5" strokeWidth={3} />
           </button>
         </div>
       </div>
