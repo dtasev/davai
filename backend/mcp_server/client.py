@@ -187,10 +187,17 @@ class DavaiClient:
         summary: str,
         agent_id: str,
         proof: str = "",
-        status: str = "in progress"
+        status: str = "in progress",
+        hostname: str = "",
     ) -> Dict[str, Any]:
-        """Log a progress step with required agent_id (<agent>/<model>/<session-id>) and optional git sha, feature branch, or artifact proof."""
-        payload = {"summary": summary, "agent_id": agent_id, "proof": proof, "status": status}
+        """Log a progress step with required agent_id (<agent>/<model>/<session-id>) and optional hostname, git sha, feature branch, or artifact proof."""
+        payload = {
+            "summary": summary,
+            "agent_id": agent_id,
+            "hostname": hostname,
+            "proof": proof,
+            "status": status,
+        }
         return self._request("POST", f"/work-items/{key}/progress", data=payload)
 
     def update_work_item_progress(
@@ -200,7 +207,8 @@ class DavaiClient:
         summary: Optional[str] = None,
         agent_id: Optional[str] = None,
         proof: Optional[str] = None,
-        status: Optional[str] = None
+        status: Optional[str] = None,
+        hostname: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Update an existing progress entry (e.g. to fix a typo or update proof/status)."""
         payload: Dict[str, Any] = {}
@@ -208,6 +216,8 @@ class DavaiClient:
             payload["summary"] = summary
         if agent_id is not None:
             payload["agent_id"] = agent_id
+        if hostname is not None:
+            payload["hostname"] = hostname
         if proof is not None:
             payload["proof"] = proof
         if status is not None:

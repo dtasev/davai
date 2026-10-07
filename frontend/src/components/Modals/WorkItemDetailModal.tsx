@@ -18,7 +18,8 @@ import {
   Calendar,
   ListTree,
   ChevronRight,
-  Bot
+  Bot,
+  Server
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus, UserSummary, PROGRESS_STATUS_OPTIONS } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
@@ -57,12 +58,12 @@ interface WorkItemDetailModalProps {
   onUpdateContext?: (key: string, contextText: string) => Promise<void>
   onAddProgress?: (
     key: string,
-    entry: { summary: string; proof: string; status: string; agent_id?: string }
+    entry: { summary: string; proof: string; status: string; agent_id?: string; hostname?: string }
   ) => Promise<void>
   onUpdateProgress?: (
     key: string,
     progressId: number,
-    entry: { summary?: string; proof?: string; status?: string; agent_id?: string }
+    entry: { summary?: string; proof?: string; status?: string; agent_id?: string; hostname?: string }
   ) => Promise<any>
   onDeleteProgress?: (key: string, progressId: number) => Promise<void>
   onDelete?: () => Promise<void>
@@ -165,6 +166,7 @@ export function WorkItemDetailModal({
   const [progressText, setProgressText] = useState('')
   const [progressProof, setProgressProof] = useState('')
   const [progressAgentId, setProgressAgentId] = useState('')
+  const [progressHostname, setProgressHostname] = useState('')
   const [progressStatus, setProgressStatus] = useState('in progress')
   const [submittingProgress, setSubmittingProgress] = useState(false)
 
@@ -173,6 +175,7 @@ export function WorkItemDetailModal({
   const [editProgressSummary, setEditProgressSummary] = useState('')
   const [editProgressProof, setEditProgressProof] = useState('')
   const [editProgressAgentId, setEditProgressAgentId] = useState('')
+  const [editProgressHostname, setEditProgressHostname] = useState('')
   const [editProgressStatus, setEditProgressStatus] = useState('in progress')
   const [savingProgressId, setSavingProgressId] = useState<number | null>(null)
   const [deletingProgressId, setDeletingProgressId] = useState<number | null>(null)
@@ -234,11 +237,12 @@ export function WorkItemDetailModal({
     })
   }, [item?.progress])
 
-  const startEditProgress = (p: { id: number; summary: string; proof?: string; agent_id?: string; status: string }) => {
+  const startEditProgress = (p: { id: number; summary: string; proof?: string; agent_id?: string; hostname?: string; status: string }) => {
     setEditingProgressId(p.id)
     setEditProgressSummary(p.summary)
     setEditProgressProof(p.proof || '')
     setEditProgressAgentId(p.agent_id || '')
+    setEditProgressHostname(p.hostname || '')
     setEditProgressStatus(p.status || 'in progress')
   }
 
@@ -254,6 +258,7 @@ export function WorkItemDetailModal({
         summary: editProgressSummary.trim(),
         proof: editProgressProof.trim(),
         agent_id: editProgressAgentId.trim(),
+        hostname: editProgressHostname.trim(),
         status: editProgressStatus
       })
       setEditingProgressId(null)
@@ -468,11 +473,13 @@ export function WorkItemDetailModal({
         summary: progressText.trim(),
         proof: progressProof.trim(),
         agent_id: progressAgentId.trim(),
+        hostname: progressHostname.trim(),
         status: progressStatus
       })
       setProgressText('')
       setProgressProof('')
       setProgressAgentId('')
+      setProgressHostname('')
     } finally {
       setSubmittingProgress(false)
     }
@@ -1061,7 +1068,7 @@ export function WorkItemDetailModal({
                     placeholder="Git SHA / Proof"
                     value={progressProof}
                     onChange={e => setProgressProof(e.target.value)}
-                    className="sm:w-52 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                    className="sm:w-44 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
                   />
                   <input
                     type="text"
@@ -1070,6 +1077,14 @@ export function WorkItemDetailModal({
                     onChange={e => setProgressAgentId(e.target.value)}
                     data-testid="add-progress-agent-id-input"
                     className="sm:w-56 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Hostname"
+                    value={progressHostname}
+                    onChange={e => setProgressHostname(e.target.value)}
+                    data-testid="add-progress-hostname-input"
+                    className="sm:w-36 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
                   />
                 </div>
 
@@ -1165,6 +1180,14 @@ export function WorkItemDetailModal({
                           data-testid={`edit-progress-agent-id-${p.id}`}
                           className="flex-1 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
                         />
+                        <input
+                          type="text"
+                          placeholder="Hostname"
+                          value={editProgressHostname}
+                          onChange={e => setEditProgressHostname(e.target.value)}
+                          data-testid={`edit-progress-hostname-${p.id}`}
+                          className="flex-1 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
+                        />
                       </div>
 
                       <div className="flex items-center justify-end gap-2 pt-1">
@@ -1249,6 +1272,15 @@ export function WorkItemDetailModal({
                           >
                             <Bot className="w-2.5 h-2.5 text-indigo-400" />
                             <span>{p.agent_id}</span>
+                          </span>
+                        )}
+                        {p.hostname && (
+                          <span
+                            data-testid={`progress-hostname-${p.id}`}
+                            className="flex items-center gap-1 text-[10px] font-mono text-zinc-300 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-700/60 leading-none"
+                          >
+                            <Server className="w-2.5 h-2.5 text-zinc-400" />
+                            <span>{p.hostname}</span>
                           </span>
                         )}
                       </div>

@@ -333,6 +333,12 @@ class Progress(models.Model):
         default="",
         help_text="Agent/model/session identification (e.g. <agent>/<model>/<session-id>) filled out by the LLM"
     )
+    hostname = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Optional hostname of the machine/environment where the progress was logged"
+    )
     summary = models.TextField(help_text="Progress log, completed step, decision, or blocker note")
     proof = models.CharField(
         max_length=500,

@@ -236,6 +236,7 @@ class ProgressOut(Schema):
     work_item_key: str
     created_by: Optional[str] = None
     agent_id: str = ""
+    hostname: str = ""
     summary: str
     proof: str
     status: str
@@ -256,6 +257,10 @@ class ProgressOut(Schema):
         return obj.agent_id or ""
 
     @staticmethod
+    def resolve_hostname(obj: Progress) -> str:
+        return obj.hostname or ""
+
+    @staticmethod
     def resolve_created_at(obj: Progress) -> str:
         return obj.created_at.isoformat()
 
@@ -271,6 +276,7 @@ class ProgressOut(Schema):
 class CreateProgressIn(Schema):
     summary: str
     agent_id: str = ""
+    hostname: str = ""
     proof: str = ""
     status: str = "in progress"
 
@@ -278,6 +284,7 @@ class CreateProgressIn(Schema):
 class UpdateProgressIn(Schema):
     summary: Optional[str] = None
     agent_id: Optional[str] = None
+    hostname: Optional[str] = None
     proof: Optional[str] = None
     status: Optional[str] = None
 
@@ -1405,10 +1412,12 @@ def log_work_item_progress(request, key: str, payload: CreateProgressIn):
     clean_agent_id = (payload.agent_id or "").strip()
     if not clean_agent_id and _is_api_key_or_mcp_request(request):
         raise errors.HttpError(400, "The 'agent_id' field is required when logging progress via API or MCP.")
+    clean_hostname = (payload.hostname or "").strip()
     return Progress.objects.create(
         work_item=item,
         created_by=user,
         agent_id=clean_agent_id,
+        hostname=clean_hostname,
         summary=payload.summary,
         proof=payload.proof,
         status=clean_status
@@ -1436,6 +1445,8 @@ def update_work_item_progress(request, key: str, progress_id: int, payload: Upda
         progress.summary = payload.summary
     if payload.agent_id is not None:
         progress.agent_id = payload.agent_id.strip()
+    if payload.hostname is not None:
+        progress.hostname = payload.hostname.strip()
     if payload.proof is not None:
         progress.proof = payload.proof
     if payload.status is not None:

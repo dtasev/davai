@@ -48,6 +48,7 @@ describe('Davai Frontend App with React Router', () => {
           work_item_key: 'DAV-1',
           created_by: 'admin',
           agent_id: 'claude-code/sonnet/sess-1',
+          hostname: 'dev-host-1',
           summary: 'Completed models',
           proof: 'git:e93f18a',
           status: 'in progress',
@@ -106,6 +107,7 @@ describe('Davai Frontend App with React Router', () => {
             if (body.summary !== undefined) prog.summary = body.summary
             if (body.proof !== undefined) prog.proof = body.proof
             if (body.agent_id !== undefined) prog.agent_id = body.agent_id
+            if (body.hostname !== undefined) prog.hostname = body.hostname
             if (body.status !== undefined) prog.status = body.status
             prog.updated_by = 'admin'
             prog.updated_at = '2026-09-20T01:00:00Z'
@@ -1525,12 +1527,18 @@ describe('Davai Frontend App with React Router', () => {
     expect(screen.getByTestId('progress-summary-1')).toHaveTextContent('Completed models')
     const proofBadge = screen.getByTestId('progress-proof-1')
     const agentBadge = screen.getByTestId('progress-agent-id-1')
+    const hostnameBadge = screen.getByTestId('progress-hostname-1')
     expect(proofBadge).toHaveTextContent('git:e93f18a')
     expect(agentBadge).toHaveTextContent('claude-code/sonnet/sess-1')
+    expect(hostnameBadge).toHaveTextContent('dev-host-1')
     expect(
       Boolean(proofBadge.compareDocumentPosition(agentBadge) & Node.DOCUMENT_POSITION_FOLLOWING)
     ).toBe(true)
+    expect(
+      Boolean(agentBadge.compareDocumentPosition(hostnameBadge) & Node.DOCUMENT_POSITION_FOLLOWING)
+    ).toBe(true)
     expect(screen.getByTestId('add-progress-agent-id-input')).toBeInTheDocument()
+    expect(screen.getByTestId('add-progress-hostname-input')).toBeInTheDocument()
 
     // 1. EDIT PROGRESS ENTRY
     const editBtn = screen.getByTestId('edit-progress-button-1')
@@ -1542,11 +1550,13 @@ describe('Davai Frontend App with React Router', () => {
     const summaryInput = screen.getByTestId('edit-progress-summary-1')
     const proofInput = screen.getByTestId('edit-progress-proof-1')
     const agentInput = screen.getByTestId('edit-progress-agent-id-1')
+    const hostnameInput = screen.getByTestId('edit-progress-hostname-1')
     const statusSelect = screen.getByTestId('edit-progress-status-1')
 
     fireEvent.change(summaryInput, { target: { value: 'Completed models and updated API' } })
     fireEvent.change(proofInput, { target: { value: 'git:e93f18b' } })
     fireEvent.change(agentInput, { target: { value: 'claude-code/sonnet/sess-2' } })
+    fireEvent.change(hostnameInput, { target: { value: 'dev-host-2' } })
     fireEvent.change(statusSelect, { target: { value: 'planned' } })
 
     const saveBtn = screen.getByTestId('save-progress-1')
@@ -1559,6 +1569,7 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('progress-summary-1')).toHaveTextContent('Completed models and updated API')
       expect(screen.getByTestId('progress-proof-1')).toHaveTextContent('git:e93f18b')
       expect(screen.getByTestId('progress-agent-id-1')).toHaveTextContent('claude-code/sonnet/sess-2')
+      expect(screen.getByTestId('progress-hostname-1')).toHaveTextContent('dev-host-2')
     })
 
     // (edited) indicator appears

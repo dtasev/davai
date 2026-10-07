@@ -602,12 +602,19 @@ class TestNinjaAPI:
         # 1. Log initial progress
         post_res = ninja_client.post(
             f"/work-items/{item_key}/progress",
-            json={"summary": "Initial step", "agent_id": "agent-1", "proof": "git:abc1", "status": "planned"},
+            json={
+                "summary": "Initial step",
+                "agent_id": "agent-1",
+                "hostname": "dev-host-01",
+                "proof": "git:abc1",
+                "status": "planned",
+            },
             headers={"X-API-Key": raw_key}
         )
         assert post_res.status_code == 200
         prog_id = post_res.json()["id"]
         assert post_res.json()["agent_id"] == "agent-1"
+        assert post_res.json()["hostname"] == "dev-host-01"
         assert post_res.json()["created_by"] == test_user.username
         assert post_res.json()["updated_by"] is None
         assert "updated_at" in post_res.json()
@@ -615,7 +622,13 @@ class TestNinjaAPI:
         # 2. PATCH progress entry (happy path)
         patch_res = ninja_client.patch(
             f"/work-items/{item_key}/progress/{prog_id}",
-            json={"summary": "Updated step", "agent_id": "agent-1-updated", "proof": "git:def2", "status": "in progress"},
+            json={
+                "summary": "Updated step",
+                "agent_id": "agent-1-updated",
+                "hostname": "dev-host-02",
+                "proof": "git:def2",
+                "status": "in progress",
+            },
             headers={"X-API-Key": raw_key}
         )
         assert patch_res.status_code == 200
@@ -623,6 +636,7 @@ class TestNinjaAPI:
         assert updated["id"] == prog_id
         assert updated["summary"] == "Updated step"
         assert updated["agent_id"] == "agent-1-updated"
+        assert updated["hostname"] == "dev-host-02"
         assert updated["proof"] == "git:def2"
         assert updated["status"] == "in progress"
         assert updated["created_by"] == test_user.username

@@ -165,11 +165,13 @@ class TestMCPWithApiClient:
             key=item_key,
             summary="Shipped MCP integration",
             agent_id="claude-code/sonnet-4-5/sess-1",
+            hostname="worker-node-1",
             proof="git:sha-987abc",
             status="in progress"
         )
         assert prog["summary"] == "Shipped MCP integration"
         assert prog["agent_id"] == "claude-code/sonnet-4-5/sess-1"
+        assert prog["hostname"] == "worker-node-1"
         assert prog["proof"] == "git:sha-987abc"
         assert prog["status"] == "in progress"
         assert prog["created_by"] == test_user.username
@@ -188,11 +190,13 @@ class TestMCPWithApiClient:
             summary="Shipped MCP integration with tests",
             proof="git:sha-final",
             agent_id="claude-code/sonnet-4-5/sess-2",
+            hostname="worker-node-2",
             status="review"
         )
         assert updated_prog["summary"] == "Shipped MCP integration with tests"
         assert updated_prog["proof"] == "git:sha-final"
         assert updated_prog["agent_id"] == "claude-code/sonnet-4-5/sess-2"
+        assert updated_prog["hostname"] == "worker-node-2"
         assert updated_prog["status"] == "review"
         assert updated_prog["created_by"] == test_user.username
         assert updated_prog["updated_by"] == test_user.username
