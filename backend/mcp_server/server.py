@@ -42,7 +42,7 @@ def list_work_items(status: Optional[str] = None, project_key: Optional[str] = N
     Omits description, context, and progress entries for brevity (use get_work_item to fetch complete details for a specific item).
     Args:
         status: Optional status filter ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled', 'done').
-        project_key: Optional project key filter (e.g. 'DAV').
+        project_key: Optional project key filter. Note: There is no default project; provide the project key if known from the user, or ask the user which project to use.
     """
     return get_client().list_work_items(status=status, project_key=project_key)
 
@@ -58,11 +58,11 @@ def get_work_item(key: str) -> Dict[str, Any]:
 @mcp_server.tool()
 def create_work_item(
     title: str,
+    project_key: str,
     description: str = "",
     context: Optional[str] = None,
     priority: str = "MEDIUM",
     status: Optional[str] = None,
-    project_key: str = "DAV",
     active_assignee_username: Optional[str] = None,
     parent_key: Optional[str] = None,
     sprint_id: Optional[int] = None,
@@ -79,11 +79,11 @@ def create_work_item(
 
     Args:
         title: Title of the task.
+        project_key: Target project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         description: Original task requirements/description from human input.
         context: Optional initial technical context, analysis, or implementation plan deduced by the LLM agent (markdown supported).
         priority: Priority level ('LOW', 'MEDIUM', 'HIGH'). Defaults to 'MEDIUM'.
         status: Status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Defaults to 'todo'. Note: 'done' is not permitted via MCP.
-        project_key: Target project key (defaults to 'DAV').
         active_assignee_username: Optional username of assigned user. Defaults to the current user (creator) if omitted. Pass empty string to leave unassigned.
         parent_key: Optional parent work item key for subtasks (e.g. 'DAV-1').
         sprint_id: Optional sprint ID to assign to.
@@ -101,10 +101,10 @@ def create_work_item(
 
     return get_client().create_work_item(
         title=title,
+        project_key=project_key,
         description=description,
         priority=priority,
         status=status,
-        project_key=project_key,
         active_assignee_username=active_assignee_username,
         parent_key=parent_key,
         sprint_id=sprint_id,
@@ -275,20 +275,20 @@ def delete_work_item_progress(key: str, progress_id: int) -> Dict[str, Any]:
     return get_client().delete_work_item_progress(key=key, progress_id=progress_id)
 
 @mcp_server.tool()
-def list_sprints(project_key: str = "DAV") -> List[Dict[str, Any]]:
+def list_sprints(project_key: str) -> List[Dict[str, Any]]:
     """
     List all sprints for a project.
     Args:
-        project_key: Project key (default 'DAV').
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
     """
     return get_client().list_sprints(project_key=project_key)
 
 @mcp_server.tool()
-def list_releases(project_key: str = "DAV") -> List[Dict[str, Any]]:
+def list_releases(project_key: str) -> List[Dict[str, Any]]:
     """
     List all releases for a project.
     Args:
-        project_key: Project key (default 'DAV').
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
     """
     return get_client().list_releases(project_key=project_key)
 
@@ -304,7 +304,7 @@ HUMAN_ONLY_SPRINT_RELEASE_STATUSES = (
 @mcp_server.tool()
 def create_sprint(
     name: str,
-    project_key: str = "DAV",
+    project_key: str,
     description: str = "",
     status: str = "planned",
     release_id: Optional[int] = None,
@@ -315,7 +315,7 @@ def create_sprint(
     Create a new sprint for a project.
     Args:
         name: Sprint name.
-        project_key: Project key (default 'DAV').
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         description: Optional sprint objective / description.
         status: Initial sprint status ('planned', 'in progress'). Defaults to 'planned'. Note: 'done' is a human-only status via the frontend.
         release_id: Optional release ID to associate with.
@@ -342,7 +342,7 @@ def create_sprint(
 @mcp_server.tool()
 def update_sprint(
     sprint_id: int,
-    project_key: str = "DAV",
+    project_key: str,
     name: Optional[str] = None,
     description: Optional[str] = None,
     status: Optional[str] = None,
@@ -354,7 +354,7 @@ def update_sprint(
     Update fields of an existing sprint, including setting or clearing dates.
     Args:
         sprint_id: Sprint ID to update.
-        project_key: Project key (default 'DAV').
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         name: Optional new name.
         description: Optional new description.
         status: Optional new status ('planned', 'in progress'). Note: 'done' is a human-only status via the frontend.
@@ -391,7 +391,7 @@ def update_sprint(
 @mcp_server.tool()
 def create_release(
     name: str,
-    project_key: str = "DAV",
+    project_key: str,
     description: str = "",
     status: str = "planned",
     start_date: Optional[str] = None,
@@ -401,7 +401,7 @@ def create_release(
     Create a new release milestone.
     Args:
         name: Release name/version (e.g. 'v1.0.0').
-        project_key: Project key (default 'DAV').
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         description: Optional release scope / notes.
         status: Initial release status ('planned', 'in progress'). Defaults to 'planned'. Note: 'done' is a human-only status via the frontend.
         start_date: Optional start date (YYYY-MM-DD or ISO format).
@@ -426,7 +426,7 @@ def create_release(
 @mcp_server.tool()
 def update_release(
     release_id: int,
-    project_key: str = "DAV",
+    project_key: str,
     name: Optional[str] = None,
     description: Optional[str] = None,
     status: Optional[str] = None,
@@ -437,7 +437,7 @@ def update_release(
     Update fields of an existing release milestone, including setting or clearing dates.
     Args:
         release_id: Release ID to update.
-        project_key: Project key (default 'DAV').
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         name: Optional new name.
         description: Optional new description.
         status: Optional new status ('planned', 'in progress'). Note: 'done' is a human-only status via the frontend.
@@ -469,11 +469,11 @@ def update_release(
     )
 
 @mcp_server.tool()
-def get_project_summary(project_key: str = "DAV") -> Dict[str, Any]:
+def get_project_summary(project_key: str) -> Dict[str, Any]:
     """
-    Get a statistical summary of the Davai project board, including work item, sprint, and release breakdowns.
+    Get a statistical summary of a project board, including work item, sprint, and release breakdowns.
     Args:
-        project_key: Project key (default 'DAV').
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
     """
     return get_client().get_project_summary(project_key=project_key)
 
@@ -495,10 +495,10 @@ MCP_ALLOWED_MONITORING_LOG_STATUSES = (
 @mcp_server.tool()
 def create_incident(
     title: str,
+    project_key: str,
     cause: str = "",
     investigation_note: str = "",
     status: str = "reported",
-    project_key: str = "DAV",
     work_item_keys: Optional[List[str]] = None,
     monitoring_log_ids: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
@@ -506,10 +506,10 @@ def create_incident(
     Create a new incident in Davai.
     Args:
         title: Short title summarizing the incident.
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         cause: Investigation cause and details of the incident.
         investigation_note: Quick investigation note (specific checks to confirm/deny whether this incident is happening again).
         status: Initial incident status ('reported', 'ongoing'). Defaults to 'reported'. Note: 'done' and 'no longer relevant' are human-only statuses.
-        project_key: Project key (default 'DAV').
         work_item_keys: Optional list of work item keys (e.g. ['DAV-1']) linked for mitigation/addressing the incident.
         monitoring_log_ids: Optional list of monitoring log IDs or keys (e.g. [1, 'DAV-LOG-2']) linked to this incident.
     """
@@ -542,8 +542,8 @@ def get_incident(incident_id: str) -> Dict[str, Any]:
 
 @mcp_server.tool()
 def search_incidents(
+    project_key: str,
     query: str = "",
-    project_key: str = "DAV",
     mode: str = "hybrid",
     status: Optional[str] = None,
     limit: int = 20,
@@ -553,8 +553,8 @@ def search_incidents(
     Note: Incidents marked 'no longer relevant' are always excluded from all searches.
     Returns matching incidents with linked monitoring_log_ids (without log details).
     Args:
+        project_key: Project key filter. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         query: Search query string.
-        project_key: Project key filter (default 'DAV').
         mode: Search mode ('hybrid', 'vector', 'keyword'). Defaults to 'hybrid'.
         status: Optional status filter ('reported', 'ongoing', 'done').
         limit: Max results to return (default 20).
@@ -611,8 +611,8 @@ def update_incident(
 def create_monitoring_log(
     description: str,
     agent_id: str,
+    project_key: str,
     status: str = "OK",
-    project_key: str = "DAV",
     incident_id: Optional[str] = None,
     jira_url: str = "",
 ) -> Dict[str, Any]:
@@ -621,8 +621,8 @@ def create_monitoring_log(
     Args:
         description: Full description or log output of the run.
         agent_id: Required agent/model/session identifier in the format '<agent>/<model>/<session-id>' (e.g. 'claude-code/claude-sonnet-4-5/sess-123') filled out by the LLM.
+        project_key: Project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         status: Run status ('OK' or 'Error'). Set by the LLM on creation.
-        project_key: Project key (default 'DAV').
         incident_id: Optional Davai incident ID or key (e.g. 'DAV-INC-1') to link this run to, otherwise null.
         jira_url: Optional URL to a JIRA incident if one is found.
     """
@@ -635,8 +635,8 @@ def create_monitoring_log(
     return get_client().create_monitoring_log(
         description=description,
         agent_id=clean_agent_id,
-        status=clean_status,
         project_key=project_key,
+        status=clean_status,
         incident_id=incident_id,
         jira_url=jira_url,
     )
@@ -658,7 +658,7 @@ def list_user_support_tickets(status: Optional[str] = None, project_key: Optiona
     Omits description, context, and progress entries for brevity (use get_user_support_ticket to fetch complete details).
     Args:
         status: Optional status filter ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled', 'done').
-        project_key: Optional project key filter (e.g. 'DAV').
+        project_key: Optional project key filter. Note: There is no default project; provide the project key if known from the user, or ask the user which project to use.
     """
     return get_client().list_user_support_tickets(status=status, project_key=project_key)
 
@@ -674,11 +674,11 @@ def get_user_support_ticket(key: str) -> Dict[str, Any]:
 @mcp_server.tool()
 def create_user_support_ticket(
     title: str,
+    project_key: str,
     description: str = "",
     context: Optional[str] = None,
     priority: str = "MEDIUM",
     status: Optional[str] = None,
-    project_key: str = "DAV",
     active_assignee_username: Optional[str] = None,
     parent_key: Optional[str] = None,
     source: str = "",
@@ -691,11 +691,11 @@ def create_user_support_ticket(
 
     Args:
         title: Title of the user support ticket.
+        project_key: Target project key. Required — there is no default project. You must provide this from what the user has already told you, or ask the user which project to use before calling this tool.
         description: Original user support request/description.
         context: Optional initial technical context or analysis deduced by the LLM agent (markdown supported).
         priority: Priority level ('LOW', 'MEDIUM', 'HIGH'). Defaults to 'MEDIUM'.
         status: Status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Defaults to 'todo'. Note: 'done' is not permitted via MCP.
-        project_key: Target project key (defaults to 'DAV').
         active_assignee_username: Optional username of assigned user. Defaults to the current user (creator) if omitted. Pass empty string to leave unassigned.
         parent_key: Optional parent ticket key for subtasks.
         source: Optional source reference (e.g. requester or external URL).
@@ -712,10 +712,10 @@ def create_user_support_ticket(
 
     return get_client().create_user_support_ticket(
         title=title,
+        project_key=project_key,
         description=description,
         priority=priority,
         status=status,
-        project_key=project_key,
         active_assignee_username=active_assignee_username,
         parent_key=parent_key,
         source=source,

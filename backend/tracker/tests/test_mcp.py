@@ -498,4 +498,40 @@ class TestMCPWithApiClient:
         assert fetched_sup["status"] == "review"
         assert fetched_sup["context"]["summary"] == "Updated support context"
 
+    def test_no_default_project_key_in_mcp(self):
+        import inspect
+        from mcp_server.server import (
+            create_user_support_ticket,
+            list_user_support_tickets,
+        )
 
+        required_project_tools = [
+            create_work_item,
+            list_sprints,
+            list_releases,
+            create_sprint,
+            update_sprint,
+            create_release,
+            update_release,
+            get_project_summary,
+            create_incident,
+            search_incidents,
+            create_monitoring_log,
+            create_user_support_ticket,
+        ]
+        for tool_fn in required_project_tools:
+            sig = inspect.signature(tool_fn)
+            param = sig.parameters["project_key"]
+            assert param.default is inspect.Parameter.empty, (
+                f"{tool_fn.__name__} must not have a default project_key"
+            )
+            assert "no default project" in (tool_fn.__doc__ or "").lower()
+            assert "default 'dav'" not in (tool_fn.__doc__ or "").lower()
+            assert "defaults to 'dav'" not in (tool_fn.__doc__ or "").lower()
+
+        for optional_filter_fn in (list_work_items, list_user_support_tickets):
+            sig = inspect.signature(optional_filter_fn)
+            param = sig.parameters["project_key"]
+            assert param.default is None
+            assert "no default project" in (optional_filter_fn.__doc__ or "").lower()
+            assert "default 'dav'" not in (optional_filter_fn.__doc__ or "").lower()

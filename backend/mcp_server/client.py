@@ -86,10 +86,10 @@ class DavaiClient:
     def create_work_item(
         self,
         title: str,
+        project_key: str,
         description: str = "",
         priority: str = "MEDIUM",
         status: Optional[str] = None,
-        project_key: str = "DAV",
         active_assignee_username: Optional[str] = None,
         parent_key: Optional[str] = None,
         source: str = "",
@@ -232,18 +232,18 @@ class DavaiClient:
         """List all projects."""
         return self._request("GET", "/projects")
 
-    def list_sprints(self, project_key: str = "DAV") -> List[Dict[str, Any]]:
+    def list_sprints(self, project_key: str) -> List[Dict[str, Any]]:
         """List all sprints for a project."""
         return self._request("GET", f"/projects/{project_key.upper()}/sprints")
 
-    def list_releases(self, project_key: str = "DAV") -> List[Dict[str, Any]]:
+    def list_releases(self, project_key: str) -> List[Dict[str, Any]]:
         """List all releases for a project."""
         return self._request("GET", f"/projects/{project_key.upper()}/releases")
 
     def create_sprint(
         self,
         name: str,
-        project_key: str = "DAV",
+        project_key: str,
         description: str = "",
         status: Optional[str] = None,
         release_id: Optional[int] = None,
@@ -268,7 +268,7 @@ class DavaiClient:
     def update_sprint(
         self,
         sprint_id: int,
-        project_key: str = "DAV",
+        project_key: str,
         name: Optional[str] = None,
         description: Optional[str] = None,
         status: Optional[str] = None,
@@ -301,7 +301,7 @@ class DavaiClient:
     def create_release(
         self,
         name: str,
-        project_key: str = "DAV",
+        project_key: str,
         description: str = "",
         status: Optional[str] = None,
         start_date: Optional[str] = None,
@@ -323,7 +323,7 @@ class DavaiClient:
     def update_release(
         self,
         release_id: int,
-        project_key: str = "DAV",
+        project_key: str,
         name: Optional[str] = None,
         description: Optional[str] = None,
         status: Optional[str] = None,
@@ -350,7 +350,7 @@ class DavaiClient:
                 payload["end_date"] = end_date
         return self._request("PATCH", f"/projects/{project_key.upper()}/releases/{release_id}", data=payload)
 
-    def get_project_summary(self, project_key: str = "DAV") -> Dict[str, Any]:
+    def get_project_summary(self, project_key: str) -> Dict[str, Any]:
         """Calculate board statistics for a project, including sprint and release breakdowns."""
         items = self.list_work_items(project_key=project_key)
         try:
@@ -439,7 +439,7 @@ class DavaiClient:
     def create_incident(
         self,
         title: str,
-        project_key: str = "DAV",
+        project_key: str,
         cause: str = "",
         investigation_note: str = "",
         status: str = "reported",
@@ -514,8 +514,8 @@ class DavaiClient:
         self,
         description: str,
         agent_id: str,
+        project_key: str,
         status: str = "ok",
-        project_key: str = "DAV",
         incident_id: Optional[Any] = None,
         jira_url: str = "",
     ) -> Dict[str, Any]:
@@ -559,10 +559,10 @@ class DavaiClient:
     def create_user_support_ticket(
         self,
         title: str,
+        project_key: str,
         description: str = "",
         priority: str = "MEDIUM",
         status: Optional[str] = None,
-        project_key: str = "DAV",
         active_assignee_username: Optional[str] = None,
         parent_key: Optional[str] = None,
         source: str = "",
