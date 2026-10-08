@@ -2152,6 +2152,9 @@ def get_monitoring_log(request, log_id: str):
 def _create_monitoring_log_for_project(request, project: Project, payload: CreateMonitoringLogIn) -> MonitoringLog:
     user = request.auth
     clean_status = _validate_and_normalize_log_status(payload.status)
+    clean_agent_id = (payload.agent_id or "").strip()
+    if not clean_agent_id and _is_api_key_or_mcp_request(request):
+        raise errors.HttpError(400, "The 'agent_id' field is required when creating a monitoring log via API or MCP.")
 
     inc_ref = payload.incident_id if payload.incident_id is not None else payload.incident_key
     incident = None
@@ -2163,7 +2166,7 @@ def _create_monitoring_log_for_project(request, project: Project, payload: Creat
         log_obj = MonitoringLog.objects.create(
             project=project,
             key=log_key,
-            agent_id=payload.agent_id,
+            agent_id=clean_agent_id,
             description=payload.description,
             status=clean_status,
             incident=incident,
@@ -2190,7 +2193,7 @@ def update_monitoring_log(request, log_id: str, payload: UpdateMonitoringLogIn):
     log_obj = _get_monitoring_log_by_identifier(log_id)
 
     if payload.agent_id is not None:
-        log_obj.agent_id = payload.agent_id
+        log_obj.agent_id = payload.agent_id.strip()
     if payload.description is not None:
         log_obj.description = payload.description
     if payload.status is not None:

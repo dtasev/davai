@@ -1178,7 +1178,18 @@ class TestNinjaAPI:
         inc_key = inc_data["key"]
         inc_id = inc_data["id"]
 
-        # 3. Create monitoring log linked to the incident
+        # 3. Create monitoring log linked to the incident (missing agent_id via API/MCP is rejected with 400)
+        missing_agent_log_res = ninja_client.post(
+            f"/projects/{test_project.key}/monitoring-logs",
+            json={
+                "description": "Missing agent_id check",
+                "status": "OK",
+            },
+            headers=mcp_headers
+        )
+        assert missing_agent_log_res.status_code == 400
+        assert "agent_id" in missing_agent_log_res.json()["detail"]
+
         log_res = ninja_client.post(
             f"/projects/{test_project.key}/monitoring-logs",
             json={

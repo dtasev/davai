@@ -513,13 +513,13 @@ class DavaiClient:
     def create_monitoring_log(
         self,
         description: str,
-        agent_id: str = "",
+        agent_id: str,
         status: str = "ok",
         project_key: str = "DAV",
         incident_id: Optional[Any] = None,
         jira_url: str = "",
     ) -> Dict[str, Any]:
-        """Create a monitoring log entry."""
+        """Create a monitoring log entry with required agent_id (<agent>/<model>/<session-id>)."""
         payload: Dict[str, Any] = {
             "project_key": project_key,
             "agent_id": agent_id,

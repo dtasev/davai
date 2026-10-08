@@ -610,7 +610,7 @@ def update_incident(
 @mcp_server.tool()
 def create_monitoring_log(
     description: str,
-    agent_id: str = "",
+    agent_id: str,
     status: str = "OK",
     project_key: str = "DAV",
     incident_id: Optional[str] = None,
@@ -620,18 +620,21 @@ def create_monitoring_log(
     Create a monitoring log entry to report a check or monitoring run.
     Args:
         description: Full description or log output of the run.
-        agent_id: Agent/model/session identifier in the format '<agent>/<model>/<session-id>' filled out by the LLM.
+        agent_id: Required agent/model/session identifier in the format '<agent>/<model>/<session-id>' (e.g. 'claude-code/claude-sonnet-4-5/sess-123') filled out by the LLM.
         status: Run status ('OK' or 'Error'). Set by the LLM on creation.
         project_key: Project key (default 'DAV').
         incident_id: Optional Davai incident ID or key (e.g. 'DAV-INC-1') to link this run to, otherwise null.
         jira_url: Optional URL to a JIRA incident if one is found.
     """
+    clean_agent_id = (agent_id or "").strip()
+    if not clean_agent_id:
+        raise ValueError("The 'agent_id' argument is required when creating a monitoring log via MCP.")
     clean_status = (status or "ok").strip().lower()
     if clean_status not in MCP_ALLOWED_MONITORING_LOG_STATUSES:
         raise ValueError(f"Invalid monitoring log status '{status}'. Allowed statuses are: OK, Error.")
     return get_client().create_monitoring_log(
         description=description,
-        agent_id=agent_id,
+        agent_id=clean_agent_id,
         status=clean_status,
         project_key=project_key,
         incident_id=incident_id,

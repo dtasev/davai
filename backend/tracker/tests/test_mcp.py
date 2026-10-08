@@ -384,7 +384,15 @@ class TestMCPWithApiClient:
         assert updated_inc["status"] == "ongoing"
         assert "vacuum activity" in updated_inc["investigation_note"]
 
-        # Create monitoring log via MCP
+        # Create monitoring log via MCP (rejects empty agent_id)
+        with pytest.raises(ValueError, match="agent_id"):
+            create_monitoring_log(
+                description="Missing agent_id",
+                agent_id="   ",
+                status="OK",
+                project_key=test_project.key,
+            )
+
         mcp_log = create_monitoring_log(
             agent_id="db-replication-monitor/sonnet/sess-1",
             description="Replication lag 45s on replica-01",
