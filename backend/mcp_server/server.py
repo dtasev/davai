@@ -3,6 +3,7 @@ import sys
 import json
 import argparse
 import asyncio
+import contextvars
 from typing import Optional, List, Dict, Any
 from mcp.server.mcpserver import MCPServer
 from mcp_server.client import DavaiClient
@@ -13,17 +14,21 @@ mcp_server = MCPServer(
     description="Model Context Protocol interface for Davai Jira-like work management app via REST API Client"
 )
 
-_client: Optional[DavaiClient] = None
+
+_client_var: contextvars.ContextVar[Optional[DavaiClient]] = contextvars.ContextVar("davai_mcp_client", default=None)
 
 def get_client() -> DavaiClient:
-    global _client
-    if _client is None:
-        _client = DavaiClient()
-    return _client
+    client = _client_var.get()
+    if client is None:
+        client = DavaiClient()
+        _client_var.set(client)
+    return client
 
-def set_client(client: DavaiClient):
-    global _client
-    _client = client
+def set_client(client: Optional[DavaiClient]) -> contextvars.Token:
+    return _client_var.set(client)
+
+def reset_client(token: contextvars.Token) -> None:
+    _client_var.reset(token)
 
 MCP_ALLOWED_STATUSES = (
     "todo",

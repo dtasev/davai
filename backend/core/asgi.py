@@ -4,7 +4,7 @@ from urllib.parse import parse_qs
 from asgiref.sync import sync_to_async
 from django.core.asgi import get_asgi_application
 from starlette.applications import Starlette
-from starlette.routing import Mount
+from starlette.routing import Mount, Route
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Scope, Receive, Send
 from mcp.server.transport_security import TransportSecuritySettings
@@ -12,7 +12,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django_app = get_asgi_application()
 
-from mcp_server.server import mcp_server, set_client
+from mcp_server.server import mcp_server, set_client, reset_client
 from mcp_server.client import DavaiClient
 from tracker.auth import verify_api_key
 
@@ -27,7 +27,7 @@ class MCPAuthMiddleware:
     Accepts keys via:
       1. 'X-API-Key' header
       2. 'Authorization: Bearer <key>' header
-      3. '?api_key=<key>' query parameter
+      3. '?token=<key>' or '?api_key=<key>' query parameter
     """
     def __init__(self, app: ASGIApp):
         self.app = app
@@ -46,11 +46,13 @@ class MCPAuthMiddleware:
                 if auth_val.lower().startswith("bearer "):
                     api_key = auth_val[7:].strip()
 
-            # 3. Query parameter (?api_key=...)
+            # 3. Query parameter (?token=... or ?api_key=...)
             if not api_key:
                 query_string = scope.get("query_string", b"").decode("utf-8", errors="ignore")
                 params = parse_qs(query_string)
-                if "api_key" in params and params["api_key"]:
+                if "token" in params and params["token"]:
+                    api_key = params["token"][0]
+                elif "api_key" in params and params["api_key"]:
                     api_key = params["api_key"][0]
 
             user = await sync_to_async(verify_api_key)(api_key)
@@ -59,7 +61,7 @@ class MCPAuthMiddleware:
                 response = JSONResponse(
                     {
                         "error": "Unauthorized",
-                        "detail": "Valid API key required. Provide via 'X-API-Key' header, 'Authorization: Bearer <key>', or '?api_key=<key>' query parameter."
+                        "detail": "Valid API key required. Provide via 'X-API-Key' header, 'Authorization: Bearer <key>', or '?token=<key>' query parameter."
                     },
                     status_code=401
                 )
@@ -68,7 +70,12 @@ class MCPAuthMiddleware:
 
             # Attach authenticated user to scope and configure API client with the user's API key
             scope["user"] = user
-            set_client(DavaiClient(api_key=api_key))
+            token = set_client(DavaiClient(api_key=api_key))
+            try:
+                await self.app(scope, receive, send)
+            finally:
+                reset_client(token)
+            return
 
         await self.app(scope, receive, send)
 
@@ -96,6 +103,7 @@ async def lifespan(app: Starlette):
         yield
 
 routes = [
+    Route('/mcp', endpoint=mcp_app),
     Mount('/mcp', app=mcp_app),
     Mount('', app=django_app),
 ]

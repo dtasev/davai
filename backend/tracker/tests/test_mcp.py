@@ -56,6 +56,11 @@ class InProcessDavaiClient(DavaiClient):
 
 @pytest.mark.django_db
 class TestMCPWithApiClient:
+    @pytest.fixture(autouse=True)
+    def cleanup_mcp_client(self):
+        yield
+        set_client(None)
+
     def test_mcp_tools_via_api_client(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
         client = InProcessDavaiClient(ninja_client, api_key=raw_key)
