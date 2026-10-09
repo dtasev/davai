@@ -31,12 +31,12 @@ export interface ProjectDetailOutletContext {
   handleUpdateContext: (key: string, contextText: string) => Promise<void>
   handleAddProgress: (
     key: string,
-    entry: { summary: string; proof: string; status: string; agent_id?: string; hostname?: string }
+    entry: { summary: string; proof: string; status: string; agent_id?: string; agent_hostname?: string }
   ) => Promise<void>
   handleUpdateProgress: (
     key: string,
     progressId: number,
-    entry: { summary?: string; proof?: string; status?: string; agent_id?: string; hostname?: string }
+    entry: { summary?: string; proof?: string; status?: string; agent_id?: string; agent_hostname?: string }
   ) => Promise<ProgressEntry>
   handleDeleteProgress: (key: string, progressId: number) => Promise<void>
   handleDeleteSprint: (sprintId: number) => Promise<void>
@@ -358,7 +358,7 @@ export function ProjectDetailRoute() {
 
   const handleAddProgress = async (
     key: string,
-    entry: { summary: string; proof: string; status: string; agent_id?: string; hostname?: string }
+    entry: { summary: string; proof: string; status: string; agent_id?: string; agent_hostname?: string }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}/progress`, {
       method: 'POST',
@@ -388,7 +388,7 @@ export function ProjectDetailRoute() {
   const handleUpdateProgress = async (
     key: string,
     progressId: number,
-    entry: { summary?: string; proof?: string; status?: string; agent_id?: string; hostname?: string }
+    entry: { summary?: string; proof?: string; status?: string; agent_id?: string; agent_hostname?: string }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}/progress/${progressId}`, {
       method: 'PATCH',

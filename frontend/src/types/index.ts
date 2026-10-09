@@ -104,7 +104,7 @@ export interface ProgressEntry {
   work_item_key: string
   created_by: string | null
   agent_id?: string
-  hostname?: string
+  agent_hostname?: string
   summary: string
   proof: string
   status: ProgressStatus

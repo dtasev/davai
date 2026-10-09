@@ -48,7 +48,7 @@ describe('Davai Frontend App with React Router', () => {
           work_item_key: 'DAV-1',
           created_by: 'admin',
           agent_id: 'claude-code/sonnet/sess-1',
-          hostname: 'dev-host-1',
+          agent_hostname: 'dev-host-1',
           summary: 'Completed models',
           proof: 'git:e93f18a',
           status: 'in progress',
@@ -107,7 +107,8 @@ describe('Davai Frontend App with React Router', () => {
             if (body.summary !== undefined) prog.summary = body.summary
             if (body.proof !== undefined) prog.proof = body.proof
             if (body.agent_id !== undefined) prog.agent_id = body.agent_id
-            if (body.hostname !== undefined) prog.hostname = body.hostname
+            if (body.agent_hostname !== undefined) prog.agent_hostname = body.agent_hostname
+            if (body.hostname !== undefined) prog.agent_hostname = body.hostname
             if (body.status !== undefined) prog.status = body.status
             prog.updated_by = 'admin'
             prog.updated_at = '2026-09-20T01:00:00Z'

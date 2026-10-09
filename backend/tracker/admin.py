@@ -96,9 +96,9 @@ class ContextAdmin(admin.ModelAdmin):
 
 @admin.register(Progress)
 class ProgressAdmin(admin.ModelAdmin):
-    list_display = ("work_item", "created_by", "agent_id", "hostname", "status", "proof", "created_at", "updated_at")
+    list_display = ("work_item", "created_by", "agent_id", "agent_hostname", "status", "proof", "created_at", "updated_at")
     list_filter = ("status", "created_at", "updated_at")
-    search_fields = ("work_item__key", "agent_id", "hostname", "summary", "proof")
+    search_fields = ("work_item__key", "agent_id", "agent_hostname", "summary", "proof")
 
 
 @admin.register(WorkItemEmbedding)

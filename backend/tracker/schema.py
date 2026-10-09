@@ -103,7 +103,7 @@ class ProgressType:
     id: int
     created_by: Optional[str] = None
     agent_id: str = ""
-    hostname: str = ""
+    agent_hostname: str = ""
     summary: str
     proof: str
     status: str
@@ -155,7 +155,7 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
             id=p.id,
             created_by=p.created_by.username if p.created_by else None,
             agent_id=p.agent_id or "",
-            hostname=p.hostname or "",
+            agent_hostname=p.agent_hostname or "",
             summary=p.summary,
             proof=p.proof,
             status=p.status,

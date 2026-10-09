@@ -58,12 +58,12 @@ interface WorkItemDetailModalProps {
   onUpdateContext?: (key: string, contextText: string) => Promise<void>
   onAddProgress?: (
     key: string,
-    entry: { summary: string; proof: string; status: string; agent_id?: string; hostname?: string }
+    entry: { summary: string; proof: string; status: string; agent_id?: string; agent_hostname?: string }
   ) => Promise<void>
   onUpdateProgress?: (
     key: string,
     progressId: number,
-    entry: { summary?: string; proof?: string; status?: string; agent_id?: string; hostname?: string }
+    entry: { summary?: string; proof?: string; status?: string; agent_id?: string; agent_hostname?: string }
   ) => Promise<any>
   onDeleteProgress?: (key: string, progressId: number) => Promise<void>
   onDelete?: () => Promise<void>
@@ -166,7 +166,7 @@ export function WorkItemDetailModal({
   const [progressText, setProgressText] = useState('')
   const [progressProof, setProgressProof] = useState('')
   const [progressAgentId, setProgressAgentId] = useState('')
-  const [progressHostname, setProgressHostname] = useState('')
+  const [progressAgentHostname, setProgressAgentHostname] = useState('')
   const [progressStatus, setProgressStatus] = useState('in progress')
   const [submittingProgress, setSubmittingProgress] = useState(false)
 
@@ -175,7 +175,7 @@ export function WorkItemDetailModal({
   const [editProgressSummary, setEditProgressSummary] = useState('')
   const [editProgressProof, setEditProgressProof] = useState('')
   const [editProgressAgentId, setEditProgressAgentId] = useState('')
-  const [editProgressHostname, setEditProgressHostname] = useState('')
+  const [editProgressAgentHostname, setEditProgressAgentHostname] = useState('')
   const [editProgressStatus, setEditProgressStatus] = useState('in progress')
   const [savingProgressId, setSavingProgressId] = useState<number | null>(null)
   const [deletingProgressId, setDeletingProgressId] = useState<number | null>(null)
@@ -237,12 +237,12 @@ export function WorkItemDetailModal({
     })
   }, [item?.progress])
 
-  const startEditProgress = (p: { id: number; summary: string; proof?: string; agent_id?: string; hostname?: string; status: string }) => {
+  const startEditProgress = (p: { id: number; summary: string; proof?: string; agent_id?: string; agent_hostname?: string; status: string }) => {
     setEditingProgressId(p.id)
     setEditProgressSummary(p.summary)
     setEditProgressProof(p.proof || '')
     setEditProgressAgentId(p.agent_id || '')
-    setEditProgressHostname(p.hostname || '')
+    setEditProgressAgentHostname(p.agent_hostname || '')
     setEditProgressStatus(p.status || 'in progress')
   }
 
@@ -258,7 +258,7 @@ export function WorkItemDetailModal({
         summary: editProgressSummary.trim(),
         proof: editProgressProof.trim(),
         agent_id: editProgressAgentId.trim(),
-        hostname: editProgressHostname.trim(),
+        agent_hostname: editProgressAgentHostname.trim(),
         status: editProgressStatus
       })
       setEditingProgressId(null)
@@ -473,13 +473,13 @@ export function WorkItemDetailModal({
         summary: progressText.trim(),
         proof: progressProof.trim(),
         agent_id: progressAgentId.trim(),
-        hostname: progressHostname.trim(),
+        agent_hostname: progressAgentHostname.trim(),
         status: progressStatus
       })
       setProgressText('')
       setProgressProof('')
       setProgressAgentId('')
-      setProgressHostname('')
+      setProgressAgentHostname('')
     } finally {
       setSubmittingProgress(false)
     }
@@ -1080,9 +1080,10 @@ export function WorkItemDetailModal({
                   />
                   <input
                     type="text"
-                    placeholder="Hostname"
-                    value={progressHostname}
-                    onChange={e => setProgressHostname(e.target.value)}
+                    placeholder="Agent Hostname"
+                    title="Hostname of the machine on which the agent is running so the user can find the session again"
+                    value={progressAgentHostname}
+                    onChange={e => setProgressAgentHostname(e.target.value)}
                     data-testid="add-progress-hostname-input"
                     className="sm:w-36 px-2.5 py-1 rounded-lg bg-zinc-950 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
                   />
@@ -1182,9 +1183,10 @@ export function WorkItemDetailModal({
                         />
                         <input
                           type="text"
-                          placeholder="Hostname"
-                          value={editProgressHostname}
-                          onChange={e => setEditProgressHostname(e.target.value)}
+                          placeholder="Agent Hostname"
+                          title="Hostname of the machine on which the agent is running so the user can find the session again"
+                          value={editProgressAgentHostname}
+                          onChange={e => setEditProgressAgentHostname(e.target.value)}
                           data-testid={`edit-progress-hostname-${p.id}`}
                           className="flex-1 px-2.5 py-1 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-mono text-zinc-200 focus:outline-none focus:border-indigo-500"
                         />
@@ -1274,13 +1276,14 @@ export function WorkItemDetailModal({
                             <span>{p.agent_id}</span>
                           </span>
                         )}
-                        {p.hostname && (
+                        {p.agent_hostname && (
                           <span
                             data-testid={`progress-hostname-${p.id}`}
+                            title="Hostname of the machine on which the agent is running so the user can find the session again"
                             className="flex items-center gap-1 text-[10px] font-mono text-zinc-300 bg-zinc-800/80 px-1.5 py-0.5 rounded border border-zinc-700/60 leading-none"
                           >
                             <Server className="w-2.5 h-2.5 text-zinc-400" />
-                            <span>{p.hostname}</span>
+                            <span>{p.agent_hostname}</span>
                           </span>
                         )}
                       </div>

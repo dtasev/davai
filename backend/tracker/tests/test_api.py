@@ -605,7 +605,7 @@ class TestNinjaAPI:
             json={
                 "summary": "Initial step",
                 "agent_id": "agent-1",
-                "hostname": "dev-host-01",
+                "agent_hostname": "dev-host-01",
                 "proof": "git:abc1",
                 "status": "planned",
             },
@@ -614,7 +614,7 @@ class TestNinjaAPI:
         assert post_res.status_code == 200
         prog_id = post_res.json()["id"]
         assert post_res.json()["agent_id"] == "agent-1"
-        assert post_res.json()["hostname"] == "dev-host-01"
+        assert post_res.json()["agent_hostname"] == "dev-host-01"
         assert post_res.json()["created_by"] == test_user.username
         assert post_res.json()["updated_by"] is None
         assert "updated_at" in post_res.json()
@@ -625,7 +625,7 @@ class TestNinjaAPI:
             json={
                 "summary": "Updated step",
                 "agent_id": "agent-1-updated",
-                "hostname": "dev-host-02",
+                "agent_hostname": "dev-host-02",
                 "proof": "git:def2",
                 "status": "in progress",
             },
@@ -636,7 +636,7 @@ class TestNinjaAPI:
         assert updated["id"] == prog_id
         assert updated["summary"] == "Updated step"
         assert updated["agent_id"] == "agent-1-updated"
-        assert updated["hostname"] == "dev-host-02"
+        assert updated["agent_hostname"] == "dev-host-02"
         assert updated["proof"] == "git:def2"
         assert updated["status"] == "in progress"
         assert updated["created_by"] == test_user.username

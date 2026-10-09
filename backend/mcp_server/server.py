@@ -195,7 +195,7 @@ def log_work_item_progress(
     agent_id: str,
     proof: str = "",
     status: str = "in progress",
-    hostname: str = "",
+    agent_hostname: str = "",
 ) -> Dict[str, Any]:
     """
     Log a progress step, decision, or completed milestone for a work item.
@@ -205,12 +205,12 @@ def log_work_item_progress(
         agent_id: Required agent/model/session identifier in the format '<agent>/<model>/<session-id>' (e.g. 'claude-code/claude-sonnet-4-5/sess-123').
         proof: If the work is version controlled, this should be a feature branch or a git sha; if not, then a link to the destination or artifact.
         status: Step status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Defaults to 'in progress'. Note: 'done' is reserved for human verification in the frontend and is refused by MCP.
-        hostname: Optional hostname of the machine or environment where the work is being performed.
+        agent_hostname: Optional hostname of the machine on which the agent is running so the user can find the session again.
     """
     clean_agent_id = (agent_id or "").strip()
     if not clean_agent_id:
         raise ValueError("The 'agent_id' argument is required when logging progress via MCP.")
-    clean_hostname = (hostname or "").strip()
+    clean_agent_hostname = (agent_hostname or "").strip()
     clean_status = (status or "in progress").strip().lower()
     if clean_status == "done":
         raise ValueError("The 'done' status can only be set by a human via the frontend.")
@@ -222,7 +222,7 @@ def log_work_item_progress(
         agent_id=clean_agent_id,
         proof=proof,
         status=clean_status,
-        hostname=clean_hostname,
+        agent_hostname=clean_agent_hostname,
     )
 
 @mcp_server.tool()
@@ -233,7 +233,7 @@ def update_work_item_progress(
     agent_id: Optional[str] = None,
     proof: Optional[str] = None,
     status: Optional[str] = None,
-    hostname: Optional[str] = None,
+    agent_hostname: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Update an existing progress entry for a work item (e.g. to fix a typo or update proof/status).
@@ -244,15 +244,15 @@ def update_work_item_progress(
         agent_id: Optional updated agent/model/session identifier (e.g. '<agent>/<model>/<session-id>').
         proof: Optional new proof (git sha, feature branch, or artifact link).
         status: Optional new status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Note: 'done' is reserved for human verification in the frontend and is refused by MCP.
-        hostname: Optional updated hostname of the machine or environment.
+        agent_hostname: Optional updated hostname of the machine on which the agent is running so the user can find the session again.
     """
     kwargs: Dict[str, Any] = {}
     if summary is not None:
         kwargs["summary"] = summary
     if agent_id is not None:
         kwargs["agent_id"] = agent_id
-    if hostname is not None:
-        kwargs["hostname"] = hostname
+    if agent_hostname is not None:
+        kwargs["agent_hostname"] = agent_hostname
     if proof is not None:
         kwargs["proof"] = proof
     if status is not None:
