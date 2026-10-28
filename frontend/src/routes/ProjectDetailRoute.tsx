@@ -11,6 +11,7 @@ import {
   DEFAULT_PROJECT_STATUSES
 } from '../types'
 import { useApp } from '../context/AppContext'
+import { useOptionalWebSocket } from '../context/WebSocketContext'
 import { ProjectDetailView, isUserSupportItem } from '../components/ProjectDetail/ProjectDetailView'
 import { QuickJumpModal } from '../components/ProjectDetail/QuickJumpModal'
 import { apiFetch } from '../utils/apiFetch'
@@ -206,6 +207,173 @@ export function ProjectDetailRoute() {
   useEffect(() => {
     fetchDetails()
   }, [fetchDetails])
+
+  const ws = useOptionalWebSocket()
+
+  // Real-time WebSocket synchronization for the active project
+  useEffect(() => {
+    if (!ws || !projectKey) return
+
+    const topic = `project:${projectKey.toUpperCase()}`
+    ws.subscribe(topic)
+
+    // Event listener: work item created
+    const unsubItemCreated = ws.on('work_item.created', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.item) return
+      const newItem: WorkItem = event.item
+      if (isUserSupportItem(newItem)) {
+        setUserSupportItems(prev => {
+          if (prev.some(item => item.key === newItem.key)) return prev
+          return [newItem, ...prev]
+        })
+      } else {
+        setWorkItems(prev => {
+          if (prev.some(item => item.key === newItem.key)) return prev
+          return [newItem, ...prev]
+        })
+      }
+    })
+
+    // Event listener: work item updated
+    const unsubItemUpdated = ws.on('work_item.updated', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.key) return
+      const { key, changes } = event
+      const updater = (item: WorkItem): WorkItem => {
+        if (item.key.toUpperCase() !== key.toUpperCase()) return item
+        return {
+          ...item,
+          ...(changes || {})
+        }
+      }
+      setWorkItems(prev => prev.map(updater))
+      setUserSupportItems(prev => prev.map(updater))
+    })
+
+    // Event listener: work item deleted
+    const unsubItemDeleted = ws.on('work_item.deleted', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.key) return
+      const targetKey = event.key.toUpperCase()
+      setWorkItems(prev => prev.filter(item => item.key.toUpperCase() !== targetKey))
+      setUserSupportItems(prev => prev.filter(item => item.key.toUpperCase() !== targetKey))
+    })
+
+    // Event listener: progress created
+    const unsubProgressCreated = ws.on('progress.created', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.work_item_key) return
+      const targetKey = event.work_item_key.toUpperCase()
+      const newStatus = event.progress?.status
+      if (newStatus) {
+        const updater = (item: WorkItem): WorkItem => {
+          if (item.key.toUpperCase() !== targetKey) return item
+          return { ...item, status: newStatus }
+        }
+        setWorkItems(prev => prev.map(updater))
+        setUserSupportItems(prev => prev.map(updater))
+      }
+    })
+
+    // Event listener: incidents
+    const unsubIncidentCreated = ws.on('incident.created', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.incident) return
+      const newInc: Incident = event.incident
+      setIncidents(prev => {
+        if (prev.some(inc => inc.key === newInc.key)) return prev
+        return [newInc, ...prev]
+      })
+    })
+
+    const unsubIncidentUpdated = ws.on('incident.updated', (event) => {
+      const targetKey = event.key?.toUpperCase()
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !targetKey) return
+      setIncidents(prev => prev.map(inc => inc.key.toUpperCase() === targetKey ? { ...inc, ...(event.changes || {}) } : inc))
+    })
+
+    const unsubIncidentDeleted = ws.on('incident.deleted', (event) => {
+      const targetKey = event.key?.toUpperCase()
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !targetKey) return
+      setIncidents(prev => prev.filter(inc => inc.key.toUpperCase() !== targetKey))
+    })
+
+    // Event listener: monitoring logs
+    const unsubLogCreated = ws.on('monitoring_log.created', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.monitoring_log) return
+      const newLog: MonitoringLog = event.monitoring_log
+      setMonitoringLogs(prev => {
+        if (prev.some(log => log.key === newLog.key)) return prev
+        return [newLog, ...prev]
+      })
+    })
+
+    const unsubLogUpdated = ws.on('monitoring_log.updated', (event) => {
+      const targetKey = event.key?.toUpperCase()
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !targetKey) return
+      setMonitoringLogs(prev => prev.map(log => log.key.toUpperCase() === targetKey ? { ...log, ...(event.changes || {}) } : log))
+    })
+
+    const unsubLogDeleted = ws.on('monitoring_log.deleted', (event) => {
+      const targetKey = event.key?.toUpperCase()
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !targetKey) return
+      setMonitoringLogs(prev => prev.filter(log => log.key.toUpperCase() !== targetKey))
+    })
+
+    // Event listener: sprints
+    const unsubSprintCreated = ws.on('sprint.created', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.sprint) return
+      setSprints(prev => {
+        if (prev.some(s => s.id === event.sprint.id)) return prev
+        return [...prev, event.sprint]
+      })
+    })
+
+    const unsubSprintUpdated = ws.on('sprint.updated', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.sprint) return
+      setSprints(prev => prev.map(s => s.id === event.sprint.id ? { ...s, ...event.sprint } : s))
+    })
+
+    const unsubSprintDeleted = ws.on('sprint.deleted', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.sprint_id) return
+      setSprints(prev => prev.filter(s => s.id !== event.sprint_id))
+    })
+
+    // Event listener: releases
+    const unsubReleaseCreated = ws.on('release.created', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.release) return
+      setReleases(prev => {
+        if (prev.some(r => r.id === event.release.id)) return prev
+        return [...prev, event.release]
+      })
+    })
+
+    const unsubReleaseUpdated = ws.on('release.updated', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.release) return
+      setReleases(prev => prev.map(r => r.id === event.release.id ? { ...r, ...event.release } : r))
+    })
+
+    const unsubReleaseDeleted = ws.on('release.deleted', (event) => {
+      if (event.project_key?.toUpperCase() !== projectKey.toUpperCase() || !event.release_id) return
+      setReleases(prev => prev.filter(r => r.id !== event.release_id))
+    })
+
+    return () => {
+      ws.unsubscribe(topic)
+      unsubItemCreated()
+      unsubItemUpdated()
+      unsubItemDeleted()
+      unsubProgressCreated()
+      unsubIncidentCreated()
+      unsubIncidentUpdated()
+      unsubIncidentDeleted()
+      unsubLogCreated()
+      unsubLogUpdated()
+      unsubLogDeleted()
+      unsubSprintCreated()
+      unsubSprintUpdated()
+      unsubSprintDeleted()
+      unsubReleaseCreated()
+      unsubReleaseUpdated()
+      unsubReleaseDeleted()
+    }
+  }, [ws, projectKey])
 
   const handleCreateSprint = async (
     name: string,
