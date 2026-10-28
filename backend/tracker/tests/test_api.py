@@ -1348,6 +1348,9 @@ class TestNinjaAPI:
         assert second_log["incident_id"] is None
         assert all("description" not in log for log in appended["monitoring_logs"])
 
+        # The append stamps the incident's audit fields
+        assert appended["updated_by"] == test_user.username
+
         # The link is persisted (log now reports the incident)
         get_log = ninja_client.get(f"/monitoring-logs/{second_log['key']}", headers=headers)
         assert get_log.json()["incident_id"] == inc_id

@@ -2101,6 +2101,7 @@ def update_incident(request, incident_id: str, payload: UpdateIncidentIn):
 
 @api.post("/incidents/{incident_id}/monitoring-logs/{log_id}", response=IncidentOut, auth=api_key_auth, summary="Append Monitoring Log to Incident")
 def append_monitoring_log_to_incident(request, incident_id: str, log_id: str):
+    user = request.auth
     incident = _get_incident_by_identifier(incident_id)
     ml = _get_monitoring_log_by_identifier(log_id)
 
@@ -2119,6 +2120,8 @@ def append_monitoring_log_to_incident(request, incident_id: str, log_id: str):
         ml.incident = incident
         ml.save(update_fields=["incident"])
 
+    incident.updated_by = user
+    incident.save(update_fields=["updated_by", "updated_at"])
     return _get_incident_by_identifier(incident.key)
 
 

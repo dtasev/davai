@@ -442,7 +442,7 @@ class TestMCPWithApiClient:
         assert set(reappended_inc["monitoring_log_keys"]) == {log_key, log2_key}
 
         # update_incident no longer accepts monitoring_log_ids (replaced by append_log_to_incident)
-        with pytest.raises(TypeError):
+        with pytest.raises(TypeError, match="monitoring_log_ids"):
             update_incident(incident_id=inc_key, monitoring_log_ids=[log_id])
 
         # Fetch monitoring log via MCP -> includes full description
@@ -566,3 +566,13 @@ class TestMCPWithApiClient:
             assert param.default is None
             assert "no default project" in (optional_filter_fn.__doc__ or "").lower()
             assert "default 'dav'" not in (optional_filter_fn.__doc__ or "").lower()
+
+    def test_append_log_to_incident_schema_accepts_int_ids(self):
+        import asyncio
+        from mcp_server.server import mcp_server
+
+        tools = asyncio.run(mcp_server.list_tools())
+        tool = next(t for t in tools if t.name == "append_log_to_incident")
+        for field in ("incident_id", "log_id"):
+            allowed = {b.get("type") for b in tool.input_schema["properties"][field]["anyOf"]}
+            assert allowed == {"integer", "string"}, f"{field} must accept JSON ints and strings"

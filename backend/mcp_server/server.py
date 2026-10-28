@@ -4,7 +4,7 @@ import json
 import argparse
 import asyncio
 import contextvars
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 from mcp.server.mcpserver import MCPServer
 from mcp_server.client import DavaiClient
 
@@ -610,7 +610,7 @@ def update_incident(
     )
 
 @mcp_server.tool()
-def append_log_to_incident(incident_id: str, log_id: str) -> Dict[str, Any]:
+def append_log_to_incident(incident_id: Union[int, str], log_id: Union[int, str]) -> Dict[str, Any]:
     """
     Append a monitoring log to an incident's list of linked monitoring logs, without unlinking existing logs.
     Args:

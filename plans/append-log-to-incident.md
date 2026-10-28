@@ -1,7 +1,10 @@
 # Plan: update_incident cleanup + append_log_to_incident tool
 
 Date: 2026-10-28
-Status: implemented & reviewed (weft: APPROVE), tests 70/70, uncommitted
+Status: implemented, reviewed (weft: APPROVE), polished per cross-branch
+comparison (plans/append-incident-log-comparison.md): Union[int,str] tool
+ids, incident updated_by/updated_at bump on append, schema regression test.
+Suite: 71 passed. Pushed to origin/append-incident-log-lfcb-261.
 
 ## Goal
 1. Remove `monitoring_log_ids` from the MCP `update_incident` tool (tool + client only).
