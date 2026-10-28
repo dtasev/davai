@@ -724,10 +724,22 @@ def handle_tracked_item_saved(sender, instance, created, **kwargs):
 def handle_tracked_item_deleted(sender, instance, **kwargs):
     try:
         from tracker.websocket.events import emit_tracked_item_deleted
-        key = instance.work_item.key if instance.work_item else (
-            instance.incident.key if instance.incident else ""
-        )
-        emit_tracked_item_deleted(instance.user_id, key, instance.item_type)
+        if instance.work_item_id:
+            key = instance.work_item.key if getattr(instance, "work_item", None) else ""
+            item_type = "user_support" if getattr(instance, "work_item", None) and instance.work_item.is_support else "work_item"
+        elif instance.incident_id:
+            key = instance.incident.key if getattr(instance, "incident", None) else ""
+            item_type = "incident"
+        elif instance.sprint_id:
+            key = str(instance.sprint_id)
+            item_type = "sprint"
+        elif instance.release_id:
+            key = str(instance.release_id)
+            item_type = "release"
+        else:
+            key = ""
+            item_type = "work_item"
+        emit_tracked_item_deleted(instance.user_id, key, item_type)
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("Failed to emit websocket event for deleted tracked item %s: %s", instance.id, e)

@@ -298,18 +298,36 @@ def emit_release_deleted(project_key: str, release_id: int):
     }
     notify_on_commit(f"project:{project_key}", msg, origin_client_id)
 
+def _resolve_tracked_item_fields(tracked_item):
+    if tracked_item.work_item_id and getattr(tracked_item, "work_item", None):
+        item_type = "user_support" if tracked_item.work_item.is_support else "work_item"
+        key = tracked_item.work_item.key
+        status = tracked_item.work_item.status
+    elif tracked_item.incident_id and getattr(tracked_item, "incident", None):
+        item_type = "incident"
+        key = tracked_item.incident.key
+        status = tracked_item.incident.status
+    elif tracked_item.sprint_id and getattr(tracked_item, "sprint", None):
+        item_type = "sprint"
+        key = str(tracked_item.sprint_id)
+        status = tracked_item.sprint.status or "planned"
+    elif tracked_item.release_id and getattr(tracked_item, "release", None):
+        item_type = "release"
+        key = str(tracked_item.release_id)
+        status = tracked_item.release.status or "planned"
+    else:
+        item_type = "work_item"
+        key = ""
+        status = ""
+    return item_type, key, status
+
 def emit_tracked_item_saved(tracked_item, created: bool):
     origin_client_id = get_current_client_id()
-    key = tracked_item.work_item.key if tracked_item.work_item else (
-        tracked_item.incident.key if tracked_item.incident else ""
-    )
-    status = tracked_item.work_item.status if tracked_item.work_item else (
-        tracked_item.incident.status if tracked_item.incident else ""
-    )
+    item_type, key, status = _resolve_tracked_item_fields(tracked_item)
     msg = {
         "event": "tracked_item.created" if created else "tracked_item.updated",
         "key": key,
-        "item_type": tracked_item.item_type,
+        "item_type": item_type,
         "status": status,
         "origin_client_id": origin_client_id,
     }
