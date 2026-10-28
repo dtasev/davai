@@ -38,17 +38,8 @@ interface SectionConfig {
   keyClass: string
 }
 
-// Render order is contractual: Incidents, Work Items, User Support, Sprints, Releases.
+// Render order is contractual: Work Items, User Support, Incidents, Sprints, Releases.
 const SECTIONS: SectionConfig[] = [
-  {
-    section: 'incidents',
-    itemType: 'incident',
-    label: 'Incidents',
-    icon: Flame,
-    tileClass: 'bg-rose-500/10 border-rose-500/20',
-    iconClass: 'text-rose-400',
-    keyClass: 'text-rose-400'
-  },
   {
     section: 'work_items',
     itemType: 'work_item',
@@ -66,6 +57,15 @@ const SECTIONS: SectionConfig[] = [
     tileClass: 'bg-cyan-500/10 border-cyan-500/20',
     iconClass: 'text-cyan-400',
     keyClass: 'text-cyan-400'
+  },
+  {
+    section: 'incidents',
+    itemType: 'incident',
+    label: 'Incidents',
+    icon: Flame,
+    tileClass: 'bg-rose-500/10 border-rose-500/20',
+    iconClass: 'text-rose-400',
+    keyClass: 'text-rose-400'
   },
   {
     section: 'sprints',
@@ -171,7 +171,7 @@ export function TrackingDrawer() {
   return (
     <aside
       className={`shrink-0 border-r border-zinc-800/80 bg-zinc-900/40 flex flex-col transition-all ${
-        open ? 'w-64' : 'w-11'
+        open ? 'w-[360px]' : 'w-11'
       }`}
       data-testid={open ? 'tracking-drawer' : undefined}
     >
@@ -225,9 +225,9 @@ export function TrackingDrawer() {
                 >
                   <SectionIcon className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-xs font-semibold text-zinc-200 truncate flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-zinc-200 truncate flex-1 min-w-0">
                   {config.label}
-                  <span className="ml-1.5 font-mono text-zinc-500 font-normal">
+                  <span className="ml-1.5 font-mono text-xs text-zinc-500 font-normal">
                     ({items.length})
                   </span>
                 </h3>
@@ -245,11 +245,7 @@ export function TrackingDrawer() {
                 )}
               </div>
 
-              {items.length === 0 ? (
-                <p className="text-[11px] text-zinc-500 text-center py-2 border border-dashed border-zinc-800 rounded-lg">
-                  Nothing tracked yet.
-                </p>
-              ) : (
+              {items.length > 0 && (
                 <ul className="space-y-0.5">
                   {items.map(item => (
                     <li key={item.id}>
@@ -270,7 +266,7 @@ export function TrackingDrawer() {
                             ) : (
                               <Rocket className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                             )}
-                            <span className="text-xs text-zinc-200 truncate min-w-0 flex-1">
+                            <span className="text-sm text-zinc-200 truncate min-w-0 flex-1">
                               {item.title}
                             </span>
                             <StatusBadge status={item.status} />
@@ -278,12 +274,12 @@ export function TrackingDrawer() {
                         ) : (
                           <>
                             <span
-                              className={`font-mono text-[10px] shrink-0 ${config.keyClass}`}
+                              className={`font-mono text-sm shrink-0 ${config.keyClass}`}
                             >
                               {item.key}
                             </span>
                             <StatusBadge status={item.status} />
-                            <span className="text-xs text-zinc-300 truncate min-w-0 flex-1">
+                            <span className="text-sm text-zinc-300 truncate min-w-0 flex-1">
                               {item.title}
                             </span>
                           </>

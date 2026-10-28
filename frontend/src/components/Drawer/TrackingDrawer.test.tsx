@@ -368,12 +368,12 @@ describe('TrackingDrawer (DAV-83 active work item tracker)', () => {
       expect(screen.getByTestId('drawer-item-work_item-DAV-3')).toBeInTheDocument()
     })
 
-    // Contractual section order: Incidents, Work Items, User Support, Sprints, Releases.
+    // Contractual section order: Work Items, User Support, Incidents, Sprints, Releases.
     const sections = within(drawer).getAllByTestId(/^drawer-section-/)
     expect(sections.map(s => s.getAttribute('data-testid'))).toEqual([
-      'drawer-section-incidents',
       'drawer-section-work_items',
       'drawer-section-user_support',
+      'drawer-section-incidents',
       'drawer-section-sprints',
       'drawer-section-releases',
     ])
@@ -553,6 +553,11 @@ describe('TrackingDrawer (DAV-83 active work item tracker)', () => {
       expect(within(releaseCard).getByTestId('track-release-1')).toHaveAttribute('aria-pressed', 'false')
     })
     expect(within(screen.getByTestId('drawer-section-releases')).getByRole('heading')).toHaveTextContent('Releases(0)')
+    // Empty sections render ONLY their header: no placeholder box, no rows.
+    expect(screen.queryByText('Nothing tracked yet.')).not.toBeInTheDocument()
+    expect(
+      within(screen.getByTestId('drawer-section-releases')).queryAllByTestId(/^drawer-item-/)
+    ).toHaveLength(0)
   })
 
   it('exposes track toggles on work item rows, sprint cards and release cards of the default project view', async () => {

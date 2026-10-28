@@ -44,7 +44,7 @@ One model `TrackedItem(user, work_item=null, incident=null, sprint=null, release
   3. CONFIRMED: KanbanBoard, GraphQL, MCP are out of scope.
   4. Sprint/release have no string key, so the add payload identifies them by numeric `id`; item key strings (`DAV-1`, `DAV-SUP-1`, `DAV-INC-1`) remain for the other three types. No upper bound on tracked items; add is idempotent per (user, target).
   5. Drawer open/collapsed state persisted in `localStorage` key `davai_drawer_open`; data itself is server-side per user (no localStorage).
-  6. Proposed default (not yet explicitly approved): drawer section order is **Incidents, Work Items, User Support** (the ticket's original three, in ticket order) followed by **Sprints, Releases** appended at the bottom; names/icons match the existing section headers ("Sprints" amber `Zap`, "Releases" indigo `Rocket`).
+  6. SUPERSEDED by post-execution user review: drawer section order is **Work Items, User Support, Incidents, Sprints, Releases**; expanded width 360px; app-standard font sizes; empty sections show no placeholder.
 
 ## Objectives
 - O1: Server-persisted, per-user tracked list with typed endpoints and correct auth scoping across all five trackable types (work item, user support, incident, sprint, release).
