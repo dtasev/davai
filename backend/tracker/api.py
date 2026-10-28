@@ -1597,7 +1597,10 @@ class UpdateIncidentIn(Schema):
     investigation_note: Optional[str] = None
     status: Optional[str] = None
     work_item_keys: Optional[List[str]] = None
-    monitoring_log_ids: Optional[List[Any]] = None
+
+
+class AppendLogToIncidentIn(Schema):
+    log_id: Any
 
 
 class MonitoringLogOut(Schema):
@@ -2085,17 +2088,23 @@ def update_incident(request, incident_id: str, payload: UpdateIncidentIn):
         linked_items = _resolve_linked_work_items(incident.project, payload.work_item_keys)
         incident.work_items.set(linked_items)
 
-    if payload.monitoring_log_ids is not None:
-        linked_logs = _resolve_linked_monitoring_logs(incident.project, payload.monitoring_log_ids)
-        # Update monitoring logs to link to this incident
-        incident.monitoring_logs.exclude(id__in=[m.id for m in linked_logs]).update(incident=None)
-        for ml in linked_logs:
-            if ml.incident_id != incident.id:
-                ml.incident = incident
-                ml.save(update_fields=["incident"])
-
     incident.updated_by = user
     incident.save()
+    return _get_incident_by_identifier(incident.key)
+
+
+@api.post("/incidents/{incident_id}/logs", response=IncidentOut, auth=api_key_auth, summary="Append Monitoring Log to Incident")
+def append_log_to_incident(request, incident_id: str, payload: AppendLogToIncidentIn):
+    user = request.auth
+    incident = _get_incident_by_identifier(incident_id)
+    logs = _resolve_linked_monitoring_logs(incident.project, [payload.log_id])
+    for ml in logs:
+        if ml.incident_id != incident.id:
+            ml.incident = incident
+            ml.save(update_fields=["incident"])
+
+    incident.updated_by = user
+    incident.save(update_fields=["updated_by", "updated_at"])
     return _get_incident_by_identifier(incident.key)
 
 

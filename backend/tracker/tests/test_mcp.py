@@ -21,6 +21,7 @@ from mcp_server.server import (
     get_incident,
     search_incidents,
     update_incident,
+    append_log_to_incident,
     create_monitoring_log,
     get_monitoring_log,
     get_board_state,
@@ -389,6 +390,9 @@ class TestMCPWithApiClient:
         assert updated_inc["status"] == "ongoing"
         assert "vacuum activity" in updated_inc["investigation_note"]
 
+        with pytest.raises(TypeError, match="monitoring_log_ids"):
+            update_incident(incident_id=inc_key, monitoring_log_ids=[1])
+
         # Create monitoring log via MCP (rejects empty agent_id)
         with pytest.raises(ValueError, match="agent_id"):
             create_monitoring_log(
@@ -424,6 +428,22 @@ class TestMCPWithApiClient:
         assert fetched_log["key"] == log_key
         assert fetched_log["description"] == "Replication lag 45s on replica-01"
         assert fetched_log["agent_id"] == "db-replication-monitor/sonnet/sess-1"
+
+        # Create unlinked monitoring log and append to incident via append_log_to_incident
+        mcp_log2 = create_monitoring_log(
+            agent_id="db-replication-monitor/sonnet/sess-2",
+            description="High vacuum usage",
+            status="OK",
+            project_key=test_project.key,
+        )
+        log2_key = mcp_log2["key"]
+        log2_id = mcp_log2["id"]
+        assert mcp_log2["incident_key"] is None
+
+        appended_inc = append_log_to_incident(incident_id=inc_key, log_id=log2_key)
+        assert log_id in appended_inc["monitoring_log_ids"]
+        assert log2_id in appended_inc["monitoring_log_ids"]
+        assert log2_key in appended_inc["monitoring_log_keys"]
 
         # Search incidents via MCP
         from tracker.embedding import flush_indexing_queue

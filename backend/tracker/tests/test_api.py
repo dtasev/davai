@@ -1237,6 +1237,56 @@ class TestNinjaAPI:
         assert get_log_by_id.status_code == 200
         assert get_log_by_id.json()["key"] == log_key
 
+        # 5b. Append monitoring log to incident via POST /incidents/{incident_id}/logs
+        log2_res = ninja_client.post(
+            f"/projects/{test_project.key}/monitoring-logs",
+            json={
+                "agent_id": "ecmwf-watchdog/sonnet/sess-2",
+                "description": "Secondary disk queue alert",
+                "status": "error",
+            },
+            headers=mcp_headers
+        )
+        assert log2_res.status_code == 200
+        log2_key = log2_res.json()["key"]
+        log2_id = log2_res.json()["id"]
+
+        # Append using key string
+        app_res = ninja_client.post(
+            f"/incidents/{inc_key}/logs",
+            json={"log_id": log2_key},
+            headers=mcp_headers
+        )
+        assert app_res.status_code == 200
+        app_data = app_res.json()
+        assert log_id in app_data["monitoring_log_ids"]
+        assert log2_id in app_data["monitoring_log_ids"]
+        assert log2_key in app_data["monitoring_log_keys"]
+
+        # Append using numeric ID (idempotent)
+        app_res_num = ninja_client.post(
+            f"/incidents/{inc_key}/logs",
+            json={"log_id": log2_id},
+            headers=mcp_headers
+        )
+        assert app_res_num.status_code == 200
+        assert log2_id in app_res_num.json()["monitoring_log_ids"]
+
+        # Error cases for append_log_to_incident
+        bad_log_res = ninja_client.post(
+            f"/incidents/{inc_key}/logs",
+            json={"log_id": "NON-EXISTENT-LOG"},
+            headers=mcp_headers
+        )
+        assert bad_log_res.status_code == 400
+
+        bad_inc_res = ninja_client.post(
+            "/incidents/NON-EXISTENT-INC/logs",
+            json={"log_id": log2_id},
+            headers=mcp_headers
+        )
+        assert bad_inc_res.status_code == 404
+
         # 6. MCP (LLM) can update incident to "ongoing", but not "done" or "no longer relevant"
         upd_ongoing = ninja_client.patch(
             f"/incidents/{inc_key}",
