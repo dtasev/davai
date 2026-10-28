@@ -1,5 +1,5 @@
 import { MouseEvent } from 'react'
-import { Check, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { TrackedItemType } from '../../types'
 import { TrackedItemIdent, useTrackedItems } from '../../context/TrackedItemsContext'
 
@@ -77,13 +77,13 @@ export function TrackButton({ itemType, itemKey, itemId, size = 'sm' }: TrackBut
       aria-label={tracked ? 'Remove from tracking' : 'Track in sidebar'}
       aria-pressed={tracked}
       data-testid={`track-${itemType}-${itemKey ?? itemId}`}
-      className={`shrink-0 rounded-lg transition cursor-pointer flex items-center ${sizeClasses} ${
+      className={`shrink-0 rounded-lg border transition cursor-pointer flex items-center ${sizeClasses} ${
         tracked
-          ? 'text-emerald-400 hover:text-emerald-300 hover:bg-zinc-800'
-          : 'text-zinc-500 hover:text-indigo-400 hover:bg-zinc-800'
+          ? 'border-indigo-400/40 bg-zinc-800 text-indigo-400 hover:bg-zinc-700 hover:text-indigo-300'
+          : 'border-transparent text-zinc-500 hover:text-indigo-400 hover:bg-zinc-800'
       }`}
     >
-      {tracked ? <Check className={iconClass} /> : <Plus className={iconClass} />}
+      <Plus className={iconClass} />
     </button>
   )
 }
