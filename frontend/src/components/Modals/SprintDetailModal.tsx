@@ -1,8 +1,9 @@
 import { useState, useEffect, ChangeEvent } from 'react'
-import { Zap, Calendar, Target, ListTodo, ChevronRight, Trash2, AlertTriangle, Check } from 'lucide-react'
+import { Zap, Calendar, Target, ListTodo, ChevronRight, Trash2, AlertTriangle, Check, Plus } from 'lucide-react'
 import { Sprint, Release, WorkItem, DEFAULT_SPRINT_RELEASE_STATUSES, STANDARD_STATUSES } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+import { useOptionalApp } from '../../context/AppContext'
 
 function getStatusOrder(status: string | null | undefined): number {
   const s = (status || 'todo').toLowerCase().replace(/_/g, ' ').trim()
@@ -41,6 +42,7 @@ export function SprintDetailModal({
   onDelete,
   onUpdate
 }: SprintDetailModalProps) {
+  const app = useOptionalApp()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -398,6 +400,23 @@ export function SprintDetailModal({
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        app?.toggleTrackItem(item, 'work-item')
+                      }}
+                      title={app?.isTracked(item.key) ? 'Untrack work item' : 'Track work item'}
+                      aria-label={app?.isTracked(item.key) ? 'Untrack work item' : 'Track work item'}
+                      data-testid={`track-sprint-item-button-${item.key}`}
+                      className={`p-1 rounded-md transition flex items-center justify-center cursor-pointer ${
+                        app?.isTracked(item.key)
+                          ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20'
+                          : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
+                      }`}
+                    >
+                      <Plus className={`w-3 h-3 ${app?.isTracked(item.key) ? 'rotate-45' : ''} transition-transform`} />
+                    </button>
                     <PriorityBadge priority={item.priority} />
                     <StatusBadge status={item.status} />
                     <ChevronRight className="w-3.5 h-3.5 text-zinc-500 group-hover:translate-x-0.5 transition-transform" />

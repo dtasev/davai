@@ -24,6 +24,7 @@ from tracker.models import (
     Incident,
     IncidentEmbedding,
     MonitoringLog,
+    TrackedItem,
     ALL_PROGRESS_STATUSES,
     INCIDENT_STATUSES,
     HUMAN_ONLY_INCIDENT_STATUSES,
@@ -2244,4 +2245,141 @@ def delete_monitoring_log(request, log_id: str):
     key = log_obj.key
     log_obj.delete()
     return {"success": True, "message": f"Monitoring log {key} deleted"}
+
+
+# ---------------------------------------------------------------------------
+# Tracked Items
+# ---------------------------------------------------------------------------
+
+class TrackedItemOut(Schema):
+    id: int
+    key: str
+    title: str
+    status: str
+    project_key: str
+    type: str
+    created_at: datetime
+
+    @staticmethod
+    def resolve_key(obj: TrackedItem) -> str:
+        if obj.work_item:
+            return obj.work_item.key
+        if obj.incident:
+            return obj.incident.key
+        return ""
+
+    @staticmethod
+    def resolve_title(obj: TrackedItem) -> str:
+        if obj.work_item:
+            return obj.work_item.title
+        if obj.incident:
+            return obj.incident.title
+        return ""
+
+    @staticmethod
+    def resolve_status(obj: TrackedItem) -> str:
+        if obj.work_item:
+            return obj.work_item.status
+        if obj.incident:
+            return obj.incident.status
+        return ""
+
+    @staticmethod
+    def resolve_project_key(obj: TrackedItem) -> str:
+        if obj.work_item:
+            return obj.work_item.project.key
+        if obj.incident:
+            return obj.incident.project.key
+        return ""
+
+    @staticmethod
+    def resolve_type(obj: TrackedItem) -> str:
+        return obj.item_type
+
+
+class TrackItemIn(Schema):
+    key: str
+
+
+@api.get("/tracked-items", response=List[TrackedItemOut], auth=api_key_auth, summary="List Tracked Items")
+def list_tracked_items(request):
+    user = request.auth
+    items = (
+        TrackedItem.objects.filter(user=user)
+        .select_related("work_item__project", "incident__project")
+        .order_by("-created_at", "-id")
+    )
+    return items
+
+
+@api.post("/tracked-items", response=TrackedItemOut, auth=api_key_auth, summary="Track Item")
+def track_item(request, payload: TrackItemIn):
+    user = request.auth
+    key = payload.key.strip()
+
+    # 1. Try finding WorkItem (either standard or support)
+    work_item = WorkItem.objects.select_related("project").filter(key__iexact=key).first()
+    if work_item:
+        item_type = "user-support" if work_item.is_support else "work-item"
+        tracked, _ = TrackedItem.objects.get_or_create(
+            user=user,
+            work_item=work_item,
+            defaults={"item_type": item_type},
+        )
+        return tracked
+
+    # 2. Try finding Incident
+    incident = Incident.objects.select_related("project").filter(key__iexact=key).first()
+    if incident:
+        tracked, _ = TrackedItem.objects.get_or_create(
+            user=user,
+            incident=incident,
+            defaults={"item_type": "incident"},
+        )
+        return tracked
+
+    raise errors.HttpError(404, f"Item with key '{key}' not found.")
+
+
+@api.delete("/tracked-items/{key}", auth=api_key_auth, summary="Untrack Item")
+def untrack_item(request, key: str):
+    user = request.auth
+    key = key.strip()
+    deleted_count, _ = TrackedItem.objects.filter(
+        user=user
+    ).filter(
+        Q(work_item__key__iexact=key) | Q(incident__key__iexact=key)
+    ).delete()
+
+    return {"status": "ok", "deleted": deleted_count}
+
+
+@api.delete("/tracked-items/clear-done/{item_type}", auth=api_key_auth, summary="Clear Done Tracked Items")
+def clear_done_tracked_items(request, item_type: str):
+    user = request.auth
+    item_type = item_type.strip().lower()
+
+    if item_type not in ["incident", "work-item", "user-support"]:
+        raise errors.HttpError(400, f"Invalid item_type '{item_type}'. Must be incident, work-item, or user-support.")
+
+    qs = TrackedItem.objects.filter(user=user, item_type=item_type)
+    if item_type in ["work-item", "user-support"]:
+        items_to_delete = [
+            t.id
+            for t in qs.select_related("work_item").prefetch_related("work_item__progress")
+            if t.work_item and (t.work_item.status or "").lower() == "done"
+        ]
+        deleted_count, _ = TrackedItem.objects.filter(id__in=items_to_delete).delete()
+    elif item_type == "incident":
+        items_to_delete = [
+            t.id
+            for t in qs.select_related("incident")
+            if t.incident and (t.incident.status or "").lower() == "done"
+        ]
+        deleted_count, _ = TrackedItem.objects.filter(id__in=items_to_delete).delete()
+    else:
+        deleted_count = 0
+
+    return {"status": "ok", "deleted": deleted_count}
+
 

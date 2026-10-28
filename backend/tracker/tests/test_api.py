@@ -1611,6 +1611,106 @@ class TestNinjaAPI:
         assert del_res.status_code == 200
         assert del_res.json()["success"] is True
 
+    def test_tracked_items_endpoints(self, ninja_client, test_user, test_api_key, test_project):
+        from tracker.models import WorkItem, Incident, Progress
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+
+        # 1. Create a work item, a user support item, and an incident
+        wi = WorkItem.objects.create(
+            project=test_project,
+            key=f"{test_project.key}-100",
+            title="Work item to track",
+            status="in progress",
+            priority="HIGH",
+            created_by=test_user.username,
+        )
+        sup = WorkItem.objects.create(
+            project=test_project,
+            key=f"{test_project.key}-SUP-100",
+            title="Support ticket to track",
+            status="planned",
+            priority="MEDIUM",
+            is_support=True,
+            created_by=test_user.username,
+        )
+        inc = Incident.objects.create(
+            project=test_project,
+            key="INC-TRACK-1",
+            title="Incident to track",
+            status="ongoing",
+            created_by=test_user,
+        )
+
+        # 2. Track items via POST /tracked-items
+        r1 = ninja_client.post("/tracked-items", json={"key": wi.key}, headers=headers)
+        assert r1.status_code == 200
+        assert r1.json()["key"] == wi.key
+        assert r1.json()["type"] == "work-item"
+        assert r1.json()["status"] == "in progress"
+        assert r1.json()["project_key"] == test_project.key
+
+        r2 = ninja_client.post("/tracked-items", json={"key": sup.key}, headers=headers)
+        assert r2.status_code == 200
+        assert r2.json()["key"] == sup.key
+        assert r2.json()["type"] == "user-support"
+
+        r3 = ninja_client.post("/tracked-items", json={"key": inc.key}, headers=headers)
+        assert r3.status_code == 200
+        assert r3.json()["key"] == inc.key
+        assert r3.json()["type"] == "incident"
+
+        # 3. GET /tracked-items
+        list_res = ninja_client.get("/tracked-items", headers=headers)
+        assert list_res.status_code == 200
+        items = list_res.json()
+        assert len(items) == 3
+        keys = [item["key"] for item in items]
+        assert wi.key in keys
+        assert sup.key in keys
+        assert inc.key in keys
+
+        # 4. Untrack an item via DELETE /tracked-items/{key}
+        untrack_res = ninja_client.delete(f"/tracked-items/{sup.key}", headers=headers)
+        assert untrack_res.status_code == 200
+        assert untrack_res.json()["deleted"] == 1
+
+        items_after_untrack = ninja_client.get("/tracked-items", headers=headers).json()
+        assert len(items_after_untrack) == 2
+        assert sup.key not in [i["key"] for i in items_after_untrack]
+
+        # 5. Clear done:
+        # Mark work item as done via Progress
+        Progress.objects.create(work_item=wi, status="done", summary="Done", created_by=test_user)
+
+        # Also create and track a second work item that is not done
+        wi2 = WorkItem.objects.create(
+            project=test_project,
+            key=f"{test_project.key}-101",
+            title="Work item 2",
+            status="todo",
+            created_by=test_user.username,
+        )
+        ninja_client.post("/tracked-items", json={"key": wi2.key}, headers=headers)
+
+        # Clear done for work-item
+        clear_res = ninja_client.delete("/tracked-items/clear-done/work-item", headers=headers)
+        assert clear_res.status_code == 200
+        assert clear_res.json()["deleted"] == 1
+
+        remaining = ninja_client.get("/tracked-items", headers=headers).json()
+        remaining_keys = [i["key"] for i in remaining]
+        assert wi.key not in remaining_keys
+        assert wi2.key in remaining_keys
+        assert inc.key in remaining_keys
+
+        # Invalid key 404
+        assert ninja_client.post("/tracked-items", json={"key": "NONEXISTENT-999"}, headers=headers).status_code == 404
+
+        # Invalid clear-done 400
+        assert ninja_client.delete("/tracked-items/clear-done/invalid-type", headers=headers).status_code == 400
+
+
 
 
 

@@ -19,6 +19,7 @@ import { StatusBadge, formatStatus } from '../Common/Badge'
 import { StatusFilterDropdown } from '../Common/StatusFilterDropdown'
 import { Modal } from '../Common/Modal'
 import { apiFetch } from '../../utils/apiFetch'
+import { useOptionalApp } from '../../context/AppContext'
 
 interface IncidentListProps {
   projectKey: string
@@ -39,6 +40,7 @@ export function IncidentList({
   onSelectIncident,
   onCreateIncident
 }: IncidentListProps) {
+  const app = useOptionalApp()
   const effectiveProjectKey = projectKey || incidents[0]?.project_key || 'DAV'
   const [search, setSearch] = useState('')
   const [searchMode, setSearchMode] = useState<'hybrid' | 'keyword'>('hybrid')
@@ -352,6 +354,24 @@ export function IncidentList({
                       <span>{inc.monitoring_logs.length}</span>
                     </span>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      app?.toggleTrackItem(inc, 'incident')
+                    }}
+                    title={app?.isTracked(inc.key) ? 'Untrack incident' : 'Track incident'}
+                    aria-label={app?.isTracked(inc.key) ? 'Untrack incident' : 'Track incident'}
+                    data-testid={`track-incident-button-${inc.key}`}
+                    className={`p-1 rounded-md transition flex items-center justify-center cursor-pointer ${
+                      app?.isTracked(inc.key)
+                        ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20'
+                        : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
+                    }`}
+                  >
+                    <Plus className={`w-3 h-3 ${app?.isTracked(inc.key) ? 'rotate-45' : ''} transition-transform`} />
+                  </button>
 
                   <span className="flex items-center gap-1 text-[10px] font-mono text-zinc-500">
                     <Clock className="w-2.5 h-2.5" />

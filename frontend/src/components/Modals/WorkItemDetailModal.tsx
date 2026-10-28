@@ -19,12 +19,14 @@ import {
   ListTree,
   ChevronRight,
   Bot,
-  Server
+  Server,
+  Plus
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus, UserSummary, PROGRESS_STATUS_OPTIONS } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
 import { apiFetch } from '../../utils/apiFetch'
+import { useOptionalApp } from '../../context/AppContext'
 
 const PROGRESS_LIST_HEIGHT_KEY = 'davai_progress_list_height'
 const DEFAULT_PROGRESS_HEIGHT = 320
@@ -94,6 +96,7 @@ export function WorkItemDetailModal({
   onDelete,
   onUpdateDetails
 }: WorkItemDetailModalProps) {
+  const app = useOptionalApp()
   const activeKey = item?.key || (itemKey ? itemKey.toUpperCase() : '')
   const originalTitleRef = useRef<string>(
     typeof document !== 'undefined' && document.title && !document.title.includes(' | Davai')
@@ -494,6 +497,7 @@ export function WorkItemDetailModal({
         proof: '',
         status: 'done'
       })
+      app?.updateTrackedItemStatus(item.key, 'done')
       setShowDoneConfirm(false)
     } catch (err) {
       console.error('Failed to mark work item as done', err)
@@ -532,6 +536,25 @@ export function WorkItemDetailModal({
                 <span>{isSavingDetails ? 'Saving...' : 'Save'}</span>
               </button>
             </>
+          )}
+          {item && (
+            <button
+              type="button"
+              onClick={() => {
+                const isSupport = Boolean(item.is_support || /^[^-]+-SUP-\d+$/i.test(item.key))
+                app?.toggleTrackItem(item, isSupport ? 'user-support' : 'work-item')
+              }}
+              title={app?.isTracked(item.key) ? 'Untrack item' : 'Track item'}
+              aria-label={app?.isTracked(item.key) ? 'Untrack item' : 'Track item'}
+              data-testid="track-detail-button"
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                app?.isTracked(item.key)
+                  ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+              }`}
+            >
+              <Plus className={`w-4 h-4 ${app?.isTracked(item.key) ? 'rotate-45' : ''} transition-transform`} />
+            </button>
           )}
           {onAddProgress && (
             <button

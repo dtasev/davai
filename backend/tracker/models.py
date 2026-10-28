@@ -477,6 +477,43 @@ class MonitoringLog(models.Model):
         return f"{self.key} [{self.status.upper()}] ({self.created_at.isoformat()})"
 
 
+class TrackedItem(models.Model):
+    TRACKED_ITEM_TYPES = [
+        ("incident", "Incident"),
+        ("work-item", "Work Item"),
+        ("user-support", "User Support"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tracked_items")
+    work_item = models.ForeignKey(
+        WorkItem, null=True, blank=True, on_delete=models.CASCADE, related_name="tracked_by"
+    )
+    incident = models.ForeignKey(
+        Incident, null=True, blank=True, on_delete=models.CASCADE, related_name="tracked_by"
+    )
+    item_type = models.CharField(max_length=20, choices=TRACKED_ITEM_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "work_item"],
+                condition=models.Q(work_item__isnull=False),
+                name="unique_user_tracked_work_item",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "incident"],
+                condition=models.Q(incident__isnull=False),
+                name="unique_user_tracked_incident",
+            ),
+        ]
+
+    def __str__(self):
+        key = self.work_item.key if self.work_item else (self.incident.key if self.incident else "N/A")
+        return f"{self.user.username} tracking {key} ({self.item_type})"
+
+
 @receiver(post_save, sender=WorkItem)
 def handle_work_item_saved(sender, instance, created, **kwargs):
     try:

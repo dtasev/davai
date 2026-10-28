@@ -281,3 +281,16 @@ export interface MonitoringLog {
   created_at: string
 }
 
+export type TrackedItemType = 'incident' | 'work-item' | 'user-support'
+
+export interface TrackedItem {
+  id?: number
+  key: string
+  title: string
+  status: string
+  project_key: string
+  type: TrackedItemType
+  created_at?: string
+}
+
+

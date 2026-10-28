@@ -12,6 +12,7 @@ import {
   Menu
 } from 'lucide-react'
 import { UserProfile, Project } from '../types'
+import { useOptionalApp } from '../context/AppContext'
 
 function GithubIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
@@ -46,6 +47,7 @@ export function Header({
 }: HeaderProps) {
   const location = useLocation()
   const navigate = useNavigate()
+  const app = useOptionalApp()
   const [isHovered, setIsHovered] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -103,7 +105,18 @@ export function Header({
     <header className="border-b border-zinc-800/80 bg-zinc-900/60 backdrop-blur-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Left: Brand & Navigation */}
-        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <button
+            type="button"
+            onClick={() => app?.setIsTrackingDrawerOpen(prev => !prev)}
+            aria-label="Toggle tracked items drawer"
+            title="Tracked Items"
+            data-testid="tracking-drawer-toggle"
+            className="p-2 rounded-lg text-sm font-medium border border-zinc-700/60 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition flex items-center justify-center shrink-0 cursor-pointer"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+
           <Link
             to="/"
             className="flex items-center gap-2.5 group shrink-0"

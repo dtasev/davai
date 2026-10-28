@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { Project, UserProfile, APIKeyItem, BackendInfo } from '../types'
+import { Project, UserProfile, APIKeyItem, BackendInfo, TrackedItem, TrackedItemType } from '../types'
 import { GeneratedKey } from '../components/Settings/SettingsView'
 import { handleOidcCallback, getStoredOidcToken, startOidcLogin, logoutOidc } from '../auth/oidc'
 import { apiFetch } from '../utils/apiFetch'
@@ -28,6 +28,25 @@ interface AppContextType {
   loadingProjects: boolean
   fetchProjects: () => Promise<void>
   handleCreateProject: (key: string, name: string, description: string) => Promise<void>
+
+  // Tracked Items
+  trackedItems: TrackedItem[]
+  loadingTrackedItems: boolean
+  isTrackingDrawerOpen: boolean
+  setIsTrackingDrawerOpen: React.Dispatch<React.SetStateAction<boolean>>
+  fetchTrackedItems: () => Promise<void>
+  trackItem: (
+    item: { key: string; title?: string; status?: string; project_key?: string },
+    type?: TrackedItemType
+  ) => Promise<void>
+  untrackItem: (key: string) => Promise<void>
+  toggleTrackItem: (
+    item: { key: string; title?: string; status?: string; project_key?: string },
+    type?: TrackedItemType
+  ) => Promise<void>
+  clearDoneTrackedItems: (type: TrackedItemType) => Promise<void>
+  isTracked: (key: string) => boolean
+  updateTrackedItemStatus: (key: string, newStatus: string) => void
 }
 
 const AppContext = createContext<AppContextType | null>(null)
@@ -46,6 +65,137 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [projects, setProjects] = useState<Project[]>([])
   const [loadingProjects, setLoadingProjects] = useState<boolean>(true)
+
+  const [trackedItems, setTrackedItems] = useState<TrackedItem[]>([])
+  const [loadingTrackedItems, setLoadingTrackedItems] = useState<boolean>(false)
+  const [isTrackingDrawerOpen, setIsTrackingDrawerOpenState] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('davai_tracking_drawer_open') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  const setIsTrackingDrawerOpen: React.Dispatch<React.SetStateAction<boolean>> = (value) => {
+    setIsTrackingDrawerOpenState(prev => {
+      const next = typeof value === 'function' ? (value as any)(prev) : value
+      try {
+        localStorage.setItem('davai_tracking_drawer_open', String(next))
+      } catch {}
+      return next
+    })
+  }
+
+  const fetchTrackedItems = async () => {
+    setLoadingTrackedItems(true)
+    try {
+      const res = await apiFetch('/api/tracked-items', { credentials: 'same-origin' })
+      if (res.ok) {
+        const data: TrackedItem[] = await res.json()
+        setTrackedItems(data)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoadingTrackedItems(false)
+    }
+  }
+
+  const isTracked = (key: string): boolean => {
+    return trackedItems.some(i => i.key.toUpperCase() === key.toUpperCase())
+  }
+
+  const trackItem = async (
+    item: { key: string; title?: string; status?: string; project_key?: string },
+    type?: TrackedItemType
+  ) => {
+    const resolvedType: TrackedItemType =
+      type ||
+      (item.key.includes('-SUP-')
+        ? 'user-support'
+        : item.key.startsWith('INC-')
+        ? 'incident'
+        : 'work-item')
+
+    const optimistic: TrackedItem = {
+      key: item.key,
+      title: item.title || item.key,
+      status: item.status || 'todo',
+      project_key: item.project_key || '',
+      type: resolvedType,
+      created_at: new Date().toISOString()
+    }
+
+    setTrackedItems(prev =>
+      prev.some(i => i.key.toUpperCase() === item.key.toUpperCase())
+        ? prev
+        : [optimistic, ...prev]
+    )
+
+    try {
+      const res = await apiFetch('/api/tracked-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ key: item.key })
+      })
+      if (res.ok) {
+        const saved: TrackedItem = await res.json()
+        setTrackedItems(prev =>
+          prev.map(i => (i.key.toUpperCase() === item.key.toUpperCase() ? saved : i))
+        )
+      }
+    } catch {
+      // retain optimistic state
+    }
+  }
+
+  const untrackItem = async (key: string) => {
+    setTrackedItems(prev => prev.filter(i => i.key.toUpperCase() !== key.toUpperCase()))
+    try {
+      await apiFetch(`/api/tracked-items/${key}`, {
+        method: 'DELETE',
+        credentials: 'same-origin'
+      })
+    } catch {
+      // ignore
+    }
+  }
+
+  const toggleTrackItem = async (
+    item: { key: string; title?: string; status?: string; project_key?: string },
+    type?: TrackedItemType
+  ) => {
+    if (isTracked(item.key)) {
+      await untrackItem(item.key)
+    } else {
+      await trackItem(item, type)
+    }
+  }
+
+  const clearDoneTrackedItems = async (type: TrackedItemType) => {
+    setTrackedItems(prev =>
+      prev.filter(
+        i => !(i.type === type && (i.status || '').toLowerCase() === 'done')
+      )
+    )
+    try {
+      await apiFetch(`/api/tracked-items/clear-done/${type}`, {
+        method: 'DELETE',
+        credentials: 'same-origin'
+      })
+    } catch {
+      // ignore
+    }
+  }
+
+  const updateTrackedItemStatus = (key: string, newStatus: string) => {
+    setTrackedItems(prev =>
+      prev.map(i =>
+        i.key.toUpperCase() === key.toUpperCase() ? { ...i, status: newStatus } : i
+      )
+    )
+  }
 
   const checkBackend = async () => {
     setBackendStatus('checking')
@@ -105,7 +255,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           apiFetch('/api/auth/keys', {
             credentials: 'same-origin'
           }),
-          fetchProjects()
+          fetchProjects(),
+          fetchTrackedItems()
         ])
         if (keysRes.ok) {
           const keysData = await keysRes.json()
@@ -187,6 +338,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUserProfile(null)
     setApiKeys([])
     setProjects([])
+    setTrackedItems([])
   }
 
   const handleCreateProject = async (
@@ -247,7 +399,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         projects,
         loadingProjects,
         fetchProjects,
-        handleCreateProject
+        handleCreateProject,
+        trackedItems,
+        loadingTrackedItems,
+        isTrackingDrawerOpen,
+        setIsTrackingDrawerOpen,
+        fetchTrackedItems,
+        trackItem,
+        untrackItem,
+        toggleTrackItem,
+        clearDoneTrackedItems,
+        isTracked,
+        updateTrackedItemStatus
       }}
     >
       {children}

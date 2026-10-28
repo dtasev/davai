@@ -10,11 +10,13 @@ import {
   Activity,
   ChevronRight,
   Ban,
-  Bot
+  Bot,
+  Plus
 } from 'lucide-react'
 import { Incident, DEFAULT_INCIDENT_STATUSES } from '../../types'
 import { StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+import { useOptionalApp } from '../../context/AppContext'
 
 interface IncidentDetailModalProps {
   incident: Incident | null
@@ -39,6 +41,7 @@ export function IncidentDetailModal({
   onUpdateIncident,
   onDelete
 }: IncidentDetailModalProps) {
+  const app = useOptionalApp()
   const [isEditing, setIsEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(incident?.title || '')
   const [editCause, setEditCause] = useState(incident?.cause || '')
@@ -109,6 +112,7 @@ export function IncidentDetailModal({
       setEditStatus(newStatus)
     } else if (onUpdateIncident) {
       await onUpdateIncident({ status: newStatus })
+      app?.updateTrackedItemStatus(incident.key, newStatus)
     }
   }
 
@@ -156,12 +160,31 @@ export function IncidentDetailModal({
               </button>
             </>
           )}
+          {incident && (
+            <button
+              type="button"
+              onClick={() => app?.toggleTrackItem(incident, 'incident')}
+              title={app?.isTracked(incident.key) ? 'Untrack incident' : 'Track incident'}
+              aria-label={app?.isTracked(incident.key) ? 'Untrack incident' : 'Track incident'}
+              data-testid="track-incident-detail-button"
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                app?.isTracked(incident.key)
+                  ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20'
+                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800'
+              }`}
+            >
+              <Plus className={`w-4 h-4 ${app?.isTracked(incident.key) ? 'rotate-45' : ''} transition-transform`} />
+            </button>
+          )}
           {onUpdateIncident && (
             <>
               <button
                 type="button"
                 disabled={incident.status?.toLowerCase() === 'done'}
-                onClick={() => onUpdateIncident({ status: 'done' })}
+                onClick={() => {
+                  onUpdateIncident({ status: 'done' })
+                  app?.updateTrackedItemStatus(incident.key, 'done')
+                }}
                 title="Mark incident as Done (Human-only)"
                 data-testid="mark-incident-done-button"
                 className={`p-1.5 rounded-lg transition ${

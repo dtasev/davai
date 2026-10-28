@@ -23,6 +23,7 @@ import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { StatusFilterDropdown } from '../Common/StatusFilterDropdown'
 import { Modal } from '../Common/Modal'
 import { apiFetch } from '../../utils/apiFetch'
+import { useOptionalApp } from '../../context/AppContext'
 
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return ''
@@ -93,6 +94,7 @@ export function WorkItemList({
   onSelectWorkItem,
   onCreateWorkItem
 }: WorkItemListProps) {
+  const app = useOptionalApp()
   const effectiveProjectKey = projectKey || workItems[0]?.project_key || 'DAV'
   const [search, setSearch] = useState('')
   const [searchMode, setSearchMode] = useState<'hybrid' | 'keyword'>('hybrid')
@@ -512,6 +514,24 @@ export function WorkItemList({
                       <span>{item.progress.length}</span>
                     </span>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      app?.toggleTrackItem(item, 'work-item')
+                    }}
+                    title={app?.isTracked(item.key) ? 'Untrack work item' : 'Track work item'}
+                    aria-label={app?.isTracked(item.key) ? 'Untrack work item' : 'Track work item'}
+                    data-testid={`track-item-button-${item.key}`}
+                    className={`p-1 rounded-md transition flex items-center justify-center cursor-pointer ${
+                      app?.isTracked(item.key)
+                        ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20'
+                        : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800'
+                    }`}
+                  >
+                    <Plus className={`w-3 h-3 ${app?.isTracked(item.key) ? 'rotate-45' : ''} transition-transform`} />
+                  </button>
 
                   {item.active_assignee && (
                     <span className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-800/60 px-2 py-0.5 rounded-full border border-zinc-800 leading-none">
