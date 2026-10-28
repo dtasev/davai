@@ -12,6 +12,7 @@ import {
   Menu
 } from 'lucide-react'
 import { UserProfile, Project } from '../types'
+import { useOptionalWebSocket } from '../context/WebSocketContext'
 
 function GithubIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
@@ -46,6 +47,9 @@ export function Header({
 }: HeaderProps) {
   const location = useLocation()
   const navigate = useNavigate()
+  const ws = useOptionalWebSocket()
+  const isWsConnected = ws?.status === 'connected'
+
   const [isHovered, setIsHovered] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -187,6 +191,23 @@ export function Header({
 
         {/* Right: Actions, User, and External Links */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* WebSocket Live Sync Indicator */}
+          {ws && (
+            <div
+              className="hidden md:flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs border border-zinc-800 bg-zinc-900/60 text-zinc-400"
+              title={isWsConnected ? 'Real-time sync connected' : 'Connecting to real-time sync...'}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  isWsConnected ? 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]' : 'bg-amber-400 animate-pulse'
+                }`}
+              />
+              <span className="text-[11px] font-medium text-zinc-400">
+                {isWsConnected ? 'Live' : 'Syncing'}
+              </span>
+            </div>
+          )}
+
           {/* User Status Pill & Auth Button */}
           {userProfile ? (
             <div className="flex items-center gap-1.5">

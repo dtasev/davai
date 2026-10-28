@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation, useOutletContext } from 'react-router-dom'
 import { WorkItem, Incident, MonitoringLog } from '../types'
 import { apiFetch } from '../utils/apiFetch'
+import { useOptionalWebSocket } from '../context/WebSocketContext'
 import { ProjectDetailOutletContext } from './ProjectDetailRoute'
 import { SprintDetailModal } from '../components/Modals/SprintDetailModal'
 import { ReleaseDetailModal } from '../components/Modals/ReleaseDetailModal'
@@ -132,6 +133,69 @@ export function WorkItemModalRoute() {
         .catch(() => { })
     }
   }, [itemKey])
+
+  const ws = useOptionalWebSocket()
+
+  // Real-time WebSocket synchronization for the active work item modal
+  useEffect(() => {
+    if (!ws || !itemKey) return
+
+    const topic = `item:${itemKey.toUpperCase()}`
+    ws.subscribe(topic)
+
+    const unsubProgressCreated = ws.on('progress.created', (event) => {
+      if (event.work_item_key?.toUpperCase() !== itemKey.toUpperCase() || !event.progress) return
+      const newProgress = event.progress
+      setDetailItem(prev => {
+        if (!prev) return prev
+        const existing = prev.progress || []
+        if (existing.some(p => p.id === newProgress.id)) return prev
+        return {
+          ...prev,
+          status: newProgress.status || prev.status,
+          progress: [newProgress, ...existing]
+        }
+      })
+    })
+
+    const unsubProgressUpdated = ws.on('progress.updated', (event) => {
+      if (event.work_item_key?.toUpperCase() !== itemKey.toUpperCase() || !event.progress) return
+      const updated = event.progress
+      setDetailItem(prev => {
+        if (!prev) return prev
+        const existing = prev.progress || []
+        return {
+          ...prev,
+          progress: existing.map(p => (p.id === updated.id ? { ...p, ...updated } : p))
+        }
+      })
+    })
+
+    const unsubProgressDeleted = ws.on('progress.deleted', (event) => {
+      if (event.work_item_key?.toUpperCase() !== itemKey.toUpperCase() || !event.progress_id) return
+      setDetailItem(prev => {
+        if (!prev) return prev
+        const existing = prev.progress || []
+        return {
+          ...prev,
+          progress: existing.filter(p => p.id !== event.progress_id)
+        }
+      })
+    })
+
+    const unsubItemUpdated = ws.on('work_item.updated', (event) => {
+      if (event.key?.toUpperCase() !== itemKey.toUpperCase() || !event.changes) return
+      setDetailItem(prev => (prev ? { ...prev, ...event.changes } : prev))
+    })
+
+    return () => {
+      ws.unsubscribe(topic)
+      unsubProgressCreated()
+      unsubProgressUpdated()
+      unsubProgressDeleted()
+      unsubItemUpdated()
+    }
+  }, [ws, itemKey])
 
   const handleDelete = (activeItem || itemKey) ? async () => {
     const keyToDelete = activeItem?.key || itemKey!

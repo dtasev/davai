@@ -1,10 +1,11 @@
 import os
+import asyncio
 import contextlib
 from urllib.parse import parse_qs
 from asgiref.sync import sync_to_async
 from django.core.asgi import get_asgi_application
 from starlette.applications import Starlette
-from starlette.routing import Mount, Route
+from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Scope, Receive, Send
 from mcp.server.transport_security import TransportSecuritySettings
@@ -15,6 +16,8 @@ django_app = get_asgi_application()
 from mcp_server.server import mcp_server, set_client, reset_client
 from mcp_server.client import DavaiClient
 from tracker.auth import verify_api_key
+from tracker.websocket.manager import manager as ws_manager
+from tracker.websocket.endpoint import websocket_endpoint
 
 # Disable DNS rebinding restriction so requests via Nginx, localhost:6477, and Cloudflare tunnel are accepted
 mcp_security = TransportSecuritySettings(
@@ -94,6 +97,12 @@ mcp_app = MCPAuthMiddleware(streamable_mcp)
 
 @contextlib.asynccontextmanager
 async def lifespan(app: Starlette):
+    # Initialize the active event loop for the WebSocket ConnectionManager
+    try:
+        ws_manager.set_loop(asyncio.get_running_loop())
+    except Exception:
+        pass
+
     # Initialize a fresh Streamable HTTP session manager if previously started (e.g. across tests)
     sm = getattr(mcp_server._lowlevel_server, '_session_manager', None)
     if sm is None or getattr(sm, '_has_started', False):
@@ -103,6 +112,7 @@ async def lifespan(app: Starlette):
         yield
 
 routes = [
+    WebSocketRoute('/ws', endpoint=websocket_endpoint),
     Route('/mcp', endpoint=mcp_app),
     Mount('/mcp', app=mcp_app),
     Mount('', app=django_app),

@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { TrackedItem, TrackedItemType, TrackedSection } from '../types'
 import { apiFetch } from '../utils/apiFetch'
 import { useApp } from './AppContext'
+import { useOptionalWebSocket } from './WebSocketContext'
 
 /**
  * Identifies a trackable item.
@@ -75,6 +76,65 @@ export function TrackedItemsProvider({ children }: { children: React.ReactNode }
     }
     refreshTracked()
   }, [userId, refreshTracked])
+
+  const ws = useOptionalWebSocket()
+
+  // Real-time status sync for tracked items drawer
+  useEffect(() => {
+    if (!ws) return
+
+    const unsubItemUpdated = ws.on('work_item.updated', (event) => {
+      const targetKey = event.key?.toUpperCase()
+      const newStatus = event.changes?.status
+      if (!targetKey || !newStatus) return
+      setTrackedItems(prev => prev.map(row => {
+        if (row.key?.toUpperCase() === targetKey) {
+          return { ...row, status: newStatus }
+        }
+        return row
+      }))
+    })
+
+    const unsubIncidentUpdated = ws.on('incident.updated', (event) => {
+      const targetKey = event.key?.toUpperCase()
+      const newStatus = event.changes?.status
+      if (!targetKey || !newStatus) return
+      setTrackedItems(prev => prev.map(row => {
+        if (row.key?.toUpperCase() === targetKey) {
+          return { ...row, status: newStatus }
+        }
+        return row
+      }))
+    })
+
+    const unsubTrackedUpdated = ws.on('tracked_item.updated', (event) => {
+      const targetKey = event.key?.toUpperCase()
+      const newStatus = event.status
+      if (!targetKey || !newStatus) return
+      setTrackedItems(prev => prev.map(row => {
+        if (row.key?.toUpperCase() === targetKey) {
+          return { ...row, status: newStatus }
+        }
+        return row
+      }))
+    })
+
+    const unsubTrackedCreated = ws.on('tracked_item.created', () => {
+      refreshTracked()
+    })
+
+    const unsubTrackedDeleted = ws.on('tracked_item.deleted', () => {
+      refreshTracked()
+    })
+
+    return () => {
+      unsubItemUpdated()
+      unsubIncidentUpdated()
+      unsubTrackedUpdated()
+      unsubTrackedCreated()
+      unsubTrackedDeleted()
+    }
+  }, [ws, refreshTracked])
 
   const isTracked = useCallback(
     (itemType: TrackedItemType, ident: TrackedItemIdent): boolean => {

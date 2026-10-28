@@ -550,6 +550,24 @@ def handle_work_item_saved(sender, instance, created, **kwargs):
         import logging
         logging.getLogger(__name__).warning("Failed to schedule auto-indexing for work item %s: %s", instance.key, e)
 
+    try:
+        from tracker.websocket.events import emit_work_item_saved
+        emit_work_item_saved(instance, created)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for work item %s: %s", instance.key, e)
+
+
+@receiver(post_delete, sender=WorkItem)
+def handle_work_item_deleted(sender, instance, **kwargs):
+    try:
+        from tracker.websocket.events import emit_work_item_deleted
+        project_key = instance.project.key if getattr(instance, "project", None) else ""
+        emit_work_item_deleted(project_key, instance.key)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for deleted work item %s: %s", instance.key, e)
+
 
 @receiver(post_save, sender=Incident)
 def handle_incident_saved(sender, instance, created, **kwargs):
@@ -559,6 +577,24 @@ def handle_incident_saved(sender, instance, created, **kwargs):
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("Failed to schedule auto-indexing for incident %s: %s", instance.key, e)
+
+    try:
+        from tracker.websocket.events import emit_incident_saved
+        emit_incident_saved(instance, created)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for incident %s: %s", instance.key, e)
+
+
+@receiver(post_delete, sender=Incident)
+def handle_incident_deleted(sender, instance, **kwargs):
+    try:
+        from tracker.websocket.events import emit_incident_deleted
+        project_key = instance.project.key if getattr(instance, "project", None) else ""
+        emit_incident_deleted(project_key, instance.key)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for deleted incident %s: %s", instance.key, e)
 
 
 @receiver([post_save, post_delete], sender=Context)
@@ -572,8 +608,8 @@ def handle_context_changed(sender, instance, **kwargs):
         logging.getLogger(__name__).warning("Failed to schedule re-indexing on context change: %s", e)
 
 
-@receiver([post_save, post_delete], sender=Progress)
-def handle_progress_changed(sender, instance, **kwargs):
+@receiver(post_save, sender=Progress)
+def handle_progress_saved(sender, instance, created, **kwargs):
     try:
         if getattr(instance, "work_item_id", None):
             from tracker.embedding import schedule_work_item_indexing
@@ -581,5 +617,132 @@ def handle_progress_changed(sender, instance, **kwargs):
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("Failed to schedule re-indexing on progress change: %s", e)
+
+    try:
+        from tracker.websocket.events import emit_progress_saved
+        emit_progress_saved(instance, created)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for progress: %s", e)
+
+
+@receiver(post_delete, sender=Progress)
+def handle_progress_deleted(sender, instance, **kwargs):
+    try:
+        if getattr(instance, "work_item_id", None):
+            from tracker.embedding import schedule_work_item_indexing
+            schedule_work_item_indexing(instance.work_item_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to schedule re-indexing on progress delete: %s", e)
+
+    try:
+        from tracker.websocket.events import emit_progress_deleted
+        item = getattr(instance, "work_item", None)
+        project_key = item.project.key if item and getattr(item, "project", None) else ""
+        item_key = item.key if item else ""
+        emit_progress_deleted(project_key, item_key, instance.id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for deleted progress: %s", e)
+
+
+@receiver(post_save, sender=MonitoringLog)
+def handle_monitoring_log_saved(sender, instance, created, **kwargs):
+    try:
+        from tracker.websocket.events import emit_monitoring_log_saved
+        emit_monitoring_log_saved(instance, created)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for monitoring log %s: %s", instance.key, e)
+
+
+@receiver(post_delete, sender=MonitoringLog)
+def handle_monitoring_log_deleted(sender, instance, **kwargs):
+    try:
+        from tracker.websocket.events import emit_monitoring_log_deleted
+        project_key = instance.project.key if getattr(instance, "project", None) else ""
+        emit_monitoring_log_deleted(project_key, instance.key)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for deleted monitoring log %s: %s", instance.key, e)
+
+
+@receiver(post_save, sender=Sprint)
+def handle_sprint_saved(sender, instance, created, **kwargs):
+    try:
+        from tracker.websocket.events import emit_sprint_saved
+        emit_sprint_saved(instance, created)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for sprint %s: %s", instance.id, e)
+
+
+@receiver(post_delete, sender=Sprint)
+def handle_sprint_deleted(sender, instance, **kwargs):
+    try:
+        from tracker.websocket.events import emit_sprint_deleted
+        project_key = instance.project.key if getattr(instance, "project", None) else ""
+        emit_sprint_deleted(project_key, instance.id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for deleted sprint %s: %s", instance.id, e)
+
+
+@receiver(post_save, sender=Release)
+def handle_release_saved(sender, instance, created, **kwargs):
+    try:
+        from tracker.websocket.events import emit_release_saved
+        emit_release_saved(instance, created)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for release %s: %s", instance.id, e)
+
+
+@receiver(post_delete, sender=Release)
+def handle_release_deleted(sender, instance, **kwargs):
+    try:
+        from tracker.websocket.events import emit_release_deleted
+        project_key = instance.project.key if getattr(instance, "project", None) else ""
+        emit_release_deleted(project_key, instance.id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for deleted release %s: %s", instance.id, e)
+
+
+@receiver(post_save, sender=TrackedItem)
+def handle_tracked_item_saved(sender, instance, created, **kwargs):
+    try:
+        from tracker.websocket.events import emit_tracked_item_saved
+        emit_tracked_item_saved(instance, created)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for tracked item %s: %s", instance.id, e)
+
+
+@receiver(post_delete, sender=TrackedItem)
+def handle_tracked_item_deleted(sender, instance, **kwargs):
+    try:
+        from tracker.websocket.events import emit_tracked_item_deleted
+        if instance.work_item_id:
+            key = instance.work_item.key if getattr(instance, "work_item", None) else ""
+            item_type = "user_support" if getattr(instance, "work_item", None) and instance.work_item.is_support else "work_item"
+        elif instance.incident_id:
+            key = instance.incident.key if getattr(instance, "incident", None) else ""
+            item_type = "incident"
+        elif instance.sprint_id:
+            key = str(instance.sprint_id)
+            item_type = "sprint"
+        elif instance.release_id:
+            key = str(instance.release_id)
+            item_type = "release"
+        else:
+            key = ""
+            item_type = "work_item"
+        emit_tracked_item_deleted(instance.user_id, key, item_type)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Failed to emit websocket event for deleted tracked item %s: %s", instance.id, e)
+
 
 
