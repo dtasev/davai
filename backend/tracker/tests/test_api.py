@@ -1302,6 +1302,125 @@ class TestNinjaAPI:
         assert search_kw.status_code == 200
         assert search_kw.json()["total"] == 0
 
+    def test_append_monitoring_log_to_incident_api(self, ninja_client, test_user, test_project, test_api_key):
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+        mcp_headers = {"X-API-Key": raw_key, "User-Agent": "Davai-MCP/1.0"}
+        other_project = Project.objects.create(key="PRJC", name="Project C")
+
+        # Incident with one monitoring log already linked
+        inc_res = ninja_client.post(
+            f"/projects/{test_project.key}/incidents",
+            json={
+                "title": "GloFAS Flood Indicator Stale Tiles",
+                "cause": "Tile generation job stalled on the download node.",
+                "status": "reported",
+            },
+            headers=mcp_headers
+        )
+        assert inc_res.status_code == 200
+        inc_data = inc_res.json()
+        inc_key = inc_data["key"]
+        inc_id = inc_data["id"]
+
+        def create_log(project_key, description, incident_id=None, agent="flood-monitor/sonnet/sess-1"):
+            body = {"agent_id": agent, "description": description, "status": "Error"}
+            if incident_id is not None:
+                body["incident_id"] = incident_id
+            res = ninja_client.post(
+                f"/projects/{project_key}/monitoring-logs", json=body, headers=mcp_headers
+            )
+            assert res.status_code == 200, res.content.decode()
+            return res.json()
+
+        first_log = create_log(test_project.key, "tiles older than 24h", incident_id=inc_key)
+        second_log = create_log(test_project.key, "retry still stale", agent="flood-monitor/sonnet/sess-2")
+
+        # 1. Append by numeric log id -> previously linked log is preserved
+        append_res = ninja_client.post(
+            f"/incidents/{inc_key}/monitoring-logs/{second_log['id']}", headers=headers
+        )
+        assert append_res.status_code == 200
+        appended = append_res.json()
+        assert appended["id"] == inc_id
+        assert set(appended["monitoring_log_ids"]) == {first_log["id"], second_log["id"]}
+        assert set(appended["monitoring_log_keys"]) == {first_log["key"], second_log["key"]}
+        assert second_log["incident_id"] is None
+        assert all("description" not in log for log in appended["monitoring_logs"])
+
+        # The link is persisted (log now reports the incident)
+        get_log = ninja_client.get(f"/monitoring-logs/{second_log['key']}", headers=headers)
+        assert get_log.json()["incident_id"] == inc_id
+
+        # 2. Re-appending the same log to the same incident is an idempotent success
+        reappend_res = ninja_client.post(
+            f"/incidents/{inc_id}/monitoring-logs/{second_log['key']}", headers=headers
+        )
+        assert reappend_res.status_code == 200
+        assert set(reappend_res.json()["monitoring_log_ids"]) == {first_log["id"], second_log["id"]}
+
+        # 3. Appending a third log appends (does not replace) the list
+        third_log = create_log(test_project.key, "third check still failing", agent="flood-monitor/sonnet/sess-3")
+        third_append = ninja_client.post(
+            f"/incidents/{inc_key}/monitoring-logs/{third_log['key']}", headers=headers
+        )
+        assert third_append.status_code == 200
+        assert set(third_append.json()["monitoring_log_ids"]) == {
+            first_log["id"], second_log["id"], third_log["id"]
+        }
+
+        # 4. A log already linked to a DIFFERENT incident is rejected
+        inc2_res = ninja_client.post(
+            f"/projects/{test_project.key}/incidents",
+            json={"title": "Unrelated Incident", "status": "reported"},
+            headers=mcp_headers
+        )
+        assert inc2_res.status_code == 200
+        inc2_key = inc2_res.json()["key"]
+        taken_log = create_log(
+            test_project.key, "log owned by another incident",
+            incident_id=inc2_key, agent="flood-monitor/sonnet/sess-4",
+        )
+        conflict_res = ninja_client.post(
+            f"/incidents/{inc_key}/monitoring-logs/{taken_log['key']}", headers=headers
+        )
+        assert conflict_res.status_code == 400
+        assert conflict_res.json()["detail"] == (
+            f"Monitoring log '{taken_log['key']}' is already linked to incident '{inc2_key}'. "
+            "Unlink it from that incident first."
+        )
+        # And the incident's log list is unchanged
+        assert set(ninja_client.get(f"/incidents/{inc_key}", headers=headers).json()["monitoring_log_ids"]) == {
+            first_log["id"], second_log["id"], third_log["id"]
+        }
+
+        # 5. Cross-project logs are rejected
+        foreign_log = create_log(other_project.key, "log from another project", agent="other-monitor/sonnet/sess-5")
+        cross_res = ninja_client.post(
+            f"/incidents/{inc_key}/monitoring-logs/{foreign_log['key']}", headers=headers
+        )
+        assert cross_res.status_code == 400
+        assert cross_res.json()["detail"] == (
+            f"Monitoring log '{foreign_log['key']}' belongs to project '{other_project.key}', "
+            f"not '{test_project.key}'."
+        )
+
+        # 6. Unknown log identifiers (numeric and key) return 404
+        unknown_id = ninja_client.post(f"/incidents/{inc_key}/monitoring-logs/999999", headers=headers)
+        assert unknown_id.status_code == 404
+        assert "999999" in unknown_id.json()["detail"]
+        unknown_key = ninja_client.post(
+            f"/incidents/{inc_key}/monitoring-logs/{test_project.key}-LOG-404", headers=headers
+        )
+        assert unknown_key.status_code == 404
+        assert f"{test_project.key}-LOG-404" in unknown_key.json()["detail"]
+
+        # 7. Unknown incidents still 404
+        unknown_inc = ninja_client.post(
+            f"/incidents/{test_project.key}-INC-404/monitoring-logs/{first_log['key']}", headers=headers
+        )
+        assert unknown_inc.status_code == 404
+
     def test_sprint_and_release_statuses_and_done_at(self, ninja_client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
         human_headers = {"X-API-Key": raw_key, "User-Agent": "Mozilla/5.0"}

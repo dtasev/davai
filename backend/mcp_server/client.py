@@ -492,7 +492,6 @@ class DavaiClient:
         investigation_note: Optional[str] = None,
         status: Optional[str] = None,
         work_item_keys: Optional[List[str]] = None,
-        monitoring_log_ids: Optional[List[Any]] = None,
     ) -> Dict[str, Any]:
         """Update an existing incident."""
         payload: Dict[str, Any] = {}
@@ -506,9 +505,11 @@ class DavaiClient:
             payload["status"] = status
         if work_item_keys is not None:
             payload["work_item_keys"] = work_item_keys
-        if monitoring_log_ids is not None:
-            payload["monitoring_log_ids"] = monitoring_log_ids
         return self._request("PATCH", f"/incidents/{incident_id}", data=payload)
+
+    def append_log_to_incident(self, incident_id: Any, log_id: Any) -> Dict[str, Any]:
+        """Append a monitoring log to an incident's log list (errors if the log belongs to another incident)."""
+        return self._request("POST", f"/incidents/{incident_id}/monitoring-logs/{log_id}")
 
     def create_monitoring_log(
         self,

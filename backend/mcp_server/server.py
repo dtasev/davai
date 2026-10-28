@@ -580,10 +580,9 @@ def update_incident(
     investigation_note: Optional[str] = None,
     status: Optional[str] = None,
     work_item_keys: Optional[List[str]] = None,
-    monitoring_log_ids: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Update an existing incident (e.g. update cause, investigation_note, open status, or linked work items/monitoring logs).
+    Update an existing incident (e.g. update cause, investigation_note, open status, or linked work items).
     Args:
         incident_id: Incident key (e.g. 'DAV-INC-1') or numeric ID.
         title: Optional new title.
@@ -591,7 +590,6 @@ def update_incident(
         investigation_note: Optional updated quick investigation note.
         status: Optional new status ('reported', 'ongoing'). Note: 'done' and 'no longer relevant' are human-only statuses and cannot be set via MCP.
         work_item_keys: Optional list of work item keys to link to this incident.
-        monitoring_log_ids: Optional list of monitoring log IDs or keys to link to this incident.
     """
     clean_status = None
     if status is not None:
@@ -609,8 +607,17 @@ def update_incident(
         investigation_note=investigation_note,
         status=clean_status,
         work_item_keys=work_item_keys,
-        monitoring_log_ids=monitoring_log_ids,
     )
+
+@mcp_server.tool()
+def append_log_to_incident(incident_id: str, log_id: str) -> Dict[str, Any]:
+    """
+    Append a monitoring log to an incident's list of linked monitoring logs, without unlinking existing logs.
+    Args:
+        incident_id: Incident key (e.g. 'DAV-INC-1') or numeric ID.
+        log_id: Monitoring log key (e.g. 'DAV-LOG-2') or numeric ID. The log must belong to the same project as the incident and must not already be linked to a different incident.
+    """
+    return get_client().append_log_to_incident(incident_id=incident_id, log_id=log_id)
 
 @mcp_server.tool()
 def create_monitoring_log(

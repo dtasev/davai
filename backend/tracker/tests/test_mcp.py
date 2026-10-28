@@ -21,6 +21,7 @@ from mcp_server.server import (
     get_incident,
     search_incidents,
     update_incident,
+    append_log_to_incident,
     create_monitoring_log,
     get_monitoring_log,
     get_board_state,
@@ -418,6 +419,31 @@ class TestMCPWithApiClient:
         assert log_id in fetched_inc["monitoring_log_ids"]
         assert log_key in fetched_inc["monitoring_log_keys"]
         assert "description" not in fetched_inc["monitoring_logs"][0]
+
+        # Append a second, previously unlinked log without unlinking the first one
+        mcp_log2 = create_monitoring_log(
+            agent_id="db-replication-monitor/sonnet/sess-2",
+            description="Replication lag 62s on replica-02",
+            status="Error",
+            project_key=test_project.key,
+        )
+        assert mcp_log2["incident_key"] is None
+        log2_key = mcp_log2["key"]
+        log2_id = mcp_log2["id"]
+
+        appended_inc = append_log_to_incident(incident_id=inc_key, log_id=log2_key)
+        assert appended_inc["key"] == inc_key
+        assert set(appended_inc["monitoring_log_ids"]) == {log_id, log2_id}
+        assert set(appended_inc["monitoring_log_keys"]) == {log_key, log2_key}
+
+        # Re-appending the same log to the same incident is an idempotent success
+        reappended_inc = append_log_to_incident(incident_id=inc_key, log_id=log2_key)
+        assert set(reappended_inc["monitoring_log_ids"]) == {log_id, log2_id}
+        assert set(reappended_inc["monitoring_log_keys"]) == {log_key, log2_key}
+
+        # update_incident no longer accepts monitoring_log_ids (replaced by append_log_to_incident)
+        with pytest.raises(TypeError):
+            update_incident(incident_id=inc_key, monitoring_log_ids=[log_id])
 
         # Fetch monitoring log via MCP -> includes full description
         fetched_log = get_monitoring_log(log_key)

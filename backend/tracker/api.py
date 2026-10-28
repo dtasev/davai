@@ -2099,6 +2099,29 @@ def update_incident(request, incident_id: str, payload: UpdateIncidentIn):
     return _get_incident_by_identifier(incident.key)
 
 
+@api.post("/incidents/{incident_id}/monitoring-logs/{log_id}", response=IncidentOut, auth=api_key_auth, summary="Append Monitoring Log to Incident")
+def append_monitoring_log_to_incident(request, incident_id: str, log_id: str):
+    incident = _get_incident_by_identifier(incident_id)
+    ml = _get_monitoring_log_by_identifier(log_id)
+
+    if ml.project_id != incident.project_id:
+        raise errors.HttpError(
+            400,
+            f"Monitoring log '{ml.key}' belongs to project '{ml.project.key}', not '{incident.project.key}'."
+        )
+    if ml.incident_id and ml.incident_id != incident.id:
+        raise errors.HttpError(
+            400,
+            f"Monitoring log '{ml.key}' is already linked to incident '{ml.incident.key}'. Unlink it from that incident first."
+        )
+
+    if ml.incident_id != incident.id:
+        ml.incident = incident
+        ml.save(update_fields=["incident"])
+
+    return _get_incident_by_identifier(incident.key)
+
+
 @api.delete("/incidents/{incident_id}", auth=api_key_auth, summary="Delete Incident")
 def delete_incident(request, incident_id: str):
     incident = _get_incident_by_identifier(incident_id)
