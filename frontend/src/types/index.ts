@@ -281,3 +281,20 @@ export interface MonitoringLog {
   created_at: string
 }
 
+// --- Tracked items (per-user tracking drawer, DAV-83) ---
+
+export type TrackedItemType = 'work_item' | 'user_support' | 'incident' | 'sprint' | 'release'
+
+export type TrackedSection = 'work_items' | 'user_support' | 'incidents' | 'sprints' | 'releases'
+
+export interface TrackedItem {
+  id: number
+  item_type: TrackedItemType
+  ref_id: number
+  key: string
+  title: string
+  status: string
+  project_key: string
+  added_at: string
+}
+

@@ -22,6 +22,7 @@ import {
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { StatusFilterDropdown } from '../Common/StatusFilterDropdown'
 import { Modal } from '../Common/Modal'
+import { TrackButton } from '../Common/TrackButton'
 import { apiFetch } from '../../utils/apiFetch'
 
 export function formatDate(dateStr: string | null | undefined): string {
@@ -512,6 +513,11 @@ export function WorkItemList({
                       <span>{item.progress.length}</span>
                     </span>
                   )}
+
+                  <TrackButton
+                    itemType={item.is_support ? 'user_support' : 'work_item'}
+                    itemKey={item.key}
+                  />
 
                   {item.active_assignee && (
                     <span className="flex items-center gap-1 text-[10px] text-zinc-400 bg-zinc-800/60 px-2 py-0.5 rounded-full border border-zinc-800 leading-none">

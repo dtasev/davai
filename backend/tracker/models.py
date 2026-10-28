@@ -477,6 +477,70 @@ class MonitoringLog(models.Model):
         return f"{self.key} [{self.status.upper()}] ({self.created_at.isoformat()})"
 
 
+class TrackedItem(models.Model):
+    """A per-user tracked work item, incident, sprint, or release (exactly one target)."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="tracked_items")
+    work_item = models.ForeignKey(
+        WorkItem, null=True, blank=True, on_delete=models.CASCADE, related_name="tracked_by"
+    )
+    incident = models.ForeignKey(
+        Incident, null=True, blank=True, on_delete=models.CASCADE, related_name="tracked_by"
+    )
+    sprint = models.ForeignKey(
+        Sprint, null=True, blank=True, on_delete=models.CASCADE, related_name="tracked_by"
+    )
+    release = models.ForeignKey(
+        Release, null=True, blank=True, on_delete=models.CASCADE, related_name="tracked_by"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "work_item"],
+                condition=models.Q(work_item__isnull=False),
+                name="unique_user_tracked_work_item",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "incident"],
+                condition=models.Q(incident__isnull=False),
+                name="unique_user_tracked_incident",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "sprint"],
+                condition=models.Q(sprint__isnull=False),
+                name="unique_user_tracked_sprint",
+            ),
+            models.UniqueConstraint(
+                fields=["user", "release"],
+                condition=models.Q(release__isnull=False),
+                name="unique_user_tracked_release",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(work_item__isnull=False) & models.Q(incident__isnull=True) & models.Q(sprint__isnull=True) & models.Q(release__isnull=True))
+                    | (models.Q(work_item__isnull=True) & models.Q(incident__isnull=False) & models.Q(sprint__isnull=True) & models.Q(release__isnull=True))
+                    | (models.Q(work_item__isnull=True) & models.Q(incident__isnull=True) & models.Q(sprint__isnull=False) & models.Q(release__isnull=True))
+                    | (models.Q(work_item__isnull=True) & models.Q(incident__isnull=True) & models.Q(sprint__isnull=True) & models.Q(release__isnull=False))
+                ),
+                name="tracked_item_exactly_one_target",
+            ),
+        ]
+
+    def __str__(self):
+        if self.work_item_id:
+            target = self.work_item.key
+        elif self.incident_id:
+            target = self.incident.key
+        elif self.sprint_id:
+            target = self.sprint.name
+        else:
+            target = self.release.name
+        return f"{self.user.username}: {target}"
+
+
 @receiver(post_save, sender=WorkItem)
 def handle_work_item_saved(sender, instance, created, **kwargs):
     try:

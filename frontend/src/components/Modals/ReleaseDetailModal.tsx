@@ -3,6 +3,7 @@ import { Rocket, Calendar, Zap, ListTodo, ChevronRight, Trash2, AlertTriangle, C
 import { Release, Sprint, WorkItem, DEFAULT_SPRINT_RELEASE_STATUSES, STANDARD_STATUSES } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+import { TrackButton } from '../Common/TrackButton'
 
 function getStatusOrder(status: string | null | undefined): number {
   const s = (status || 'todo').toLowerCase().replace(/_/g, ' ').trim()
@@ -144,6 +145,7 @@ export function ReleaseDetailModal({
               </button>
             </>
           )}
+          <TrackButton itemType="release" itemId={release.id} size="md" />
           {onUpdate && (
             <button
               type="button"

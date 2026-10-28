@@ -5,7 +5,7 @@
 users:
   admin:
     displayname: "Admin User"
-    password: "$argon2id$v=19$m=65536,t=3,p=4$16G2LrRyS8hB+6OFyDYSDQ$UIIgxWj9z4Xh1tLFaunqhEX0p/Ia6EUJlTnecBxfXa4"
+    password: "$argon2id$v=19$m=65536,t=3,p=4$/cmTwedHFrtpqZrwtue9jg$X5Oc3S7kbXkRw/GJ/KPVi/hju7XbPzBfWAT1zlSZZq0"
     email: "admin@example.com"
     groups:
       - admins

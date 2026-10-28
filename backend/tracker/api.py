@@ -1,6 +1,6 @@
 import sys
 import logging
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Literal
 from datetime import datetime
 import django
 import ninja
@@ -24,6 +24,7 @@ from tracker.models import (
     Incident,
     IncidentEmbedding,
     MonitoringLog,
+    TrackedItem,
     ALL_PROGRESS_STATUSES,
     INCIDENT_STATUSES,
     HUMAN_ONLY_INCIDENT_STATUSES,
@@ -2244,4 +2245,168 @@ def delete_monitoring_log(request, log_id: str):
     key = log_obj.key
     log_obj.delete()
     return {"success": True, "message": f"Monitoring log {key} deleted"}
+
+
+# ---------------------------------------------------------------------------
+# Tracked Items (per-user tracking drawer: work items, user support, incidents, sprints, releases)
+# ---------------------------------------------------------------------------
+
+TrackedItemType = Literal["work_item", "user_support", "incident", "sprint", "release"]
+TrackedSection = Literal["work_items", "user_support", "incidents", "sprints", "releases"]
+
+
+class TrackedItemOut(Schema):
+    id: int
+    item_type: str
+    ref_id: int
+    key: str
+    title: str
+    status: str
+    project_key: str
+    added_at: str
+
+    @staticmethod
+    def resolve_item_type(obj: TrackedItem) -> str:
+        if obj.work_item_id:
+            return "user_support" if obj.work_item.is_support else "work_item"
+        if obj.incident_id:
+            return "incident"
+        if obj.sprint_id:
+            return "sprint"
+        return "release"
+
+    @staticmethod
+    def resolve_ref_id(obj: TrackedItem) -> int:
+        return obj.work_item_id or obj.incident_id or obj.sprint_id or obj.release_id
+
+    @staticmethod
+    def resolve_key(obj: TrackedItem) -> str:
+        if obj.work_item_id:
+            return obj.work_item.key
+        if obj.incident_id:
+            return obj.incident.key
+        if obj.sprint_id:
+            return str(obj.sprint_id)
+        return str(obj.release_id)
+
+    @staticmethod
+    def resolve_title(obj: TrackedItem) -> str:
+        if obj.work_item_id:
+            return obj.work_item.title
+        if obj.incident_id:
+            return obj.incident.title
+        if obj.sprint_id:
+            return obj.sprint.name
+        return obj.release.name
+
+    @staticmethod
+    def resolve_status(obj: TrackedItem) -> str:
+        # NOTE: obj.work_item.status derives from the latest Progress entry (one extra
+        # query per tracked row). Acceptable at tracking-drawer scale — no over-engineering.
+        if obj.work_item_id:
+            return obj.work_item.status
+        if obj.incident_id:
+            return obj.incident.status
+        if obj.sprint_id:
+            return obj.sprint.status or "planned"
+        return obj.release.status or "planned"
+
+    @staticmethod
+    def resolve_project_key(obj: TrackedItem) -> str:
+        if obj.work_item_id:
+            return obj.work_item.project.key
+        if obj.incident_id:
+            return obj.incident.project.key
+        if obj.sprint_id:
+            return obj.sprint.project.key
+        return obj.release.project.key
+
+    @staticmethod
+    def resolve_added_at(obj: TrackedItem) -> str:
+        return obj.created_at.isoformat()
+
+
+class CreateTrackedIn(Schema):
+    item_type: TrackedItemType
+    key: Optional[str] = None
+    id: Optional[int] = None
+
+
+@api.get("/tracked-items", response=List[TrackedItemOut], auth=api_key_auth, summary="List Tracked Items")
+def list_tracked_items(request):
+    return TrackedItem.objects.filter(user=request.auth).select_related(
+        "user", "work_item__project", "incident__project", "sprint__project", "release__project"
+    )
+
+
+@api.post("/tracked-items", response=TrackedItemOut, auth=api_key_auth, summary="Add Tracked Item")
+def add_tracked_item(request, payload: CreateTrackedIn):
+    user = request.auth
+    item_type = payload.item_type
+
+    if item_type in ("work_item", "user_support"):
+        if not payload.key or not payload.key.strip():
+            raise errors.HttpError(400, "'key' is required for work_item/user_support tracking.")
+        wi = WorkItem.objects.select_related("project").filter(key=payload.key.strip().upper()).first()
+        if not wi:
+            raise errors.HttpError(404, f"Work item '{payload.key.strip()}' not found.")
+        if wi.is_support != (item_type == "user_support"):
+            raise errors.HttpError(
+                400,
+                f"'{wi.key}' is {'a user support ticket' if wi.is_support else 'a work item'}; "
+                f"cannot track it as '{item_type}'.",
+            )
+        obj, _ = TrackedItem.objects.get_or_create(user=user, work_item=wi)
+    elif item_type == "incident":
+        if not payload.key or not payload.key.strip():
+            raise errors.HttpError(400, "'key' is required for incident tracking.")
+        incident = _get_incident_by_identifier(payload.key.strip())
+        obj, _ = TrackedItem.objects.get_or_create(user=user, incident=incident)
+    else:
+        # sprint / release: ids are globally unique, so no project scoping needed on resolve
+        if payload.id is None:
+            raise errors.HttpError(400, f"'id' is required for {item_type} tracking.")
+        model = Sprint if item_type == "sprint" else Release
+        target = model.objects.select_related("project").filter(id=payload.id).first()
+        if not target:
+            raise errors.HttpError(404, f"{item_type.capitalize()} with id {payload.id} not found.")
+        obj, _ = TrackedItem.objects.get_or_create(user=user, **{item_type: target})
+
+    return obj
+
+
+# IMPORTANT: declared BEFORE /tracked-items/{tracked_id} so the literal "done" path
+# is matched first (otherwise int coercion of "done" would 422).
+@api.delete("/tracked-items/done", auth=api_key_auth, summary="Clear Done Tracked Items")
+def clear_done_tracked_items(request, section: TrackedSection = "work_items"):
+    qs = TrackedItem.objects.filter(user=request.auth)
+
+    if section in ("work_items", "user_support"):
+        latest_status_subquery = Subquery(
+            Progress.objects.filter(work_item=OuterRef("work_item_id")).order_by("-created_at", "-id").values("status")[:1]
+        )
+        qs = (
+            qs.filter(work_item__isnull=False)
+            .annotate(latest_status=Coalesce(latest_status_subquery, Value("todo")))
+            .filter(latest_status__iexact="done", work_item__is_support=(section == "user_support"))
+        )
+    elif section == "incidents":
+        qs = qs.filter(incident__isnull=False, incident__status__in=["done", "no longer relevant"])
+    elif section == "sprints":
+        qs = qs.filter(sprint__isnull=False, sprint__status="done")
+    else:
+        qs = qs.filter(release__isnull=False, release__status="done")
+
+    # Select pks first, then delete by id: keeps the Subquery/Coalesce annotation out of the DELETE SQL.
+    tracked_ids = list(qs.values_list("id", flat=True))
+    if tracked_ids:
+        TrackedItem.objects.filter(id__in=tracked_ids).delete()
+    return {"success": True, "removed": len(tracked_ids)}
+
+
+@api.delete("/tracked-items/{tracked_id}", auth=api_key_auth, summary="Remove Tracked Item")
+def delete_tracked_item(request, tracked_id: int):
+    tracked = get_object_or_404(TrackedItem, id=tracked_id, user=request.auth)
+    tracked.delete()
+    return {"success": True, "message": f"Tracked item {tracked_id} removed"}
 

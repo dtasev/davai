@@ -15,6 +15,7 @@ import {
 import { Incident, DEFAULT_INCIDENT_STATUSES } from '../../types'
 import { StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+import { TrackButton } from '../Common/TrackButton'
 
 interface IncidentDetailModalProps {
   incident: Incident | null
@@ -156,6 +157,7 @@ export function IncidentDetailModal({
               </button>
             </>
           )}
+          <TrackButton itemType="incident" itemKey={incident.key} size="md" />
           {onUpdateIncident && (
             <>
               <button

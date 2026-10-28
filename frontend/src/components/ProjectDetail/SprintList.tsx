@@ -3,6 +3,7 @@ import { Calendar, Plus, ChevronRight, Zap, Target, CheckCircle2 } from 'lucide-
 import { Sprint, Release } from '../../types'
 import { Modal } from '../Common/Modal'
 import { StatusBadge } from '../Common/Badge'
+import { TrackButton } from '../Common/TrackButton'
 
 interface AllSprintsModalProps {
   isOpen: boolean
@@ -104,6 +105,7 @@ export function AllSprintsModal({
                         : 'Unscheduled'}
                     </span>
                   </span>
+                  <TrackButton itemType="sprint" itemId={s.id} />
                   <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform text-zinc-400 ml-auto sm:ml-0" />
                 </div>
               </div>
@@ -234,6 +236,7 @@ export function SprintList({
                       {s.name}
                     </span>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <TrackButton itemType="sprint" itemId={s.id} />
                       <StatusBadge status={s.status || 'planned'} />
                       {linkedRelease && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-indigo-300 font-medium flex items-center gap-1 leading-none">

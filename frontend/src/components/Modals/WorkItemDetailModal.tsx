@@ -24,6 +24,7 @@ import {
 import { WorkItem, Sprint, Release, ProjectStatus, UserSummary, PROGRESS_STATUS_OPTIONS } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+import { TrackButton } from '../Common/TrackButton'
 import { apiFetch } from '../../utils/apiFetch'
 
 const PROGRESS_LIST_HEIGHT_KEY = 'davai_progress_list_height'
@@ -533,6 +534,11 @@ export function WorkItemDetailModal({
               </button>
             </>
           )}
+          <TrackButton
+            itemType={isSupport ? 'user_support' : 'work_item'}
+            itemKey={item.key}
+            size="md"
+          />
           {onAddProgress && (
             <button
               type="button"

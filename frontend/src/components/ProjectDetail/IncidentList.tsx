@@ -18,6 +18,7 @@ import {
 import { StatusBadge, formatStatus } from '../Common/Badge'
 import { StatusFilterDropdown } from '../Common/StatusFilterDropdown'
 import { Modal } from '../Common/Modal'
+import { TrackButton } from '../Common/TrackButton'
 import { apiFetch } from '../../utils/apiFetch'
 
 interface IncidentListProps {
@@ -333,6 +334,8 @@ export function IncidentList({
 
                 {/* Meta pills on right */}
                 <div className="flex items-center gap-2 self-start sm:self-center text-sm text-zinc-500 shrink-0">
+                  <TrackButton itemType="incident" itemKey={inc.key} />
+
                   {inc.work_items && inc.work_items.length > 0 && (
                     <span
                       title={`${inc.work_items.length} Linked Work Items`}

@@ -3,6 +3,7 @@ import { Calendar, Plus, ChevronRight, Rocket, Tag, CheckCircle2 } from 'lucide-
 import { Release } from '../../types'
 import { Modal } from '../Common/Modal'
 import { StatusBadge } from '../Common/Badge'
+import { TrackButton } from '../Common/TrackButton'
 
 interface AllReleasesModalProps {
   isOpen: boolean
@@ -96,6 +97,7 @@ export function AllReleasesModal({
                         : 'Unscheduled'}
                     </span>
                   </span>
+                  <TrackButton itemType="release" itemId={r.id} />
                   <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform text-zinc-400 ml-auto sm:ml-0" />
                 </div>
               </div>
@@ -218,6 +220,7 @@ export function ReleaseList({
                     <span className="truncate">{r.name}</span>
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <TrackButton itemType="release" itemId={r.id} />
                     <StatusBadge status={r.status || 'planned'} />
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-mono leading-none">
                       Milestone

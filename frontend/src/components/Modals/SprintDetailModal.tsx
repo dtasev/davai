@@ -3,6 +3,7 @@ import { Zap, Calendar, Target, ListTodo, ChevronRight, Trash2, AlertTriangle, C
 import { Sprint, Release, WorkItem, DEFAULT_SPRINT_RELEASE_STATUSES, STANDARD_STATUSES } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+import { TrackButton } from '../Common/TrackButton'
 
 function getStatusOrder(status: string | null | undefined): number {
   const s = (status || 'todo').toLowerCase().replace(/_/g, ' ').trim()
@@ -142,6 +143,7 @@ export function SprintDetailModal({
               </button>
             </>
           )}
+          <TrackButton itemType="sprint" itemId={sprint.id} size="md" />
           {onUpdate && (
             <button
               type="button"
