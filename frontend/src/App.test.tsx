@@ -1100,7 +1100,7 @@ describe('Davai Frontend App with React Router', () => {
 
     expect(writeTextMock).toHaveBeenCalledTimes(1)
     const copiedText = writeTextMock.mock.calls[0][0]
-    expect(copiedText).toContain('ID: 1')
+    expect(copiedText).not.toContain('ID: 1')
     expect(copiedText).toContain('Key: DAV-1')
     expect(copiedText).toContain('Title: Build AI-Native Data Models')
     expect(copiedText).toContain(`URL: ${window.location.href}`)
@@ -1116,7 +1116,7 @@ describe('Davai Frontend App with React Router', () => {
 
     expect(writeTextMock).toHaveBeenCalledTimes(2)
     const startPromptText = writeTextMock.mock.calls[1][0]
-    expect(startPromptText).toContain('ID: 1')
+    expect(startPromptText).not.toContain('ID: 1')
     expect(startPromptText).toContain('Key: DAV-1')
     expect(startPromptText).toContain('Title: Build AI-Native Data Models')
     expect(startPromptText).toContain(`URL: ${window.location.href}`)

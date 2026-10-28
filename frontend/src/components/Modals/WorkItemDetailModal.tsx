@@ -289,7 +289,7 @@ export function WorkItemDetailModal({
     const url = typeof window !== 'undefined' ? window.location.href : ''
 
     const textToCopy = [
-      `ID: ${item.id}\nKey: ${item.key}\nTitle: ${title}\nURL: ${url}`,
+      `Key: ${item.key}\nTitle: ${title}\nURL: ${url}`,
       `This is a Davai MCP item. Rename your session to a sensible slug, prefixed with the item key-ID-<short-slug-summary> (${item.key}-<short-slug-summary>)`
     ].join('\n\n')
 
@@ -308,7 +308,7 @@ export function WorkItemDetailModal({
     const url = typeof window !== 'undefined' ? window.location.href : ''
 
     const textToCopy = [
-      `ID: ${item.id}\nKey: ${item.key}\nTitle: ${title}\nURL: ${url}`,
+      `Key: ${item.key}\nTitle: ${title}\nURL: ${url}`,
       `Description:\n${description}`,
       `Context:\n${context}`
     ].join('\n\n')
