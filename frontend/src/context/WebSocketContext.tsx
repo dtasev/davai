@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
 import { getClientId } from '../utils/apiFetch'
 
-export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected'
+export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'unauthorized'
 
 export interface WebSocketEvent {
   event: string
@@ -33,6 +33,9 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
   const pingIntervalRef = useRef<any>(null)
   const reconnectAttemptsRef = useRef<number>(0)
   const isUnmountedRef = useRef<boolean>(false)
+  // Set when the server rejects the socket as unauthenticated (close 1008). Reconnecting
+  // cannot succeed until the user signs in, so the loop stays stopped.
+  const authFailedRef = useRef<boolean>(false)
 
   // Track all currently desired topics so they survive reconnects
   const activeTopicsRef = useRef<Set<string>>(new Set())
@@ -72,6 +75,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
   const connect = useCallback(() => {
     if (isUnmountedRef.current) return
+    if (authFailedRef.current) return
     if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
       return
     }
@@ -96,6 +100,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         }
         setStatus('connected')
         reconnectAttemptsRef.current = 0
+        authFailedRef.current = false
 
         // Re-subscribe to all active topics
         activeTopicsRef.current.forEach(topic => {
@@ -113,6 +118,13 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
       ws.onmessage = (messageEvent) => {
         try {
           const data = JSON.parse(messageEvent.data)
+          if (data && data.event === 'error' && data.code === 'authentication_required') {
+            authFailedRef.current = true
+            setStatus('unauthorized')
+            // Stop the heartbeat; onclose then settles the state without rescheduling.
+            socketRef.current?.close()
+            return
+          }
           if (data && data.event) {
             dispatchEvent(data)
           }
@@ -121,9 +133,17 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      ws.onclose = () => {
+      ws.onclose = (event?: CloseEvent) => {
         clearInterval(pingIntervalRef.current)
         if (isUnmountedRef.current) return
+
+        // 1008 (policy violation) means the server refused an unauthenticated socket.
+        if (authFailedRef.current || event?.code === 1008) {
+          authFailedRef.current = true
+          setStatus('unauthorized')
+          return
+        }
+
         setStatus('disconnected')
 
         // Exponential backoff reconnect: min 1s, max 10s + jitter
@@ -150,6 +170,7 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        if (authFailedRef.current) return
         if (!socketRef.current || socketRef.current.readyState === WebSocket.CLOSED) {
           connect()
         }

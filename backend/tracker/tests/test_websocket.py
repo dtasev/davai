@@ -3,6 +3,7 @@ import asyncio
 from unittest.mock import AsyncMock
 from asgiref.sync import sync_to_async
 from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 from django.contrib.auth.models import User
 from core.asgi import application
 from tracker.models import Project, WorkItem, Progress, Incident, MonitoringLog, Sprint, Release
@@ -39,6 +40,68 @@ class TestWebSocketDirect:
             ws.send_json({"action": "unsubscribe", "topic": "project:WSPROJ"})
             unack = ws.receive_json()
             assert unack["event"] == "unsubscribed"
+
+    def test_endpoint_rejects_anonymous_connection(self):
+        client = TestClient(application)
+        with client.websocket_connect("/ws?client_id=anon-client") as ws:
+            msg = ws.receive_json()
+            assert msg["event"] == "error"
+            assert msg["code"] == "authentication_required"
+
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                ws.receive_json()
+        assert exc_info.value.code == 1008
+
+    def test_endpoint_authenticates_via_session_cookie(self):
+        # The SPA never sends ?token=; it relies on the sessionid cookie, so this is the path
+        # that has to keep working in production.
+        from django.contrib.sessions.backends.db import SessionStore
+
+        session = SessionStore()
+        session["_auth_user_id"] = str(self.user.pk)
+        session["_auth_user_backend"] = "django.contrib.auth.backends.ModelBackend"
+        session["_auth_user_hash"] = self.user.get_session_auth_hash()
+        session.create()
+
+        client = TestClient(application, cookies={"sessionid": session.session_key})
+        with client.websocket_connect("/ws?client_id=cookie-client") as ws:
+            data = ws.receive_json()
+            assert data["event"] == "connected"
+            assert data["authenticated"] is True
+            assert data["username"] == "wsuser"
+
+    def test_endpoint_rejects_cross_origin_browser_handshake(self):
+        client = TestClient(application)
+        with client.websocket_connect(
+            f"/ws?client_id=evil&token={self.raw_key}",
+            headers={"Origin": "https://evil.example"},
+        ) as ws:
+            msg = ws.receive_json()
+            assert msg["event"] == "error"
+            assert msg["code"] == "origin_not_allowed"
+
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                ws.receive_json()
+        assert exc_info.value.code == 1008
+
+    def test_endpoint_uses_retryable_code_when_session_lookup_fails(self, monkeypatch):
+        from tracker.websocket.endpoint import SessionLookupError
+
+        async def failing_lookup(session_key):
+            raise SessionLookupError()
+
+        monkeypatch.setattr("tracker.websocket.endpoint.get_user_from_session", failing_lookup)
+
+        client = TestClient(application, cookies={"sessionid": "whatever"})
+        with client.websocket_connect("/ws?client_id=db-down") as ws:
+            msg = ws.receive_json()
+            assert msg["event"] == "error"
+            assert msg["code"] == "authentication_unavailable"
+
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                ws.receive_json()
+        # 1011 (internal error) is retryable; 1008 would latch the client's reconnects off.
+        assert exc_info.value.code == 1011
 
     @pytest.mark.asyncio
     async def test_manager_subscription_and_broadcast(self):
