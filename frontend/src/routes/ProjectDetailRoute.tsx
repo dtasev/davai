@@ -15,6 +15,7 @@ import { useOptionalWebSocket } from '../context/WebSocketContext'
 import { ProjectDetailView, isUserSupportItem } from '../components/ProjectDetail/ProjectDetailView'
 import { QuickJumpModal } from '../components/ProjectDetail/QuickJumpModal'
 import { apiFetch } from '../utils/apiFetch'
+import { shouldIgnoreAppShortcut } from '../utils/keyboard'
 
 export interface ProjectDetailOutletContext {
   project: Project
@@ -106,23 +107,11 @@ export function ProjectDetailRoute() {
   // Global 'g' keyboard shortcut to open quick jump modal on /projects/:projectKey
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if modifier keys are pressed
-      if (e.ctrlKey || e.metaKey || e.altKey) return
+      // Ignore modifier-key combos and keypresses while typing in a form field
+      if (shouldIgnoreAppShortcut(e)) return
 
       // Only trigger on 'g' or 'G'
       if (e.key !== 'g' && e.key !== 'G') return
-
-      // Ignore when user is typing in an input/textarea/select or contenteditable element
-      const target = e.target as HTMLElement | null
-      if (
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-      ) {
-        return
-      }
 
       // Check if a sub-modal route (items, user-support, sprints, releases, incidents, monitoring-logs) is currently open
       const isSubModalRoute = /^\/projects\/[^/]+\/(items|user-support|sprints|releases|incidents|monitoring-logs)(\/|$)/i.test(location.pathname)

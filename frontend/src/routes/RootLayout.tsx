@@ -1,12 +1,48 @@
-import { Outlet, useLocation } from 'react-router-dom'
+import { startTransition, useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { LogIn, Loader2, Shield, AlertTriangle } from 'lucide-react'
 import { Header } from '../components/Header'
 import { TrackingDrawer } from '../components/Drawer/TrackingDrawer'
+import { ProjectJumpModal } from '../components/ProjectJumpModal'
 import { useApp } from '../context/AppContext'
+import { shouldIgnoreAppShortcut } from '../utils/keyboard'
+import { Project } from '../types'
 
 export function RootLayout() {
   const { userProfile, loadingAuth, authError, projects, loginWithOidc, logout } = useApp()
   const location = useLocation()
+  const navigate = useNavigate()
+  const [isProjectJumpOpen, setIsProjectJumpOpen] = useState(false)
+
+  // Global 't' keyboard shortcut (app-wide) to open the project jump modal.
+  // Declared before the auth early-returns so hook order stays stable, and
+  // only armed once the user is authenticated.
+  useEffect(() => {
+    if (loadingAuth || !userProfile) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore modifier-key combos and keypresses while typing in a form field
+      if (shouldIgnoreAppShortcut(e)) return
+
+      // Only trigger on 't' or 'T'
+      if (e.key !== 't' && e.key !== 'T') return
+
+      // Check if a sub-modal route (items, user-support, sprints, releases, incidents, monitoring-logs) is currently open
+      const isSubModalRoute = /^\/projects\/[^/]+\/(items|user-support|sprints|releases|incidents|monitoring-logs)(\/|$)/i.test(location.pathname)
+      if (isSubModalRoute) return
+
+      // Check if another modal has locked body scroll
+      if (document.body.style.overflow === 'hidden') return
+
+      e.preventDefault()
+      setIsProjectJumpOpen(true)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [location.pathname, loadingAuth, userProfile])
 
   if (loadingAuth) {
     return (
@@ -82,6 +118,11 @@ export function RootLayout() {
   const projectKey = match ? match[1] : null
   const selectedProject = projectKey ? projects.find(p => p.key === projectKey) : null
 
+  const handleSelectProject = (project: Project) => {
+    setIsProjectJumpOpen(false)
+    startTransition(() => navigate(`/projects/${project.key}`))
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col selection:bg-indigo-500/30 selection:text-indigo-200">
       <Header
@@ -96,6 +137,14 @@ export function RootLayout() {
           <Outlet />
         </main>
       </div>
+
+      <ProjectJumpModal
+        isOpen={isProjectJumpOpen}
+        onClose={() => setIsProjectJumpOpen(false)}
+        projects={projects}
+        currentProjectKey={projectKey}
+        onSelectProject={handleSelectProject}
+      />
     </div>
   )
 }

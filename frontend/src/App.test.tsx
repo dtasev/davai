@@ -402,6 +402,25 @@ describe('Davai Frontend App with React Router', () => {
         } as Response)
       }
 
+      // Non-DAV project sub-resources (sprints/releases/user-support/incidents/monitoring-logs)
+      // render as empty lists so the second project page never receives the project array.
+      if (
+        /\/api\/projects\/[^/]+\/(sprints|releases|user-support|incidents|monitoring-logs)/.test(urlStr) &&
+        !urlStr.includes('/api/projects/DAV/')
+      ) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        } as Response)
+      }
+
+      if (urlStr.includes('project_key=CEMS')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        } as Response)
+      }
+
       if (urlStr.includes('/api/projects')) {
         return Promise.resolve({
           ok: true,
@@ -413,6 +432,18 @@ describe('Davai Frontend App with React Router', () => {
                 name: 'Davai Tracker',
                 description: 'Cutting-edge AI-native project engine',
                 item_count: 1,
+                statuses: [
+                  { id: 1, name: 'todo', order: 1, is_default: true },
+                  { id: 2, name: 'in progress', order: 2, is_default: false },
+                  { id: 3, name: 'done', order: 3, is_default: false },
+                ],
+              },
+              {
+                id: 2,
+                key: 'CEMS',
+                name: 'CEMS Operations',
+                description: 'Copernicus emergency monitoring',
+                item_count: 0,
                 statuses: [
                   { id: 1, name: 'todo', order: 1, is_default: true },
                   { id: 2, name: 'in progress', order: 2, is_default: false },
@@ -1940,6 +1971,103 @@ describe('Davai Frontend App with React Router', () => {
     await waitFor(() => {
       expect(screen.getByTestId('work-item-title')).toHaveTextContent('Frontend Kanban Board')
     })
+  })
+
+  it('opens project jump modal on shortcut "t" from a non-project route, lists every project, closes on Escape, and navigates on click', async () => {
+    const { router } = await renderWithRouter(['/settings'])
+
+    // 1. 't' on window opens the app-wide project jump modal outside project routes
+    fireEvent.keyDown(window, { key: 't', code: 'KeyT' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-jump-modal')).toBeInTheDocument()
+    })
+
+    // 2. Every project from /api/projects is listed
+    expect(screen.getByTestId('project-jump-item-DAV')).toBeInTheDocument()
+    expect(screen.getByTestId('project-jump-item-CEMS')).toBeInTheDocument()
+
+    // 3. Escape closes the modal
+    fireEvent.keyDown(window, { key: 'Escape' })
+    await waitFor(() => {
+      expect(screen.queryByTestId('project-jump-modal')).not.toBeInTheDocument()
+    })
+
+    // 4. Reopen and click a project row to navigate
+    fireEvent.keyDown(window, { key: 't', code: 'KeyT' })
+    await waitFor(() => {
+      expect(screen.getByTestId('project-jump-modal')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('project-jump-item-DAV'))
+    })
+
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/DAV')
+    })
+    expect(screen.queryByTestId('project-jump-modal')).not.toBeInTheDocument()
+  })
+
+  it('ignores shortcut "t" inside a text input, then opens, filters to another project, and Enter navigates to it', async () => {
+    const router = createMemoryRouter(routes, {
+      initialEntries: ['/projects/DAV']
+    })
+    render(<App router={router} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    })
+
+    // 1. Pressing 't' inside an input must NOT open the project jump modal
+    const searchInput = screen.getByPlaceholderText(/Semantic search...|Search items.../i)
+    fireEvent.focus(searchInput)
+    fireEvent.keyDown(searchInput, { key: 't', code: 'KeyT' })
+    expect(screen.queryByTestId('project-jump-modal')).not.toBeInTheDocument()
+
+    // 2. Pressing 't' on window when not typing opens it
+    fireEvent.blur(searchInput)
+    fireEvent.keyDown(window, { key: 't', code: 'KeyT' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('project-jump-modal')).toBeInTheDocument()
+    })
+
+    // 3. Typing 'cems' filters out the current project
+    const jumpInput = screen.getByTestId('project-jump-input')
+    fireEvent.change(jumpInput, { target: { value: 'cems' } })
+
+    expect(screen.getByTestId('project-jump-item-CEMS')).toBeInTheDocument()
+    expect(screen.queryByTestId('project-jump-item-DAV')).not.toBeInTheDocument()
+
+    // 4. Enter selects the filtered project and closes the modal
+    fireEvent.keyDown(jumpInput, { key: 'Enter', code: 'Enter' })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('project-jump-modal')).not.toBeInTheDocument()
+    })
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/projects/CEMS')
+    })
+  })
+
+  it('does not open the project jump modal on shortcut "t" while a work item detail modal is open', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTestId('work-item-DAV-1'))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-detail-modal')).toBeInTheDocument()
+    })
+
+    // Body scroll is locked / sub-modal route is active, so 't' is a no-op
+    fireEvent.keyDown(window, { key: 't', code: 'KeyT' })
+
+    expect(screen.queryByTestId('project-jump-modal')).not.toBeInTheDocument()
   })
 
   it('updates document.title to "${item.key} | Davai" when navigating into work item modal and restores it on close', async () => {
