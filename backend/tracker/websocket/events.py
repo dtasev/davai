@@ -21,6 +21,58 @@ def notify_on_commit(topic: str, message: Dict[str, Any], origin_client_id: Opti
         # If no active transaction, dispatch directly
         _broadcast()
 
+def _tracking_user_ids(related_manager) -> list[int]:
+    """Return the user ids tracking an item via its `tracked_by` related manager."""
+    try:
+        return list(related_manager.values_list("user_id", flat=True))
+    except Exception as e:
+        logger.debug("Failed to resolve tracking users: %s", e)
+        return []
+
+def _emit_tracked_item_update(
+    user_ids,
+    *,
+    item_type: str,
+    key: str,
+    status: str,
+    title: Optional[str] = None,
+    project_key: Optional[str] = None,
+    origin_client_id: Optional[str] = None,
+):
+    """Pushes tracked_item.updated to each tracking user's personal topic.
+
+    The tracking drawer lives outside any project view, so it cannot rely on
+    `project:<key>` broadcasts; each tracker gets the update on `user:<id>`.
+    """
+    if not user_ids:
+        return
+    msg = {
+        "event": "tracked_item.updated",
+        "item_type": item_type,
+        "key": key,
+        "status": status,
+        "title": title,
+        "project_key": project_key,
+        "origin_client_id": origin_client_id,
+    }
+    for user_id in user_ids:
+        notify_on_commit(f"user:{user_id}", msg, origin_client_id)
+
+def _tracking_update_for_work_item(item, *, status=None, project_key=None, origin_client_id=None):
+    """Best-effort tracked_item.updated fan-out for a WorkItem (or support ticket)."""
+    try:
+        _emit_tracked_item_update(
+            _tracking_user_ids(item.tracked_by),
+            item_type="user_support" if getattr(item, "is_support", False) else "work_item",
+            key=item.key,
+            status=item.status if status is None else status,
+            title=item.title,
+            project_key=project_key,
+            origin_client_id=origin_client_id,
+        )
+    except Exception as e:
+        logger.debug("Failed to emit tracked_item.updated for %s: %s", getattr(item, "key", "?"), e)
+
 def emit_work_item_saved(item, created: bool):
     """Dispatches work_item.created or work_item.updated event."""
     origin_client_id = get_current_client_id()
@@ -79,6 +131,9 @@ def emit_work_item_saved(item, created: bool):
     notify_on_commit(f"project:{project_key}", msg, origin_client_id)
     notify_on_commit(f"item:{item.key}", msg, origin_client_id)
 
+    # Trackers may be outside the project view entirely (drawer / dashboard).
+    _tracking_update_for_work_item(item, project_key=project_key, origin_client_id=origin_client_id)
+
 def emit_work_item_deleted(project_key: str, key: str):
     origin_client_id = get_current_client_id()
     msg = {
@@ -122,7 +177,18 @@ def emit_progress_saved(progress, created: bool):
     notify_on_commit(f"project:{project_key}", msg, origin_client_id)
     notify_on_commit(f"item:{item.key}", msg, origin_client_id)
 
-def emit_progress_deleted(project_key: str, work_item_key: str, progress_id: int):
+    # WorkItem.status is derived from the latest Progress row (`models.py:295`),
+    # not from this row alone: `PATCH /work-items/{key}/progress/{id}` can edit an
+    # older entry, so `progress.status` is not always the item's status. Within the
+    # same transaction `item.status` sees the row just written.
+    _tracking_update_for_work_item(
+        item,
+        status=item.status,
+        project_key=project_key,
+        origin_client_id=origin_client_id,
+    )
+
+def emit_progress_deleted(project_key: str, work_item_key: str, progress_id: int, work_item=None):
     origin_client_id = get_current_client_id()
     msg = {
         "event": "progress.deleted",
@@ -133,6 +199,22 @@ def emit_progress_deleted(project_key: str, work_item_key: str, progress_id: int
     }
     notify_on_commit(f"project:{project_key}", msg, origin_client_id)
     notify_on_commit(f"item:{work_item_key}", msg, origin_client_id)
+
+    # Deleting the latest progress row rolls the work item status back to the
+    # previous entry, so push the recomputed status to every tracker.
+    if work_item is not None:
+        try:
+            recomputed_status = work_item.status
+        except Exception as e:
+            logger.debug("Failed to recompute status for %s: %s", work_item_key, e)
+            recomputed_status = None
+        if recomputed_status is not None:
+            _tracking_update_for_work_item(
+                work_item,
+                status=recomputed_status,
+                project_key=project_key,
+                origin_client_id=origin_client_id,
+            )
 
 def emit_incident_saved(incident, created: bool):
     if not getattr(incident, "project", None):
@@ -172,6 +254,19 @@ def emit_incident_saved(incident, created: bool):
             "origin_client_id": origin_client_id,
         }
     notify_on_commit(f"project:{project_key}", msg, origin_client_id)
+
+    try:
+        _emit_tracked_item_update(
+            _tracking_user_ids(incident.tracked_by),
+            item_type="incident",
+            key=incident.key,
+            status=incident.status,
+            title=incident.title,
+            project_key=project_key,
+            origin_client_id=origin_client_id,
+        )
+    except Exception as e:
+        logger.debug("Failed to emit tracked_item.updated for incident %s: %s", incident.key, e)
 
 def emit_incident_deleted(project_key: str, key: str):
     origin_client_id = get_current_client_id()
@@ -256,6 +351,19 @@ def emit_sprint_saved(sprint, created: bool):
     }
     notify_on_commit(f"project:{project_key}", msg, origin_client_id)
 
+    try:
+        _emit_tracked_item_update(
+            _tracking_user_ids(sprint.tracked_by),
+            item_type="sprint",
+            key=str(sprint.id),
+            status=sprint.status or "planned",
+            title=sprint.name,
+            project_key=project_key,
+            origin_client_id=origin_client_id,
+        )
+    except Exception as e:
+        logger.debug("Failed to emit tracked_item.updated for sprint %s: %s", sprint.id, e)
+
 def emit_sprint_deleted(project_key: str, sprint_id: int):
     origin_client_id = get_current_client_id()
     msg = {
@@ -287,6 +395,19 @@ def emit_release_saved(release, created: bool):
         "origin_client_id": origin_client_id,
     }
     notify_on_commit(f"project:{project_key}", msg, origin_client_id)
+
+    try:
+        _emit_tracked_item_update(
+            _tracking_user_ids(release.tracked_by),
+            item_type="release",
+            key=str(release.id),
+            status=release.status or "planned",
+            title=release.name,
+            project_key=project_key,
+            origin_client_id=origin_client_id,
+        )
+    except Exception as e:
+        logger.debug("Failed to emit tracked_item.updated for release %s: %s", release.id, e)
 
 def emit_release_deleted(project_key: str, release_id: int):
     origin_client_id = get_current_client_id()

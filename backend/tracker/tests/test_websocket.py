@@ -6,7 +6,7 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 from django.contrib.auth.models import User
 from core.asgi import application
-from tracker.models import Project, WorkItem, Progress, Incident, MonitoringLog, Sprint, Release
+from tracker.models import Project, WorkItem, Progress, Incident, MonitoringLog, Sprint, Release, TrackedItem
 from tracker.auth import generate_api_key
 from tracker.websocket.manager import ConnectionManager
 from tracker.websocket.context import set_current_client_id, reset_current_client_id
@@ -251,3 +251,246 @@ class TestWebSocketDirect:
         del_call_arg = mock_ws.send_json.call_args[0][0]
         assert del_call_arg["event"] == "work_item.deleted"
         assert del_call_arg["key"] == "WSPROJ-201"
+
+    @pytest.mark.asyncio
+    async def test_tracked_item_updated_reaches_tracking_user(self):
+        """A status change on a tracked item is pushed to the tracker's user topic.
+
+        The drawer is not project-scoped, so this event must arrive without any
+        project:<key> subscription.
+        """
+        from tracker.websocket.manager import manager as real_manager
+
+        loop = asyncio.get_running_loop()
+        real_manager.set_loop(loop)
+
+        item = await sync_to_async(WorkItem.objects.create)(
+            project=self.project,
+            key="WSPROJ-301",
+            title="Tracked Work Item",
+            created_by=self.user,
+        )
+        await sync_to_async(TrackedItem.objects.create)(user=self.user, work_item=item)
+        # Drain the tracked_item.created broadcast scheduled by the row above.
+        await asyncio.sleep(0.05)
+
+        mock_ws = AsyncMock()
+        await real_manager.connect(mock_ws, client_id="tracker-client", user_id=self.user.id)
+        await real_manager.subscribe(mock_ws, f"user:{self.user.id}")
+        try:
+            mock_ws.send_json.reset_mock()
+
+            await sync_to_async(Progress.objects.create)(
+                work_item=item,
+                summary="Finished the work",
+                proof="sha1",
+                status="done",
+                created_by=self.user,
+            )
+            await asyncio.sleep(0.05)
+
+            assert mock_ws.send_json.await_count == 1
+            event = mock_ws.send_json.call_args[0][0]
+            assert event["event"] == "tracked_item.updated"
+            assert event["item_type"] == "work_item"
+            assert event["key"] == "WSPROJ-301"
+            assert event["status"] == "done"
+            assert event["title"] == "Tracked Work Item"
+            assert event["project_key"] == "WSPROJ"
+        finally:
+            await real_manager.disconnect(mock_ws)
+
+    @pytest.mark.asyncio
+    async def test_tracked_item_updated_not_sent_to_non_tracking_user(self):
+        from tracker.websocket.manager import manager as real_manager
+
+        loop = asyncio.get_running_loop()
+        real_manager.set_loop(loop)
+
+        other_user = await sync_to_async(User.objects.create_user)(
+            username="otheruser", password="password123"
+        )
+        item = await sync_to_async(WorkItem.objects.create)(
+            project=self.project,
+            key="WSPROJ-302",
+            title="Tracked By Someone Else",
+            created_by=self.user,
+        )
+        await sync_to_async(TrackedItem.objects.create)(user=self.user, work_item=item)
+        await asyncio.sleep(0.05)
+
+        mock_ws = AsyncMock()
+        await real_manager.connect(mock_ws, client_id="other-client", user_id=other_user.id)
+        await real_manager.subscribe(mock_ws, f"user:{other_user.id}")
+        try:
+            mock_ws.send_json.reset_mock()
+
+            await sync_to_async(Progress.objects.create)(
+                work_item=item,
+                summary="Finished the work",
+                status="done",
+                created_by=self.user,
+            )
+            await asyncio.sleep(0.05)
+
+            mock_ws.send_json.assert_not_awaited()
+        finally:
+            await real_manager.disconnect(mock_ws)
+
+    @pytest.mark.asyncio
+    async def test_tracked_item_updated_on_progress_delete_recomputes_status(self):
+        """Deleting the latest progress row rolls the tracked status back."""
+        from tracker.websocket.manager import manager as real_manager
+
+        loop = asyncio.get_running_loop()
+        real_manager.set_loop(loop)
+
+        item = await sync_to_async(WorkItem.objects.create)(
+            project=self.project,
+            key="WSPROJ-303",
+            title="Status Rollback",
+            created_by=self.user,
+        )
+        await sync_to_async(TrackedItem.objects.create)(user=self.user, work_item=item)
+        await sync_to_async(Progress.objects.create)(
+            work_item=item,
+            summary="Started",
+            status="in progress",
+            created_by=self.user,
+        )
+        done_progress = await sync_to_async(Progress.objects.create)(
+            work_item=item,
+            summary="Finished",
+            status="done",
+            created_by=self.user,
+        )
+        derived_before = await sync_to_async(getattr)(item, "status")
+        assert derived_before == "done"
+        # Drain the tracked_item.updated pushes from the two progress saves above.
+        await asyncio.sleep(0.05)
+
+        mock_ws = AsyncMock()
+        await real_manager.connect(mock_ws, client_id="tracker-client-3", user_id=self.user.id)
+        await real_manager.subscribe(mock_ws, f"user:{self.user.id}")
+        try:
+            mock_ws.send_json.reset_mock()
+
+            # post_delete signal -> emit_progress_deleted(..., work_item=item)
+            await sync_to_async(done_progress.delete)()
+            await asyncio.sleep(0.05)
+
+            assert mock_ws.send_json.await_count == 1
+            event = mock_ws.send_json.call_args[0][0]
+            assert event["event"] == "tracked_item.updated"
+            assert event["item_type"] == "work_item"
+            assert event["key"] == "WSPROJ-303"
+            assert event["status"] == "in progress"
+        finally:
+            await real_manager.disconnect(mock_ws)
+
+    @pytest.mark.asyncio
+    async def test_progress_deleted_without_work_item_or_trackers_emits_nothing(self):
+        """The work_item=None / no-trackers branches are safe no-ops for user topics."""
+        from tracker.websocket.events import emit_progress_deleted
+        from tracker.websocket.manager import manager as real_manager
+
+        loop = asyncio.get_running_loop()
+        real_manager.set_loop(loop)
+
+        item = await sync_to_async(WorkItem.objects.create)(
+            project=self.project,
+            key="WSPROJ-304",
+            title="Nobody Tracks This",
+            created_by=self.user,
+        )
+
+        mock_ws = AsyncMock()
+        await real_manager.connect(mock_ws, client_id="untracked-client", user_id=self.user.id)
+        await real_manager.subscribe(mock_ws, f"user:{self.user.id}")
+        try:
+            mock_ws.send_json.reset_mock()
+
+            # work_item=None: no recomputed status to push, must not raise.
+            await sync_to_async(emit_progress_deleted)("WSPROJ", "WSPROJ-304", 4242, work_item=None)
+            # work_item present but no TrackedItem rows: empty tracking list, no-op.
+            await sync_to_async(emit_progress_deleted)("WSPROJ", item.key, 4243, work_item=item)
+            await asyncio.sleep(0.05)
+
+            mock_ws.send_json.assert_not_awaited()
+        finally:
+            await real_manager.disconnect(mock_ws)
+
+    @pytest.mark.asyncio
+    async def test_tracked_item_updated_for_incident_sprint_and_release(self):
+        from tracker.websocket.manager import manager as real_manager
+
+        loop = asyncio.get_running_loop()
+        real_manager.set_loop(loop)
+
+        incident = await sync_to_async(Incident.objects.create)(
+            project=self.project,
+            key="WSPROJ-INC-2",
+            title="Tracked Incident",
+            status="reported",
+            created_by=self.user,
+        )
+        sprint = await sync_to_async(Sprint.objects.create)(
+            project=self.project,
+            name="Tracked Sprint",
+        )
+        release = await sync_to_async(Release.objects.create)(
+            project=self.project,
+            name="Tracked Release",
+        )
+        await sync_to_async(TrackedItem.objects.create)(user=self.user, incident=incident)
+        await sync_to_async(TrackedItem.objects.create)(user=self.user, sprint=sprint)
+        await sync_to_async(TrackedItem.objects.create)(user=self.user, release=release)
+        await asyncio.sleep(0.05)
+
+        mock_ws = AsyncMock()
+        await real_manager.connect(mock_ws, client_id="tracker-client-2", user_id=self.user.id)
+        await real_manager.subscribe(mock_ws, f"user:{self.user.id}")
+        try:
+            # 1. Incident
+            mock_ws.send_json.reset_mock()
+            incident.status = "done"
+            await sync_to_async(incident.save)()
+            await asyncio.sleep(0.05)
+
+            assert mock_ws.send_json.await_count == 1
+            inc_event = mock_ws.send_json.call_args[0][0]
+            assert inc_event["event"] == "tracked_item.updated"
+            assert inc_event["item_type"] == "incident"
+            assert inc_event["key"] == "WSPROJ-INC-2"
+            assert inc_event["status"] == "done"
+            assert inc_event["title"] == "Tracked Incident"
+
+            # 2. Sprint
+            mock_ws.send_json.reset_mock()
+            sprint.status = "done"
+            await sync_to_async(sprint.save)()
+            await asyncio.sleep(0.05)
+
+            assert mock_ws.send_json.await_count == 1
+            sprint_event = mock_ws.send_json.call_args[0][0]
+            assert sprint_event["event"] == "tracked_item.updated"
+            assert sprint_event["item_type"] == "sprint"
+            assert sprint_event["key"] == str(sprint.id)
+            assert sprint_event["status"] == "done"
+            assert sprint_event["title"] == "Tracked Sprint"
+
+            # 3. Release
+            mock_ws.send_json.reset_mock()
+            release.status = "in progress"
+            await sync_to_async(release.save)()
+            await asyncio.sleep(0.05)
+
+            assert mock_ws.send_json.await_count == 1
+            release_event = mock_ws.send_json.call_args[0][0]
+            assert release_event["event"] == "tracked_item.updated"
+            assert release_event["item_type"] == "release"
+            assert release_event["key"] == str(release.id)
+            assert release_event["status"] == "in progress"
+            assert release_event["title"] == "Tracked Release"
+        finally:
+            await real_manager.disconnect(mock_ws)

@@ -28,6 +28,21 @@ const TrackedItemsContext = createContext<TrackedItemsContextType | null>(null)
 
 const KEY_IDENT_TYPES: readonly TrackedItemType[] = ['work_item', 'user_support', 'incident']
 
+/**
+ * Whether a tracked row is the target of an event.
+ * Keys are compared case-insensitively; when the event names an item type the row
+ * must match it too, so a key collision between item types cannot corrupt a row.
+ */
+function matchesEventTarget(row: TrackedItem, targetKey: string, itemType?: string): boolean {
+  if (!row.key || row.key.toUpperCase() !== targetKey) {
+    return false
+  }
+  if (itemType && row.item_type?.toLowerCase() !== itemType.toLowerCase()) {
+    return false
+  }
+  return true
+}
+
 export function TrackedItemsProvider({ children }: { children: React.ReactNode }) {
   const { userProfile } = useApp()
   const [trackedItems, setTrackedItems] = useState<TrackedItem[]>([])
@@ -86,10 +101,15 @@ export function TrackedItemsProvider({ children }: { children: React.ReactNode }
     const unsubItemUpdated = ws.on('work_item.updated', (event) => {
       const targetKey = event.key?.toUpperCase()
       const newStatus = event.changes?.status
-      if (!targetKey || !newStatus) return
+      const newTitle = event.changes?.title
+      if (!targetKey || (!newStatus && !newTitle)) return
       setTrackedItems(prev => prev.map(row => {
-        if (row.key?.toUpperCase() === targetKey) {
-          return { ...row, status: newStatus }
+        if (matchesEventTarget(row, targetKey, 'work_item')) {
+          return {
+            ...row,
+            status: newStatus ?? row.status,
+            title: newTitle ?? row.title
+          }
         }
         return row
       }))
@@ -100,20 +120,30 @@ export function TrackedItemsProvider({ children }: { children: React.ReactNode }
       const newStatus = event.changes?.status
       if (!targetKey || !newStatus) return
       setTrackedItems(prev => prev.map(row => {
-        if (row.key?.toUpperCase() === targetKey) {
+        if (matchesEventTarget(row, targetKey, 'incident')) {
           return { ...row, status: newStatus }
         }
         return row
       }))
     })
 
+    // User-topic fan-out: covers items tracked in projects the browser is not viewing.
     const unsubTrackedUpdated = ws.on('tracked_item.updated', (event) => {
       const targetKey = event.key?.toUpperCase()
+      if (!targetKey) return
       const newStatus = event.status
-      if (!targetKey || !newStatus) return
+      const newTitle = event.title
+      const newProjectKey = event.project_key
+      const eventItemType = typeof event.item_type === 'string' ? event.item_type : undefined
+      if (!newStatus && !newTitle && !newProjectKey) return
       setTrackedItems(prev => prev.map(row => {
-        if (row.key?.toUpperCase() === targetKey) {
-          return { ...row, status: newStatus }
+        if (matchesEventTarget(row, targetKey, eventItemType)) {
+          return {
+            ...row,
+            status: newStatus ?? row.status,
+            title: newTitle ?? row.title,
+            project_key: newProjectKey ?? row.project_key
+          }
         }
         return row
       }))

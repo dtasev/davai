@@ -641,7 +641,7 @@ def handle_progress_deleted(sender, instance, **kwargs):
         item = getattr(instance, "work_item", None)
         project_key = item.project.key if item and getattr(item, "project", None) else ""
         item_key = item.key if item else ""
-        emit_progress_deleted(project_key, item_key, instance.id)
+        emit_progress_deleted(project_key, item_key, instance.id, work_item=item)
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("Failed to emit websocket event for deleted progress: %s", e)
