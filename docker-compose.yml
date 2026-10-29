@@ -45,6 +45,15 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-davai}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-davai_dev_secret_password_6477}
       - OIDC_ISSUER_URL=${OIDC_ISSUER_URL:-https://davai.dtasev.co.uk/authelia}
+      # OIDC endpoint overrides. Left empty they fall back to values derived from
+      # OIDC_ISSUER_URL (core/settings.py), which is what explicitly-configured or
+      # HTTPS/tunnel setups need. The plain-HTTP local stack sets all four in .env
+      # (see .env.example → "Local plain-HTTP OIDC overrides", and the nginx
+      # /authelia-internal block, which keeps the OIDC issuer HTTPS-consistent).
+      - OIDC_AUTHORIZATION_URL=${OIDC_AUTHORIZATION_URL:-}
+      - OIDC_TOKEN_URL=${OIDC_TOKEN_URL:-}
+      - OIDC_USERINFO_URL=${OIDC_USERINFO_URL:-}
+      - OIDC_JWKS_URL=${OIDC_JWKS_URL:-}
     restart: unless-stopped
 
   frontend:

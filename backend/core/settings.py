@@ -127,14 +127,23 @@ AUTHELIA_AUTH_URL = os.environ.get(
     "http://authelia:9091/api/authz/auth-request"
 )
 
-OIDC_ISSUER_URL = os.environ.get(
+def _env_nonempty(name: str, default: str) -> str:
+    """Env var value, treating unset *or empty/whitespace* as absent.
+
+    Compose passes `VAR=` for unset overrides, so plain `os.environ.get(name, default)`
+    would yield an empty URL/base instead of the derived default.
+    """
+    return (os.environ.get(name) or "").strip() or default
+
+
+OIDC_ISSUER_URL = _env_nonempty(
     "OIDC_ISSUER_URL",
     "https://davai.dtasev.co.uk/authelia"
 ).rstrip("/")
 
 OIDC_AUDIENCE = os.environ.get("OIDC_AUDIENCE", "davai")
-OIDC_JWKS_URL = os.environ.get("OIDC_JWKS_URL", f"{OIDC_ISSUER_URL}/jwks.json")
-OIDC_USERINFO_URL = os.environ.get("OIDC_USERINFO_URL", f"{OIDC_ISSUER_URL}/api/oidc/userinfo")
+OIDC_JWKS_URL = _env_nonempty("OIDC_JWKS_URL", f"{OIDC_ISSUER_URL}/jwks.json")
+OIDC_USERINFO_URL = _env_nonempty("OIDC_USERINFO_URL", f"{OIDC_ISSUER_URL}/api/oidc/userinfo")
 OIDC_FORWARDED_HOST = os.environ.get("OIDC_FORWARDED_HOST", "davai-dev.ecmwf.int")
 
 # Session Cookie configuration
@@ -146,8 +155,10 @@ SESSION_COOKIE_AGE = 86400 * 7  # 7 days
 # OIDC Client settings for Backend-driven flow (mozilla-django-oidc & custom views)
 OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "davai")
 OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "davai_oidc_client_secret_dev_key_40_chars_min")
-OIDC_TOKEN_URL = os.environ.get("OIDC_TOKEN_URL", f"{OIDC_ISSUER_URL}/api/oidc/token")
-OIDC_AUTHORIZATION_URL = os.environ.get("OIDC_AUTHORIZATION_URL", f"{OIDC_ISSUER_URL}/api/oidc/authorization")
+OIDC_TOKEN_URL = _env_nonempty("OIDC_TOKEN_URL", f"{OIDC_ISSUER_URL}/api/oidc/token")
+OIDC_AUTHORIZATION_URL = _env_nonempty(
+    "OIDC_AUTHORIZATION_URL", f"{OIDC_ISSUER_URL}/api/oidc/authorization"
+)
 OIDC_REDIRECT_URI = os.environ.get("OIDC_REDIRECT_URI", "")
 OIDC_SCOPES = os.environ.get("OIDC_SCOPES", "openid email")
 

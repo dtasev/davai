@@ -1,4 +1,5 @@
 import pytest
+from django.test import override_settings
 from tracker.models import WorkItem, Project, APIKey, Sprint, Release
 
 @pytest.mark.django_db
@@ -136,6 +137,13 @@ class TestNinjaAPI:
         state = list(states.keys())[0]
         assert states[state].get("code_verifier") is not None
 
+    @override_settings(
+        # Pin the authorization endpoint so the assertion does not depend on the
+        # ambient OIDC_* env (compose injects a local-dev authorize URL, k8s injects
+        # the Keycloak one). mozilla-django-oidc reads this setting per request.
+        OIDC_AUTHORIZATION_URL="https://davai.dtasev.co.uk/authelia/api/oidc/authorization",
+        OIDC_OP_AUTHORIZATION_ENDPOINT="https://davai.dtasev.co.uk/authelia/api/oidc/authorization",
+    )
     def test_oidc_login_redirect_with_forwarded_headers(self, client):
         response = client.get(
             "/api/auth/login",
