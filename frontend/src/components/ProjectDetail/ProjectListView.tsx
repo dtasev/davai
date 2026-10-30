@@ -39,6 +39,8 @@ interface ProjectListViewProps {
     sprint_id?: number | null
     release_id?: number | null
   }) => Promise<void>
+  isCreateItemOpen?: boolean
+  onCloseCreateItem?: () => void
 }
 
 export function ProjectListView({
@@ -57,7 +59,9 @@ export function ProjectListView({
   onOpenAllReleases,
   onCreateSprint,
   onCreateRelease,
-  onCreateWorkItem
+  onCreateWorkItem,
+  isCreateItemOpen,
+  onCloseCreateItem
 }: ProjectListViewProps) {
   return (
     <div className="space-y-8" data-testid="project-list-view">
@@ -95,6 +99,8 @@ export function ProjectListView({
           currentUsername={currentUsername}
           onSelectWorkItem={onSelectWorkItem}
           onCreateWorkItem={onCreateWorkItem}
+          isCreateOpen={isCreateItemOpen}
+          onCloseCreate={onCloseCreateItem}
         />
       </section>
     </div>

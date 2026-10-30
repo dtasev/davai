@@ -103,32 +103,43 @@ export function ProjectDetailRoute() {
   const [monitoringLogs, setMonitoringLogs] = useState<MonitoringLog[]>([])
   const [loadingDetails, setLoadingDetails] = useState(true)
   const [isQuickJumpOpen, setIsQuickJumpOpen] = useState(false)
+  const [isCreateItemOpen, setIsCreateItemOpen] = useState(false)
 
-  // Global 'g' keyboard shortcut to open quick jump modal on /projects/:projectKey
+  // Global project-detail shortcuts:
+  //   'g' / 'G' -> open the quick jump modal
+  //   'c' / 'C' -> open the "create new" form of the currently active view
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore modifier-key combos and keypresses while typing in a form field
       if (shouldIgnoreAppShortcut(e)) return
 
-      // Only trigger on 'g' or 'G'
-      if (e.key !== 'g' && e.key !== 'G') return
+      const isQuickJumpKey = e.key === 'g' || e.key === 'G'
+      const isCreateKey = e.key === 'c' || e.key === 'C'
+      if (!isQuickJumpKey && !isCreateKey) return
 
       // Check if a sub-modal route (items, user-support, sprints, releases, incidents, monitoring-logs) is currently open
       const isSubModalRoute = /^\/projects\/[^/]+\/(items|user-support|sprints|releases|incidents|monitoring-logs)(\/|$)/i.test(location.pathname)
       if (isSubModalRoute) return
 
+      // The quick jump modal must win over the create shortcut
+      if (isCreateKey && isQuickJumpOpen) return
+
       // Check if another modal has locked body scroll
       if (document.body.style.overflow === 'hidden') return
 
       e.preventDefault()
-      setIsQuickJumpOpen(true)
+      if (isQuickJumpKey) {
+        setIsQuickJumpOpen(true)
+      } else {
+        setIsCreateItemOpen(true)
+      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [location.pathname])
+  }, [location.pathname, isQuickJumpOpen])
 
   const handleSelectQuickJumpItem = (item: WorkItem) => {
     startTransition(() => {
@@ -928,6 +939,8 @@ export function ProjectDetailRoute() {
         onCreateIncident={handleCreateIncident}
         onCreateMonitoringLog={handleCreateMonitoringLog}
         onOpenQuickJump={() => setIsQuickJumpOpen(true)}
+        isCreateItemOpen={isCreateItemOpen}
+        onCloseCreateItem={() => setIsCreateItemOpen(false)}
       />
 
       <QuickJumpModal

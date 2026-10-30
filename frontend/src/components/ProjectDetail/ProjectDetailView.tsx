@@ -29,6 +29,8 @@ interface ProjectDetailViewProps {
   onBack: () => void
   onRefresh: () => void
   onOpenQuickJump?: () => void
+  isCreateItemOpen?: boolean
+  onCloseCreateItem?: () => void
   onSelectSprint: (sprint: Sprint) => void
   onSelectRelease: (release: Release) => void
   onSelectWorkItem: (item: WorkItem) => void
@@ -93,6 +95,8 @@ export function ProjectDetailView({
   onBack,
   onRefresh,
   onOpenQuickJump,
+  isCreateItemOpen,
+  onCloseCreateItem,
   onSelectSprint,
   onSelectRelease,
   onSelectWorkItem,
@@ -376,6 +380,8 @@ export function ProjectDetailView({
               onCreateSprint={onCreateSprint}
               onCreateRelease={onCreateRelease}
               onCreateWorkItem={onCreateWorkItem}
+              isCreateItemOpen={isCreateItemOpen}
+              onCloseCreateItem={onCloseCreateItem}
             />
           )}
           {activeView === 'board' && (
@@ -390,6 +396,8 @@ export function ProjectDetailView({
               onSelectWorkItem={onSelectWorkItem}
               onUpdateStatus={onUpdateStatus}
               onCreateWorkItem={onCreateWorkItem}
+              isCreateOpen={isCreateItemOpen}
+              onCloseCreate={onCloseCreateItem}
             />
           )}
           {activeView === 'user-support' && (
@@ -408,6 +416,8 @@ export function ProjectDetailView({
                   await onCreateWorkItem(data)
                 }
               }}
+              isCreateOpen={isCreateItemOpen}
+              onCloseCreate={onCloseCreateItem}
             />
           )}
           {activeView === 'incidents' && (
@@ -418,6 +428,8 @@ export function ProjectDetailView({
               onCreateIncident={async data => {
                 await onCreateIncident?.(data)
               }}
+              isCreateOpen={isCreateItemOpen}
+              onCloseCreate={onCloseCreateItem}
             />
           )}
           {activeView === 'monitoring-logs' && (
@@ -428,6 +440,8 @@ export function ProjectDetailView({
               onCreateMonitoringLog={async data => {
                 await onCreateMonitoringLog?.(data)
               }}
+              isCreateOpen={isCreateItemOpen}
+              onCloseCreate={onCloseCreateItem}
             />
           )}
         </main>

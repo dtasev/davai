@@ -1,4 +1,4 @@
-import { useState, useMemo, FormEvent, DragEvent } from 'react'
+import { useState, useMemo, useRef, useEffect, FormEvent, DragEvent } from 'react'
 import {
   Columns3,
   Plus,
@@ -32,6 +32,10 @@ interface KanbanBoardProps {
     sprint_id?: number | null
     release_id?: number | null
   }) => Promise<void>
+  /** Controlled open state for the create modal (e.g. driven by the 'c' shortcut) */
+  isCreateOpen?: boolean
+  /** Called when the controlled create modal should close */
+  onCloseCreate?: () => void
 }
 
 export function KanbanBoard({
@@ -44,7 +48,9 @@ export function KanbanBoard({
   currentUsername,
   onSelectWorkItem,
   onUpdateStatus,
-  onCreateWorkItem
+  onCreateWorkItem,
+  isCreateOpen,
+  onCloseCreate
 }: KanbanBoardProps) {
   const [search, setSearch] = useState('')
   const [sprintFilter, setSprintFilter] = useState<string>('ALL')
@@ -90,6 +96,24 @@ export function KanbanBoard({
     }
     return DEFAULT_PROJECT_STATUSES
   }, [statuses])
+
+  // The create modal can also be opened from the outside (`isCreateOpen`, e.g. the
+  // 'c' shortcut); the local state keeps working as the uncontrolled fallback.
+  const isCreateModalOpen = Boolean(isCreateOpen) || isModalOpen
+  const closeCreateModal = () => {
+    setIsModalOpen(false)
+    onCloseCreate?.()
+  }
+
+  // Externally opened create modal (e.g. 'c' shortcut) targets the first status
+  // column, matching the header "New Item" button.
+  const prevIsCreateOpenRef = useRef(false)
+  useEffect(() => {
+    if (isCreateOpen && !prevIsCreateOpenRef.current) {
+      setStatus(effectiveStatuses[0]?.name || 'todo')
+    }
+    prevIsCreateOpenRef.current = Boolean(isCreateOpen)
+  }, [isCreateOpen, effectiveStatuses])
 
   const filteredItems = useMemo(() => {
     return workItems.filter(item => {
@@ -191,7 +215,7 @@ export function KanbanBoard({
         sprint_id: sprintId ? parseInt(sprintId, 10) : null,
         release_id: releaseId ? parseInt(releaseId, 10) : null
       })
-      setIsModalOpen(false)
+      closeCreateModal()
       setTitle('')
       setDescription('')
       setParentKey('')
@@ -277,12 +301,15 @@ export function KanbanBoard({
           {onCreateWorkItem && (
             <button
               onClick={() => openCreateModalForStatus(effectiveStatuses[0]?.name || 'todo')}
-              title="New Item"
+              title="New Item (Press C)"
               aria-label="New Item"
               className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm shrink-0"
               data-testid="kanban-create-item-button"
             >
               <Plus className="w-3.5" strokeWidth={3} />
+              <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-zinc-800 border border-zinc-700/80 rounded text-zinc-400 leading-none">
+                C
+              </kbd>
             </button>
           )}
         </div>
@@ -436,8 +463,8 @@ export function KanbanBoard({
 
       {/* Modal: New Work Item */}
       <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isCreateModalOpen}
+        onClose={closeCreateModal}
         closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
@@ -447,7 +474,7 @@ export function KanbanBoard({
         }
         maxWidth="max-w-lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-3.5">
+        <form onSubmit={handleSubmit} className="space-y-3.5" data-testid="create-work-item-form">
           <div>
             <label className="block text-[11px] font-semibold text-zinc-300 uppercase tracking-wider mb-1">
               Title
@@ -458,6 +485,7 @@ export function KanbanBoard({
               placeholder="e.g. Implement user authentication flow"
               value={title}
               onChange={e => setTitle(e.target.value)}
+              data-testid="create-work-item-title-input"
               className="w-full px-3 py-1.5 rounded-lg bg-zinc-950 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-sm text-zinc-200"
             />
           </div>
@@ -567,7 +595,7 @@ export function KanbanBoard({
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800/60">
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={closeCreateModal}
               className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel

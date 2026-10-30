@@ -2070,6 +2070,165 @@ describe('Davai Frontend App with React Router', () => {
     expect(screen.queryByTestId('project-jump-modal')).not.toBeInTheDocument()
   })
 
+  it('opens the work item create modal on shortcut "c" (and "C") and closes it with Escape', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    })
+
+    // 1. Lowercase 'c' opens the create form of the active list view
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+    })
+    expect(screen.getByTestId('create-work-item-title-input')).toBeInTheDocument()
+
+    // 2. Escape closes it and returns to the normal view
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+    })
+
+    // 3. Uppercase 'C' works too
+    fireEvent.keyDown(window, { key: 'C', code: 'KeyC' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+    })
+  })
+
+  it('does not open the work item create modal on shortcut "c" while typing in the search input', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    })
+
+    const searchInput = screen.getByPlaceholderText(/Semantic search...|Search items.../i)
+    fireEvent.focus(searchInput)
+    fireEvent.keyDown(searchInput, { key: 'c', code: 'KeyC' })
+
+    expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+  })
+
+  it('does not open the create modal on shortcut "c" while a work item detail modal is open', async () => {
+    await renderWithRouter(['/projects/DAV/items/DAV-1'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-detail-modal')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+
+    expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+  })
+
+  it('does not open the create modal on shortcut "c" while the quick jump modal is open', async () => {
+    await renderWithRouter(['/projects/DAV'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'g', code: 'KeyG' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-jump-modal')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+
+    expect(screen.getByTestId('quick-jump-modal')).toBeInTheDocument()
+    expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+  })
+
+  it('opens the incident create modal on shortcut "c" when the incidents view is active', async () => {
+    await renderWithRouter(['/projects/DAV?view=incidents'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('incident-list-view')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-incident-form')).toBeInTheDocument()
+    })
+  })
+
+  it('opens the user support create modal on shortcut "c" when the user-support view is active', async () => {
+    await renderWithRouter(['/projects/DAV?view=user-support'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('user-support-list-view')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-user-support-form')).toBeInTheDocument()
+    })
+  })
+
+  it('opens the monitoring log create modal on shortcut "c" when the monitoring-logs view is active', async () => {
+    await renderWithRouter(['/projects/DAV?view=monitoring-logs'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('monitoring-log-list-view')).toBeInTheDocument()
+    })
+
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-monitoring-log-form')).toBeInTheDocument()
+    })
+  })
+
+  it('opens a work item create modal on shortcut "c" in the board view with the first column as default status', async () => {
+    await renderWithRouter(['/projects/DAV?view=board'])
+
+    await waitFor(() => {
+      expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+    })
+
+    // 1. A per-column "+" opens the form with THAT column's status preselected (not the first one)
+    const inProgressColumn = screen.getByTestId('kanban-column-in-progress')
+    await act(async () => {
+      fireEvent.click(within(inProgressColumn).getByTitle('Add item to In Progress'))
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+    })
+
+    // Combobox order in the create form: [0] Status, [1] Priority, [2] Sprint, [3] Release
+    const columnForm = screen.getByTestId('create-work-item-form')
+    expect(within(columnForm).getAllByRole('combobox')[0]).toHaveValue('in progress')
+
+    // 2. Cancel it, leaving the form's remembered status on the non-first column
+    await act(async () => {
+      fireEvent.click(within(columnForm).getByRole('button', { name: 'Cancel' }))
+    })
+    await waitFor(() => {
+      expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+    })
+
+    // 3. The 'c' shortcut always targets the FIRST status column, so the leftover
+    //    "in progress" selection must be reset (KanbanBoard's isCreateOpen reset effect)
+    fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+    })
+
+    const form = screen.getByTestId('create-work-item-form')
+    expect(screen.getByTestId('create-work-item-title-input')).toBeInTheDocument()
+    expect(within(form).getAllByRole('combobox')[0]).toHaveValue('todo')
+  })
+
   it('updates document.title to "${item.key} | Davai" when navigating into work item modal and restores it on close', async () => {
     document.title = 'Davai - Work Management'
     await renderWithRouter(['/projects/DAV'])

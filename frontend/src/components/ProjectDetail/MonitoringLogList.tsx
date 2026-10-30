@@ -28,16 +28,30 @@ interface MonitoringLogListProps {
     incident_id?: string | null
     jira_url?: string
   }) => Promise<void>
+  /** Controlled open state for the create modal (e.g. driven by the 'c' shortcut) */
+  isCreateOpen?: boolean
+  /** Called when the controlled create modal should close */
+  onCloseCreate?: () => void
 }
 
 export function MonitoringLogList({
   monitoringLogs,
   onSelectMonitoringLog,
-  onCreateMonitoringLog
+  onCreateMonitoringLog,
+  isCreateOpen,
+  onCloseCreate
 }: MonitoringLogListProps) {
   const [search, setSearch] = useState('')
   const [searchMode, setSearchMode] = useState<'hybrid' | 'keyword'>('keyword')
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // The create modal can also be opened from the outside (`isCreateOpen`, e.g. the
+  // 'c' shortcut); the local state keeps working as the uncontrolled fallback.
+  const isCreateModalOpen = Boolean(isCreateOpen) || isModalOpen
+  const closeCreateModal = () => {
+    setIsModalOpen(false)
+    onCloseCreate?.()
+  }
 
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(() =>
     DEFAULT_MONITORING_LOG_STATUSES.map(st => st.name.toLowerCase())
@@ -89,7 +103,7 @@ export function MonitoringLogList({
         incident_id: incidentIdInput.trim() || null,
         jira_url: jiraUrl.trim()
       })
-      setIsModalOpen(false)
+      closeCreateModal()
       setAgentId('')
       setDescription('')
       setStatus('ok')
@@ -170,11 +184,15 @@ export function MonitoringLogList({
 
           <button
             onClick={() => setIsModalOpen(true)}
+            title="New Monitoring Log (Press C)"
             className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm shrink-0"
             data-testid="create-monitoring-log-button"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>New Log</span>
+            <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-zinc-800 border border-zinc-700/80 rounded text-zinc-400 leading-none">
+              C
+            </kbd>
           </button>
         </div>
       </div>
@@ -243,8 +261,8 @@ export function MonitoringLogList({
 
       {/* Modal: New Monitoring Log */}
       <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        isOpen={isCreateModalOpen}
+        onClose={closeCreateModal}
         closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
@@ -337,7 +355,7 @@ export function MonitoringLogList({
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800/60">
             <button
               type="button"
-              onClick={() => setIsModalOpen(false)}
+              onClick={closeCreateModal}
               className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel
