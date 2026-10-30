@@ -1,4 +1,4 @@
-import { MouseEvent, useMemo, useState } from 'react'
+import { KeyboardEvent, MouseEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Menu,
@@ -88,12 +88,35 @@ const SECTIONS: SectionConfig[] = [
 ]
 
 const DRAWER_OPEN_KEY = 'davai_drawer_open'
+const DRAWER_WIDTH_KEY = 'davai_drawer_width'
+
+const DRAWER_DEFAULT_WIDTH = 360
+const DRAWER_MIN_WIDTH = 260
+const DRAWER_MAX_WIDTH = 720
+/** Pixels per arrow-key press when resizing from the keyboard. */
+const RESIZE_KEY_STEP = 16
 
 function readInitialOpen(): boolean {
   try {
     return localStorage.getItem(DRAWER_OPEN_KEY) === 'true'
   } catch {
     return false
+  }
+}
+
+function clampDrawerWidth(width: number): number {
+  if (!Number.isFinite(width)) return DRAWER_DEFAULT_WIDTH
+  return Math.min(DRAWER_MAX_WIDTH, Math.max(DRAWER_MIN_WIDTH, Math.round(width)))
+}
+
+function readInitialWidth(): number {
+  try {
+    const raw = localStorage.getItem(DRAWER_WIDTH_KEY)
+    if (!raw) return DRAWER_DEFAULT_WIDTH
+    const parsed = Number.parseInt(raw, 10)
+    return Number.isFinite(parsed) ? clampDrawerWidth(parsed) : DRAWER_DEFAULT_WIDTH
+  } catch {
+    return DRAWER_DEFAULT_WIDTH
   }
 }
 
@@ -122,6 +145,8 @@ export function TrackingDrawer() {
   const { trackedItems, loadingTracked, removeTrack, clearDone } = useTrackedItems()
   const navigate = useNavigate()
   const [open, setOpen] = useState<boolean>(readInitialOpen)
+  const [width, setWidth] = useState<number>(readInitialWidth)
+  const [resizing, setResizing] = useState(false)
 
   const setDrawerOpen = (next: boolean) => {
     setOpen(next)
@@ -129,6 +154,67 @@ export function TrackingDrawer() {
       localStorage.setItem(DRAWER_OPEN_KEY, String(next))
     } catch {
       // Private-browsing localStorage failures are non-fatal.
+    }
+  }
+
+  // Persist the width whenever a drag finishes (resizing -> false) or the width
+  // changes from the keyboard, not on every mousemove.
+  useEffect(() => {
+    if (resizing) return
+    try {
+      localStorage.setItem(DRAWER_WIDTH_KEY, String(width))
+    } catch {
+      // Private-browsing localStorage failures are non-fatal.
+    }
+  }, [width, resizing])
+
+  // Tear down an in-flight drag if the drawer unmounts mid-drag (the window
+  // listeners and the body cursor/user-select overrides would otherwise leak).
+  const endDragRef = useRef<(() => void) | null>(null)
+  useEffect(() => () => endDragRef.current?.(), [])
+
+  const handleResizeStart = (event: MouseEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    // preventDefault() suppresses the implicit focus on mousedown.
+    event.currentTarget.focus()
+    const startX = event.clientX
+    const startWidth = width
+    setResizing(true)
+
+    const handleMove = (moveEvent: globalThis.MouseEvent) => {
+      setWidth(clampDrawerWidth(startWidth + moveEvent.clientX - startX))
+    }
+    const endDrag = () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', endDrag)
+      window.removeEventListener('blur', endDrag)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+      endDragRef.current = null
+      setResizing(false)
+    }
+    endDragRef.current = endDrag
+
+    // Suppress text selection / keep the col-resize cursor while dragging
+    // outside the handle. `blur` covers losing the mouseup outside the window.
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', endDrag)
+    window.addEventListener('blur', endDrag)
+  }
+
+  const handleResizeKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? RESIZE_KEY_STEP * 2 : RESIZE_KEY_STEP
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      setWidth(current => clampDrawerWidth(current - step))
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      setWidth(current => clampDrawerWidth(current + step))
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      setWidth(DRAWER_DEFAULT_WIDTH)
     }
   }
 
@@ -170,11 +256,37 @@ export function TrackingDrawer() {
 
   return (
     <aside
-      className={`shrink-0 border-r border-zinc-800/80 bg-zinc-900/40 flex flex-col transition-all ${
-        open ? 'w-[360px]' : 'w-11'
-      }`}
+      className={`relative shrink-0 border-r border-zinc-800/80 bg-zinc-900/40 flex flex-col ${
+        resizing ? '' : 'transition-[width] duration-150'
+      } ${open ? '' : 'w-11'}`}
+      style={open ? { width: `${width}px` } : undefined}
       data-testid={open ? 'tracking-drawer' : undefined}
     >
+      {open && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize tracking drawer"
+          aria-valuemin={DRAWER_MIN_WIDTH}
+          aria-valuemax={DRAWER_MAX_WIDTH}
+          aria-valuenow={width}
+          tabIndex={0}
+          data-testid="drawer-resize-handle"
+          title="Drag to resize · double-click to reset"
+          onMouseDown={handleResizeStart}
+          onDoubleClick={() => setWidth(DRAWER_DEFAULT_WIDTH)}
+          onKeyDown={handleResizeKeyDown}
+          className="group absolute inset-y-0 right-0 w-1.5 cursor-col-resize z-10 flex justify-center focus:outline-none"
+        >
+          <span
+            className={`h-full w-0.5 rounded-full transition-colors ${
+              resizing
+                ? 'bg-indigo-400'
+                : 'bg-transparent group-hover:bg-indigo-400/70 group-focus-visible:bg-indigo-400/70'
+            }`}
+          />
+        </div>
+      )}
       <div
         className={`flex items-center py-3 border-b border-zinc-800/80 ${
           open ? 'justify-between gap-2 px-3' : 'justify-center'
@@ -256,41 +368,37 @@ export function TrackingDrawer() {
                         onKeyDown={event => {
                           if (event.key === 'Enter') handleRowClick(item)
                         }}
-                        className="group flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg cursor-pointer transition hover:bg-zinc-800/40"
+                        className="group flex items-start gap-1.5 px-1.5 py-1.5 rounded-lg cursor-pointer transition hover:bg-zinc-800/40"
                         data-testid={`drawer-item-${item.item_type}-${item.key}`}
                       >
-                        {item.item_type === 'sprint' || item.item_type === 'release' ? (
-                          <>
-                            {item.item_type === 'sprint' ? (
-                              <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          {/* Row 1: key (or type icon) + status badge. */}
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {item.item_type === 'sprint' || item.item_type === 'release' ? (
+                              item.item_type === 'sprint' ? (
+                                <Zap className="w-3 h-3 text-amber-400 shrink-0" />
+                              ) : (
+                                <Rocket className="w-3 h-3 text-indigo-400 shrink-0" />
+                              )
                             ) : (
-                              <Rocket className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                              <span className={`font-mono text-[11px] leading-none shrink-0 ${config.keyClass}`}>
+                                {item.key}
+                              </span>
                             )}
-                            <span className="text-sm text-zinc-200 truncate min-w-0 flex-1">
-                              {item.title}
-                            </span>
-                            <StatusBadge status={item.status} />
-                          </>
-                        ) : (
-                          <>
-                            <span
-                              className={`font-mono text-sm shrink-0 ${config.keyClass}`}
-                            >
-                              {item.key}
-                            </span>
-                            <StatusBadge status={item.status} />
-                            <span className="text-sm text-zinc-300 truncate min-w-0 flex-1">
-                              {item.title}
-                            </span>
-                          </>
-                        )}
+                            <StatusBadge status={item.status} compact />
+                          </div>
+                          {/* Row 2: title on its own line, same size as the rest of the app. */}
+                          <span className="mt-1 block text-sm text-zinc-200 truncate">
+                            {item.title}
+                          </span>
+                        </div>
                         <button
                           type="button"
                           onClick={event => handleRemoveClick(event, item.id)}
                           data-testid={`drawer-remove-${item.id}`}
                           title="Remove from tracking"
                           aria-label="Remove from tracking"
-                          className="p-0.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/60 transition opacity-0 group-hover:opacity-100 shrink-0"
+                          className="mt-0.5 p-0.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/60 transition opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
                         >
                           <X className="w-3 h-3" />
                         </button>

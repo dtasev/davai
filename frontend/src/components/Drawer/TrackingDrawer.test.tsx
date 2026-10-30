@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, within, cleanup } from '@testing-library/react'
 import { createMemoryRouter } from 'react-router-dom'
 import App from '../../App'
 import { routes } from '../../routes/router'
@@ -570,5 +570,164 @@ describe('TrackingDrawer (DAV-83 active work item tracker)', () => {
     expect(screen.getByTestId('track-sprint-1')).toBeInTheDocument()
     expect(screen.getByTestId('track-sprint-3')).toBeInTheDocument()
     expect(screen.getByTestId('track-release-1')).toBeInTheDocument()
+  })
+
+  // ---- DAV-86: resizable drawer + two-row item titles --------------------
+
+  it('resizes the open drawer by dragging the handle, clamps to min/max and persists the width', async () => {
+    await renderOpenDrawerWithRows()
+
+    const drawer = screen.getByTestId('tracking-drawer')
+    const handle = screen.getByTestId('drawer-resize-handle')
+
+    // Default width.
+    expect(drawer.style.width).toBe('360px')
+    expect(handle).toHaveAttribute('aria-valuenow', '360')
+
+    // Drag right by 120px → wider, persisted after mouseup.
+    await act(async () => {
+      fireEvent.mouseDown(handle, { clientX: 360 })
+      fireEvent.mouseMove(window, { clientX: 480 })
+      fireEvent.mouseUp(window)
+    })
+    expect(drawer.style.width).toBe('480px')
+    expect(localStorage.getItem('davai_drawer_width')).toBe('480')
+
+    // Drag far left → clamped to the minimum, never collapses to nothing.
+    await act(async () => {
+      fireEvent.mouseDown(handle, { clientX: 480 })
+      fireEvent.mouseMove(window, { clientX: 0 })
+      fireEvent.mouseUp(window)
+    })
+    expect(drawer.style.width).toBe('260px')
+    expect(localStorage.getItem('davai_drawer_width')).toBe('260')
+
+    // Drag far right → clamped to the maximum.
+    await act(async () => {
+      fireEvent.mouseDown(handle, { clientX: 260 })
+      fireEvent.mouseMove(window, { clientX: 5000 })
+      fireEvent.mouseUp(window)
+    })
+    expect(drawer.style.width).toBe('720px')
+
+    // Double-click resets to the default width.
+    await act(async () => {
+      fireEvent.doubleClick(handle)
+    })
+    expect(drawer.style.width).toBe('360px')
+    expect(localStorage.getItem('davai_drawer_width')).toBe('360')
+  })
+
+  it('restores the persisted drawer width on mount and clamps a stale/oversized value', async () => {
+    localStorage.setItem('davai_drawer_width', '500')
+    await renderOpenDrawerWithRows()
+    expect(screen.getByTestId('tracking-drawer').style.width).toBe('500px')
+
+    localStorage.setItem('davai_drawer_width', '9999')
+    cleanup()
+    await renderOpenDrawerWithRows()
+    expect(screen.getByTestId('tracking-drawer').style.width).toBe('720px')
+
+    // Below-minimum stale values clamp up to the minimum too.
+    localStorage.setItem('davai_drawer_width', '100')
+    cleanup()
+    await renderOpenDrawerWithRows()
+    expect(screen.getByTestId('tracking-drawer').style.width).toBe('260px')
+
+    // Garbage values fall back to the default width.
+    localStorage.setItem('davai_drawer_width', 'not-a-number')
+    cleanup()
+    await renderOpenDrawerWithRows()
+    expect(screen.getByTestId('tracking-drawer').style.width).toBe('360px')
+  })
+
+  it('resizes the drawer from the keyboard (arrow keys, shift for larger steps, Home resets)', async () => {
+    await renderOpenDrawerWithRows()
+
+    const drawer = screen.getByTestId('tracking-drawer')
+    const handle = screen.getByTestId('drawer-resize-handle')
+
+    await act(async () => {
+      fireEvent.keyDown(handle, { key: 'ArrowRight' })
+    })
+    expect(drawer.style.width).toBe('376px')
+
+    await act(async () => {
+      fireEvent.keyDown(handle, { key: 'ArrowLeft', shiftKey: true })
+    })
+    expect(drawer.style.width).toBe('344px')
+
+    await act(async () => {
+      fireEvent.keyDown(handle, { key: 'Home' })
+    })
+    expect(drawer.style.width).toBe('360px')
+
+    // A non-resize key is ignored.
+    await act(async () => {
+      fireEvent.keyDown(handle, { key: 'ArrowUp' })
+    })
+    expect(drawer.style.width).toBe('360px')
+  })
+
+  it('lays item key and title out on separate rows with a compact status badge', async () => {
+    await renderOpenDrawerWithRows()
+
+    const row = screen.getByTestId('drawer-item-work_item-DAV-1')
+    const key = within(row).getByText('DAV-1')
+    const title = within(row).getByText('Build AI-Native Data Models')
+
+    // Key and title are not siblings: the key sits in the meta row, the title
+    // on its own line below it.
+    expect(key.parentElement).not.toBe(title.parentElement)
+    expect(key.parentElement!.contains(title)).toBe(false)
+    // The meta row holds the compact (smaller) status badge.
+    const badge = within(key.parentElement as HTMLElement)
+      .getByText('In Progress')
+      .closest('span.inline-flex') as HTMLElement
+    expect(badge.className).toContain('text-[9px]')
+    expect(badge.className).toContain('px-1.5')
+
+    // Sprint/release rows carry the same two-row shape (icon row + title row).
+    const sprintRow = screen.getByTestId('drawer-item-sprint-1')
+    const sprintTitle = within(sprintRow).getByText('Sprint 1 - Foundation')
+    expect(sprintTitle.className).toContain('text-sm')
+    const sprintBadge = within(sprintRow)
+      .getByText('In Progress')
+      .closest('span.inline-flex') as HTMLElement
+    expect(sprintBadge.className).toContain('text-[9px]')
+
+    // Titles use the same size as the rest of the app.
+    expect(title.className).toContain('text-sm')
+  })
+
+  it('ends an in-flight drag on window blur and focuses the handle on mousedown', async () => {
+    await renderOpenDrawerWithRows()
+
+    const handle = screen.getByTestId('drawer-resize-handle')
+
+    await act(async () => {
+      fireEvent.mouseDown(handle, { clientX: 360 })
+    })
+    // preventDefault() would swallow the implicit focus, so the handler focuses it.
+    expect(document.activeElement).toBe(handle)
+    expect(document.body.style.cursor).toBe('col-resize')
+
+    // Losing the window mid-drag (alt-tab, release outside) must not leave the
+    // resize cursor / text-selection lock behind.
+    await act(async () => {
+      fireEvent.blur(window)
+    })
+    expect(document.body.style.cursor).toBe('')
+    expect(document.body.style.userSelect).toBe('')
+  })
+
+  it('only renders the resize handle while the drawer is open', async () => {
+    await renderWithRouter(['/projects/DAV'], false)
+
+    expect(screen.queryByTestId('drawer-resize-handle')).not.toBeInTheDocument()
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('drawer-toggle'))
+    })
+    expect(await screen.findByTestId('drawer-resize-handle')).toBeInTheDocument()
   })
 })

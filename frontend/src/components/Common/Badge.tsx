@@ -29,10 +29,13 @@ export function formatStatus(status: string | null | undefined): string {
 
 export function StatusBadge({
   status,
-  isProgressEntry: _isProgressEntry = false
+  isProgressEntry: _isProgressEntry = false,
+  compact = false
 }: {
   status: string
   isProgressEntry?: boolean
+  /** Denser pill for tight rows (e.g. the tracking drawer). */
+  compact?: boolean
 }) {
   const s = (status || 'todo').toLowerCase().replace(/_/g, ' ').trim()
   let color = 'bg-zinc-800/60 text-zinc-300 border-zinc-800'
@@ -70,9 +73,11 @@ export function StatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border leading-none ${color}`}
+      className={`inline-flex items-center rounded-full font-medium border leading-none ${
+        compact ? 'gap-1 px-1.5 py-0.5 text-[9px]' : 'gap-1.5 px-2 py-0.5 text-[10px]'
+      } ${color}`}
     >
-      <span className={`w-1.5 h-1.5 rounded-full ${dot}`}></span>
+      <span className={`${compact ? 'w-1 h-1' : 'w-1.5 h-1.5'} rounded-full ${dot}`}></span>
       <span>{label}</span>
     </span>
   )
