@@ -40,10 +40,23 @@ def generate_api_key(user: User, name: str = "API Key") -> Tuple[APIKey, str]:
     )
     return api_key, raw_key
 
-def verify_api_key(raw_key: Optional[str]) -> Optional[User]:
+class APIKeyLookupError(Exception):
+    """Raised when the API key lookup itself fails (database unreachable, connection closed).
+
+    Distinct from "no matching key", which returns None: one means the credential cannot be
+    checked right now, the other means the presented credential is not valid. Callers that map
+    this to a response must not report it as an authentication failure (401 / WebSocket 1008),
+    which clients treat as permanent and never retry.
     """
-    Verify an API key token. If valid and active, returns the associated User
-    and updates last_used_at. Otherwise returns None.
+
+
+def lookup_api_key(raw_key: Optional[str]) -> Optional[User]:
+    """
+    Look up the user owning an API key and refresh the key's last_used_at timestamp.
+
+    Returns None when the key is missing, malformed, inactive or unknown. Raises
+    APIKeyLookupError when the lookup cannot be performed at all, so callers can distinguish
+    "invalid key" from "try again later".
     """
     if not raw_key or not isinstance(raw_key, str):
         return None
@@ -61,6 +74,22 @@ def verify_api_key(raw_key: Optional[str]) -> Optional[User]:
             # Update last_used_at timestamp without triggering full save signals
             APIKey.objects.filter(id=api_key.id).update(last_used_at=timezone.now())
             return api_key.user
+        return None
+    except Exception as e:
+        raise APIKeyLookupError("API key lookup failed") from e
+
+
+def verify_api_key(raw_key: Optional[str]) -> Optional[User]:
+    """
+    Verify an API key token. If valid and active, returns the associated User
+    and updates last_used_at. Otherwise returns None.
+
+    Any lookup failure is reported as None to keep the historical behaviour of this helper.
+    Callers that must distinguish a lookup failure from an invalid key should use
+    lookup_api_key() and handle APIKeyLookupError instead.
+    """
+    try:
+        return lookup_api_key(raw_key)
     except Exception:
         return None
 

@@ -103,6 +103,63 @@ class TestWebSocketDirect:
         # 1011 (internal error) is retryable; 1008 would latch the client's reconnects off.
         assert exc_info.value.code == 1011
 
+    def test_endpoint_uses_retryable_code_when_api_key_lookup_fails(self, monkeypatch):
+        """A DB outage during ?token= lookup must not be reported as an invalid credential."""
+        from tracker.auth import APIKeyLookupError
+
+        def failing_lookup(raw_key):
+            raise APIKeyLookupError("the connection is closed")
+
+        monkeypatch.setattr("tracker.websocket.endpoint.lookup_api_key", failing_lookup)
+
+        client = TestClient(application)
+        with client.websocket_connect(f"/ws?client_id=db-down-key&token={self.raw_key}") as ws:
+            msg = ws.receive_json()
+            assert msg["event"] == "error"
+            assert msg["code"] == "authentication_unavailable"
+
+            with pytest.raises(WebSocketDisconnect) as exc_info:
+                ws.receive_json()
+        # 1011 keeps the frontend reconnecting; 1008 would stop it permanently.
+        assert exc_info.value.code == 1011
+
+    def test_session_lookup_closes_old_connections_before_querying(self, monkeypatch):
+        """The session lookup runs in an executor thread, outside Django's request cycle, so it
+        has to recycle the cached connection before touching the session table."""
+        from django.contrib.sessions.backends.db import SessionStore
+        from django.contrib.sessions.models import Session
+        from tracker.websocket import endpoint as endpoint_module
+
+        session = SessionStore()
+        session["_auth_user_id"] = str(self.user.pk)
+        session["_auth_user_backend"] = "django.contrib.auth.backends.ModelBackend"
+        session["_auth_user_hash"] = self.user.get_session_auth_hash()
+        session.create()
+
+        calls = []
+        real_close = endpoint_module.close_old_connections
+        real_filter = Session.objects.filter
+
+        def recording_close():
+            calls.append("close_old_connections")
+            real_close()
+
+        def recording_filter(*args, **kwargs):
+            calls.append("session_query")
+            return real_filter(*args, **kwargs)
+
+        monkeypatch.setattr(endpoint_module, "close_old_connections", recording_close)
+        monkeypatch.setattr(Session.objects, "filter", recording_filter)
+
+        client = TestClient(application, cookies={"sessionid": session.session_key})
+        with client.websocket_connect("/ws?client_id=cookie-order") as ws:
+            data = ws.receive_json()
+            assert data["event"] == "connected"
+            assert data["authenticated"] is True
+
+        assert "session_query" in calls
+        assert calls.index("close_old_connections") < calls.index("session_query")
+
     @pytest.mark.asyncio
     async def test_manager_subscription_and_broadcast(self):
         mgr = ConnectionManager()

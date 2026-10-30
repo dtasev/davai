@@ -32,6 +32,25 @@ async def test_graphql_hello_authorized(test_api_key):
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
+async def test_graphql_auth_refreshes_stale_connection(monkeypatch, test_api_key):
+    """The permission check must recycle a dropped connection before verifying the key."""
+    import tracker.schema as schema_module
+
+    calls = []
+    monkeypatch.setattr(schema_module, "close_old_connections", lambda: calls.append("close"))
+
+    _, raw_key = test_api_key
+    res = await schema.execute(
+        "query { hello }",
+        context_value={"api_key": raw_key}
+    )
+    assert res.errors is None
+    assert res.data["hello"] == "Hello from Strawberry GraphQL!"
+    assert calls, "close_old_connections() was not called on the authenticated request path"
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.asyncio
 async def test_graphql_projects_and_items(test_project, test_user, test_api_key):
     _, raw_key = test_api_key
     item = await sync_to_async(WorkItem.objects.create)(

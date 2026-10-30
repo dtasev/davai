@@ -17,6 +17,77 @@ class TestMCPASGIEndpoints:
             assert res.status_code == 401
             assert "Valid API key required" in res.json()["detail"]
 
+    def test_invalid_api_key_returns_401_not_503(self):
+        """A key that simply does not match must keep the original 401 contract."""
+        with TestClient(application) as client:
+            res = client.post(
+                '/mcp/',
+                json={'jsonrpc': '2.0', 'id': 10, 'method': 'initialize'},
+                headers={"Authorization": "Bearer dav_live_this_key_does_not_exist"},
+            )
+        assert res.status_code == 401
+        assert "Valid API key required" in res.json()["detail"]
+
+    def test_database_failure_during_key_lookup_returns_503(self, monkeypatch):
+        """A DB outage must be a retryable 503, never a permanent 401."""
+        import core.asgi as asgi_module
+        from tracker.auth import APIKeyLookupError
+
+        def failing_lookup(raw_key):
+            raise APIKeyLookupError("the connection is closed")
+
+        monkeypatch.setattr(asgi_module, "lookup_api_key", failing_lookup)
+
+        with TestClient(application) as client:
+            res = client.post(
+                '/mcp/',
+                json={'jsonrpc': '2.0', 'id': 11, 'method': 'initialize'},
+                headers={"Authorization": "Bearer dav_live_whatever"},
+            )
+
+        assert res.status_code == 503
+        assert res.headers["Retry-After"] == "5"
+        body = res.json()
+        assert body["error"] == "Authentication unavailable"
+        assert "Valid API key required" not in res.text
+
+    def test_key_lookup_closes_old_connections_first(self, test_api_key, monkeypatch):
+        """The MCP auth path runs outside Django's request cycle, so it must recycle the
+        thread's cached connection before querying (a postgres restart leaves it dead)."""
+        import core.asgi as asgi_module
+
+        _, raw_key = test_api_key
+        real_close = asgi_module.close_old_connections
+        real_lookup = asgi_module.lookup_api_key
+        calls = []
+
+        def recording_close():
+            calls.append("close_old_connections")
+            real_close()
+
+        def recording_lookup(raw_key):
+            calls.append("lookup_api_key")
+            return real_lookup(raw_key)
+
+        monkeypatch.setattr(asgi_module, "close_old_connections", recording_close)
+        monkeypatch.setattr(asgi_module, "lookup_api_key", recording_lookup)
+
+        payload = {
+            "jsonrpc": "2.0",
+            "id": 12,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "conn-refresh", "version": "1.0"}
+            }
+        }
+        with TestClient(application) as client:
+            res = client.post('/mcp/', json=payload, headers={"Authorization": f"Bearer {raw_key}"})
+
+        assert res.status_code == 200
+        assert calls == ["close_old_connections", "lookup_api_key"]
+
     def test_streamable_http_initialize_with_bearer(self, test_api_key):
         _, raw_key = test_api_key
         headers = {"Authorization": f"Bearer {raw_key}"}

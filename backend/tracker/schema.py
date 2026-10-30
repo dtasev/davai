@@ -3,6 +3,7 @@ from typing import List, Optional, Any
 from asgiref.sync import sync_to_async
 from strawberry.permission import BasePermission
 from strawberry.types import Info
+from django.db import close_old_connections
 from django.db.models import Subquery, OuterRef, Value
 from django.db.models.functions import Coalesce
 from tracker.auth import verify_api_key
@@ -14,6 +15,18 @@ from tracker.models import (
     Context as ContextModel,
     Progress as ProgressModel,
 )
+
+
+@sync_to_async
+def verify_api_key_with_fresh_connection(api_key):
+    """Verify an API key after recycling a connection the database may have dropped.
+
+    Strawberry permission checks run outside Django's request/response cycle, so the
+    connection-health signals that normally recycle dead connections never fire here and a
+    postgres restart would leave every lookup failing on a stale thread-local connection.
+    """
+    close_old_connections()
+    return verify_api_key(api_key)
 
 
 class HasApiKey(BasePermission):
@@ -39,7 +52,7 @@ class HasApiKey(BasePermission):
         if not api_key:
             return False
 
-        user = await sync_to_async(verify_api_key)(api_key)
+        user = await verify_api_key_with_fresh_connection(api_key)
         if user:
             if hasattr(info.context, "user"):
                 info.context.user = user

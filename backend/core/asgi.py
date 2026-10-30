@@ -1,6 +1,7 @@
 import os
 import asyncio
 import contextlib
+import logging
 from urllib.parse import parse_qs
 from asgiref.sync import sync_to_async
 from django.core.asgi import get_asgi_application
@@ -15,14 +16,48 @@ django_app = get_asgi_application()
 
 from mcp_server.server import mcp_server, set_client, reset_client
 from mcp_server.client import DavaiClient
-from tracker.auth import verify_api_key
+from django.db import close_old_connections
+from tracker.auth import lookup_api_key, APIKeyLookupError
 from tracker.websocket.manager import manager as ws_manager
 from tracker.websocket.endpoint import websocket_endpoint
+
+logger = logging.getLogger(__name__)
 
 # Disable DNS rebinding restriction so requests via Nginx, localhost:6477, and Cloudflare tunnel are accepted
 mcp_security = TransportSecuritySettings(
     enable_dns_rebinding_protection=False
 )
+
+
+@sync_to_async
+def authenticate_mcp_request(api_key):
+    """Verify an MCP request's API key in the thread-sensitive executor thread.
+
+    This runs outside Django's request/response cycle, so the connection-health signals that
+    normally recycle dead connections never fire here. Without close_old_connections() a
+    connection dropped by the database (e.g. a postgres restart) stays cached on this thread
+    and every subsequent lookup raises InterfaceError, which would otherwise look like an
+    invalid key forever.
+    """
+    close_old_connections()
+    return lookup_api_key(api_key)
+
+
+def authentication_unavailable_response() -> JSONResponse:
+    """503 used when the API key cannot be checked at all (database unavailable).
+
+    401 must never be used here: clients treat it as a permanent credential failure and stop
+    retrying until the pod is restarted.
+    """
+    return JSONResponse(
+        {
+            "error": "Authentication unavailable",
+            "detail": "Authentication is temporarily unavailable. Retry the request shortly."
+        },
+        status_code=503,
+        headers={"Retry-After": "5"},
+    )
+
 
 class MCPAuthMiddleware:
     """
@@ -58,7 +93,16 @@ class MCPAuthMiddleware:
                 elif "api_key" in params and params["api_key"]:
                     api_key = params["api_key"][0]
 
-            user = await sync_to_async(verify_api_key)(api_key)
+            try:
+                user = await authenticate_mcp_request(api_key)
+            except APIKeyLookupError as exc:
+                logger.exception("MCP API key lookup failed; backend database unavailable: %s", exc)
+                await authentication_unavailable_response()(scope, receive, send)
+                return
+            except Exception as exc:
+                logger.exception("Unexpected error during MCP API key lookup: %s", exc)
+                await authentication_unavailable_response()(scope, receive, send)
+                return
 
             if not user:
                 response = JSONResponse(

@@ -6,8 +6,9 @@ from typing import Optional
 from urllib.parse import urlparse
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from asgiref.sync import sync_to_async
+from django.db import close_old_connections
 from django.utils import timezone
-from tracker.auth import verify_api_key
+from tracker.auth import lookup_api_key, APIKeyLookupError
 from .manager import manager
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,18 @@ class SessionLookupError(Exception):
 
 
 @sync_to_async
+def authenticate_api_key(raw_key):
+    """Verify a WebSocket API key in the thread-sensitive executor thread.
+
+    The ASGI stack has no Django request/response cycle, so nothing here recycles a
+    connection that the database dropped (e.g. a postgres restart). Refreshing first keeps a
+    stale cached connection from turning every lookup into a fake "invalid key".
+    """
+    close_old_connections()
+    return lookup_api_key(raw_key)
+
+
+@sync_to_async
 def get_user_from_session(session_key: str):
     """Attempt to resolve user from Django session store.
 
@@ -32,6 +45,9 @@ def get_user_from_session(session_key: str):
     if not session_key:
         return None
     try:
+        # Recycle a connection the database may have dropped; this thread is outside Django's
+        # request/response cycle, so no other signal does it for us.
+        close_old_connections()
         from django.contrib.sessions.models import Session
         from django.contrib.auth import get_user_model
         session = Session.objects.filter(
@@ -93,7 +109,20 @@ async def websocket_endpoint(websocket: WebSocket):
     user = None
     token = query_params.get("token") or query_params.get("api_key")
     if token:
-        user = await sync_to_async(verify_api_key)(token)
+        try:
+            user = await authenticate_api_key(token)
+        except APIKeyLookupError as exc:
+            # Cannot verify right now (database unavailable). Retryable: 1011 keeps the
+            # frontend's reconnect loop alive, while 1008 would latch it off for good.
+            logger.warning("API key lookup failed for websocket connection: %s", exc)
+            await websocket.accept()
+            await websocket.send_json({
+                "event": "error",
+                "code": "authentication_unavailable",
+                "message": "Authentication temporarily unavailable.",
+            })
+            await websocket.close(code=1011)
+            return
 
     if not user:
         session_id = websocket.cookies.get("sessionid")
