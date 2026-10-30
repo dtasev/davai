@@ -2817,5 +2817,505 @@ describe('Davai Frontend App with React Router', () => {
     const releaseOptions = within(releaseSelect).getAllByRole('option').map(o => o.textContent)
     expect(releaseOptions).toEqual(['No Release', 'Planned Release'])
   })
+
+  describe('create-form draft persistence (DAV-87)', () => {
+    const WORK_ITEM_DRAFT_KEY = 'davai_draft_work_item_DAV'
+
+    const openWorkItemForm = async () => {
+      await renderWithRouter(['/projects/DAV'])
+      await waitFor(() => {
+        expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+      })
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('create-work-item-button'))
+      })
+      return screen.getByTestId('create-work-item-form')
+    }
+
+    it('stores the work item draft in localStorage while typing', async () => {
+      await openWorkItemForm()
+
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Half-typed title' }
+      })
+      fireEvent.change(screen.getByPlaceholderText('Detailed description or requirements...'), {
+        target: { value: 'Half-typed description' }
+      })
+
+      expect(JSON.parse(localStorage.getItem(WORK_ITEM_DRAFT_KEY) as string)).toMatchObject({
+        title: 'Half-typed title',
+        description: 'Half-typed description',
+        priority: 'MEDIUM'
+      })
+    })
+
+    it('keeps the draft on an accidental close (Escape) and restores it on reopen', async () => {
+      await openWorkItemForm()
+
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Escaped title' }
+      })
+      fireEvent.change(screen.getByPlaceholderText('Detailed description or requirements...'), {
+        target: { value: 'Escaped description' }
+      })
+
+      fireEvent.keyDown(window, { key: 'Escape' })
+      await waitFor(() => {
+        expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+      })
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toContain('Escaped title')
+
+      fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('Escaped title')
+      })
+      expect(screen.getByDisplayValue('Escaped description')).toBeInTheDocument()
+    })
+
+    it('restores a stored draft on a fresh mount (page reopened)', async () => {
+      localStorage.setItem(
+        WORK_ITEM_DRAFT_KEY,
+        JSON.stringify({ title: 'Persisted title', description: 'Persisted description', priority: 'HIGH' })
+      )
+
+      await renderWithRouter(['/projects/DAV'])
+      await waitFor(() => {
+        expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+      })
+
+      fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('Persisted title')
+      })
+      expect(screen.getByDisplayValue('Persisted description')).toBeInTheDocument()
+      // Combobox order: [0] Status, [1] Priority, [2] Sprint, [3] Release
+      const form = screen.getByTestId('create-work-item-form')
+      expect(within(form).getAllByRole('combobox')[1]).toHaveValue('HIGH')
+    })
+
+    it('Cancel clears the draft and empties the form', async () => {
+      const form = await openWorkItemForm()
+
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Cancelled title' }
+      })
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).not.toBeNull()
+
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Cancel' }))
+      })
+      await waitFor(() => {
+        expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+      })
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toBeNull()
+
+      fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('')
+      })
+    })
+
+    it('Clear empties the form and removes the draft while the modal stays open', async () => {
+      await openWorkItemForm()
+
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Clear me' }
+      })
+      fireEvent.change(screen.getByPlaceholderText('Detailed description or requirements...'), {
+        target: { value: 'Clear me too' }
+      })
+
+      const clearButton = screen.getByTestId('clear-work-item-draft')
+      expect(clearButton).toBeEnabled()
+      expect(clearButton).toHaveAttribute('title', 'Clear draft')
+      expect(clearButton).toHaveAttribute('aria-label', 'Clear draft')
+
+      await act(async () => {
+        fireEvent.click(clearButton)
+      })
+
+      expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('')
+      expect(screen.getByPlaceholderText('Detailed description or requirements...')).toHaveValue('')
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toBeNull()
+      expect(screen.getByTestId('clear-work-item-draft')).toBeDisabled()
+    })
+
+    it('a successful create removes the draft', async () => {
+      const form = await openWorkItemForm()
+
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Created from draft' }
+      })
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).not.toBeNull()
+
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create Item' }))
+      })
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+      })
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toBeNull()
+    })
+
+    it('ignores and cleans up a corrupt stored draft', async () => {
+      localStorage.setItem(WORK_ITEM_DRAFT_KEY, '{this is not json')
+
+      await renderWithRouter(['/projects/DAV'])
+      await waitFor(() => {
+        expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+      })
+
+      fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('')
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toBeNull()
+    })
+
+    it('preserves a stored field that could not be restored instead of overwriting it', async () => {
+      // "not-a-status" is not an available project status, so it cannot be
+      // applied to the select — but it must not be silently deleted either.
+      localStorage.setItem(
+        WORK_ITEM_DRAFT_KEY,
+        JSON.stringify({ title: 'Keep my status', status: 'not-a-status' })
+      )
+
+      await renderWithRouter(['/projects/DAV'])
+      await waitFor(() => {
+        expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+      })
+      fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('Keep my status')
+      })
+      // The unsupported status falls back to the project default in the form...
+      const form = screen.getByTestId('create-work-item-form')
+      expect(within(form).getAllByRole('combobox')[0]).toHaveValue('todo')
+
+      // ...and is kept in storage while the user edits another field.
+      fireEvent.change(screen.getByPlaceholderText('Detailed description or requirements...'), {
+        target: { value: 'edited description' }
+      })
+      expect(JSON.parse(localStorage.getItem(WORK_ITEM_DRAFT_KEY) as string)).toMatchObject({
+        title: 'Keep my status',
+        description: 'edited description',
+        status: 'not-a-status'
+      })
+    })
+
+    it('never stores a draft for an untouched create form', async () => {
+      await openWorkItemForm()
+
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toBeNull()
+      expect(screen.getByTestId('clear-work-item-draft')).toBeDisabled()
+    })
+
+    it('persists and clears the user support draft', async () => {
+      await renderWithRouter(['/projects/DAV?view=user-support'])
+      await waitFor(() => {
+        expect(screen.getByTestId('user-support-list-view')).toBeInTheDocument()
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('create-user-support-button'))
+      })
+      fireEvent.change(screen.getByTestId('user-support-title-input'), {
+        target: { value: 'Support draft' }
+      })
+
+      const key = 'davai_draft_user_support_DAV'
+      expect(JSON.parse(localStorage.getItem(key) as string)).toMatchObject({
+        title: 'Support draft'
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('clear-user-support-draft'))
+      })
+      expect(localStorage.getItem(key)).toBeNull()
+      expect(screen.getByTestId('create-user-support-form')).toBeInTheDocument()
+      expect(screen.getByTestId('user-support-title-input')).toHaveValue('')
+    })
+
+    it('persists and clears the incident draft', async () => {
+      await renderWithRouter(['/projects/DAV?view=incidents'])
+      await waitFor(() => {
+        expect(screen.getByTestId('incident-list-view')).toBeInTheDocument()
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('create-incident-button'))
+      })
+      fireEvent.change(screen.getByTestId('create-incident-title-input'), {
+        target: { value: 'Incident draft' }
+      })
+
+      const key = 'davai_draft_incident_DAV'
+      expect(JSON.parse(localStorage.getItem(key) as string)).toMatchObject({
+        title: 'Incident draft'
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('clear-incident-draft'))
+      })
+      expect(localStorage.getItem(key)).toBeNull()
+      expect(screen.getByTestId('create-incident-form')).toBeInTheDocument()
+      expect(screen.getByTestId('create-incident-title-input')).toHaveValue('')
+    })
+
+    it('persists and clears the monitoring log draft', async () => {
+      await renderWithRouter(['/projects/DAV?view=monitoring-logs'])
+      await waitFor(() => {
+        expect(screen.getByTestId('monitoring-log-list-view')).toBeInTheDocument()
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('create-monitoring-log-button'))
+      })
+      fireEvent.change(screen.getByTestId('create-monitoring-log-description-input'), {
+        target: { value: 'Monitoring draft' }
+      })
+
+      const key = 'davai_draft_monitoring_log_DAV'
+      expect(JSON.parse(localStorage.getItem(key) as string)).toMatchObject({
+        description: 'Monitoring draft'
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('clear-monitoring-log-draft'))
+      })
+      expect(localStorage.getItem(key)).toBeNull()
+      expect(screen.getByTestId('create-monitoring-log-form')).toBeInTheDocument()
+      expect(screen.getByTestId('create-monitoring-log-description-input')).toHaveValue('')
+    })
+
+    it('honours a stored draft status on "c" in the board view while a per-column "+" still overrides it', async () => {
+      localStorage.setItem(
+        WORK_ITEM_DRAFT_KEY,
+        JSON.stringify({ title: 'Board draft', status: 'in progress' })
+      )
+
+      await renderWithRouter(['/projects/DAV?view=board'])
+      await waitFor(() => {
+        expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+      })
+
+      fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      })
+      // The draft's status wins over the first-column default.
+      let form = screen.getByTestId('create-work-item-form')
+      expect(within(form).getAllByRole('combobox')[0]).toHaveValue('in progress')
+
+      // Accidental close keeps the draft (and its status).
+      fireEvent.keyDown(window, { key: 'Escape' })
+      await waitFor(() => {
+        expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+      })
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toContain('in progress')
+
+      // An explicit per-column "+" wins over the draft's status.
+      await act(async () => {
+        fireEvent.click(within(screen.getByTestId('kanban-column-done')).getByTitle('Add item to Done'))
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      })
+      form = screen.getByTestId('create-work-item-form')
+      expect(within(form).getAllByRole('combobox')[0]).toHaveValue('done')
+    })
+
+    it('keeps the draft and the modal open when the create call fails', async () => {
+      const origFetch = globalThis.fetch
+      globalThis.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
+        const urlStr = url.toString()
+        const method = init?.method?.toUpperCase() || 'GET'
+        if (method === 'POST' && urlStr.includes('/api/work-items')) {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: () => Promise.resolve({ message: 'Title is invalid' })
+          } as Response)
+        }
+        return origFetch(url, init)
+      })
+
+      const form = await openWorkItemForm()
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Rejected title' }
+      })
+
+      await act(async () => {
+        fireEvent.click(within(form).getByRole('button', { name: 'Create Item' }))
+      })
+
+      // Modal stays open, draft survives, submit button is usable again.
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('Rejected title')
+      expect(JSON.parse(localStorage.getItem(WORK_ITEM_DRAFT_KEY) as string)).toMatchObject({
+        title: 'Rejected title'
+      })
+      const submitButton = within(screen.getByTestId('create-work-item-form')).getByRole(
+        'button',
+        { name: 'Create Item' }
+      )
+      expect(submitButton).toBeEnabled()
+
+      globalThis.fetch = origFetch
+    })
+
+    it('does not leak a project draft into another project', async () => {
+      const { router } = await renderWithRouter(['/projects/DAV'])
+
+      await waitFor(() => {
+        expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('create-work-item-button'))
+      })
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Project A draft' }
+      })
+      fireEvent.keyDown(window, { key: 'Escape' })
+      await waitFor(() => {
+        expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+      })
+
+      await act(async () => {
+        await router.navigate('/projects/CEMS')
+      })
+      await waitFor(() => {
+        expect(router.state.location.pathname).toBe('/projects/CEMS')
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('create-work-item-button'))
+      })
+
+      // Project A's text must not be carried over into project B's form.
+      const titleInput = screen.getByTestId('create-work-item-title-input')
+      expect(titleInput).toHaveValue('')
+
+      fireEvent.change(titleInput, { target: { value: 'Project B draft' } })
+
+      expect(JSON.parse(localStorage.getItem('davai_draft_work_item_DAV') as string)).toMatchObject({
+        title: 'Project A draft'
+      })
+      expect(JSON.parse(localStorage.getItem('davai_draft_work_item_CEMS') as string)).toMatchObject({
+        title: 'Project B draft'
+      })
+    })
+
+    it('shares one work item draft between the list and the board view', async () => {
+      const { router } = await renderWithRouter(['/projects/DAV'])
+      await waitFor(() => {
+        expect(screen.getByTestId('work-item-DAV-1')).toBeInTheDocument()
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('create-work-item-button'))
+      })
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Written in the list' }
+      })
+      fireEvent.keyDown(window, { key: 'Escape' })
+      await waitFor(() => {
+        expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+      })
+
+      await act(async () => {
+        await router.navigate('/projects/DAV?view=board')
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+      })
+
+      fireEvent.keyDown(window, { key: 'c', code: 'KeyC' })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('Written in the list')
+      })
+    })
+
+    it('keeps a restored draft status when the board header "New Item" button opens the form', async () => {
+      localStorage.setItem(
+        WORK_ITEM_DRAFT_KEY,
+        JSON.stringify({ title: 'Header draft', status: 'in progress' })
+      )
+
+      await renderWithRouter(['/projects/DAV?view=board'])
+      await waitFor(() => {
+        expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+      })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('kanban-create-item-button'))
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      })
+
+      let form = screen.getByTestId('create-work-item-form')
+      expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('Header draft')
+      expect(within(form).getAllByRole('combobox')[0]).toHaveValue('in progress')
+
+      // ...while an explicit per-column "+" still overrides it.
+      fireEvent.keyDown(window, { key: 'Escape' })
+      await waitFor(() => {
+        expect(screen.queryByTestId('create-work-item-form')).not.toBeInTheDocument()
+      })
+      await act(async () => {
+        fireEvent.click(within(screen.getByTestId('kanban-column-done')).getByTitle('Add item to Done'))
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      })
+      form = screen.getByTestId('create-work-item-form')
+      expect(within(form).getAllByRole('combobox')[0]).toHaveValue('done')
+    })
+
+    it('Clear in the per-column "+" flow keeps that column status and is disabled until something is typed', async () => {
+      await renderWithRouter(['/projects/DAV?view=board'])
+      await waitFor(() => {
+        expect(screen.getByTestId('kanban-board-section')).toBeInTheDocument()
+      })
+
+      await act(async () => {
+        fireEvent.click(within(screen.getByTestId('kanban-column-done')).getByTitle('Add item to Done'))
+      })
+      await waitFor(() => {
+        expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      })
+
+      const form = screen.getByTestId('create-work-item-form')
+      expect(within(form).getAllByRole('combobox')[0]).toHaveValue('done')
+      // The pre-selected status alone is not draft content.
+      expect(screen.getByTestId('clear-work-item-draft')).toBeDisabled()
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toBeNull()
+
+      fireEvent.change(screen.getByTestId('create-work-item-title-input'), {
+        target: { value: 'Typed into the Done column' }
+      })
+      expect(screen.getByTestId('clear-work-item-draft')).toBeEnabled()
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('clear-work-item-draft'))
+      })
+
+      // Still open, blank, and still targeting the Done column.
+      expect(screen.getByTestId('create-work-item-form')).toBeInTheDocument()
+      expect(screen.getByTestId('create-work-item-title-input')).toHaveValue('')
+      expect(
+        within(screen.getByTestId('create-work-item-form')).getAllByRole('combobox')[0]
+      ).toHaveValue('done')
+      expect(localStorage.getItem(WORK_ITEM_DRAFT_KEY)).toBeNull()
+      expect(screen.getByTestId('clear-work-item-draft')).toBeDisabled()
+    })
+  })
 })
 

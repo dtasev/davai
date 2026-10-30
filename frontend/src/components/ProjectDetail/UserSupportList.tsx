@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, FormEvent } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, FormEvent } from 'react'
 import {
   LifeBuoy,
   Plus,
@@ -22,7 +22,31 @@ import { StatusFilterDropdown } from '../Common/StatusFilterDropdown'
 import { Modal } from '../Common/Modal'
 import { TrackButton } from '../Common/TrackButton'
 import { apiFetch } from '../../utils/apiFetch'
+import {
+  DraftValidators,
+  draftStorageKey,
+  useDraftPersistence
+} from '../../utils/draft'
 import { formatItemDates } from './WorkItemList'
+
+type UserSupportDraft = {
+  title: string
+  description: string
+  status: string
+  priority: 'LOW' | 'MEDIUM' | 'HIGH'
+  parentKey: string
+}
+
+/** Defaults a blank create form starts from (also drives blank detection). */
+function userSupportDraftDefaults(status: string): UserSupportDraft {
+  return {
+    title: '',
+    description: '',
+    status,
+    priority: 'MEDIUM',
+    parentKey: ''
+  }
+}
 
 interface UserSupportListProps {
   projectKey?: string
@@ -67,7 +91,10 @@ export function UserSupportList({
   // The create modal can also be opened from the outside (`isCreateOpen`, e.g. the
   // 'c' shortcut); the local state keeps working as the uncontrolled fallback.
   const isCreateModalOpen = Boolean(isCreateOpen) || isModalOpen
-  const closeCreateModal = () => {
+
+  // Accidental close (Escape, X button, modal onClose): the draft is kept so
+  // re-opening the form restores everything the user typed.
+  const dismissCreateModal = () => {
     setIsModalOpen(false)
     onCloseCreate?.()
   }
@@ -126,6 +153,62 @@ export function UserSupportList({
   const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
   const [parentKey, setParentKey] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // Draft persistence (DAV-87): every keystroke is stored so an accidental close
+  // never loses the form.
+  const defaultCreateStatus = effectiveStatuses[0]?.name || 'todo'
+  const createDraftKey = draftStorageKey('user_support', effectiveProjectKey)
+
+  const initialDraftValues = useMemo(
+    () => userSupportDraftDefaults(defaultCreateStatus),
+    [defaultCreateStatus]
+  )
+
+  const restoreCreateDraft = useCallback((patch: Partial<UserSupportDraft>) => {
+    if (patch.title !== undefined) setTitle(patch.title)
+    if (patch.description !== undefined) setDescription(patch.description)
+    if (patch.status !== undefined) setStatus(patch.status)
+    if (patch.priority !== undefined) setPriority(patch.priority)
+    if (patch.parentKey !== undefined) setParentKey(patch.parentKey)
+  }, [])
+
+  const draftValidators = useMemo<DraftValidators<UserSupportDraft>>(
+    () => ({
+      status: value => effectiveStatuses.some(st => st.name === value),
+      priority: value => value === 'LOW' || value === 'MEDIUM' || value === 'HIGH'
+    }),
+    [effectiveStatuses]
+  )
+
+  const { isDirty: hasDraftInput, clear: clearStoredDraft } =
+    useDraftPersistence<UserSupportDraft>({
+      storageKey: createDraftKey,
+      values: { title, description, status, priority, parentKey },
+      initialValues: initialDraftValues,
+      restore: restoreCreateDraft,
+      validators: draftValidators
+    })
+
+  const resetCreateForm = () => {
+    setTitle('')
+    setDescription('')
+    setStatus(defaultCreateStatus)
+    setPriority('MEDIUM')
+    setParentKey('')
+  }
+
+  // Clear button: drop the draft and blank the form, keeping the modal open.
+  const clearCreateForm = () => {
+    clearStoredDraft()
+    resetCreateForm()
+  }
+
+  // Explicit Cancel: drop the draft, blank the form and close.
+  const cancelCreateModal = () => {
+    clearStoredDraft()
+    resetCreateForm()
+    dismissCreateModal()
+  }
 
   // Debounced semantic/hybrid search over user support tickets
   useEffect(() => {
@@ -248,14 +331,17 @@ export function UserSupportList({
         priority,
         parent_key: parentKey.trim() || null
       })
-      closeCreateModal()
-      setTitle('')
-      setDescription('')
-      setParentKey('')
-      setPriority('MEDIUM')
+    } catch {
+      // Create failed: keep the draft and the modal open so the user can retry.
+      return
     } finally {
       setSubmitting(false)
     }
+
+    // Success: drop the draft, reset the form and close.
+    clearStoredDraft()
+    resetCreateForm()
+    dismissCreateModal()
   }
 
   return (
@@ -489,7 +575,7 @@ export function UserSupportList({
       {/* Modal: New User Support Ticket */}
       <Modal
         isOpen={isCreateModalOpen}
-        onClose={closeCreateModal}
+        onClose={dismissCreateModal}
         closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
@@ -582,7 +668,18 @@ export function UserSupportList({
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800/60">
             <button
               type="button"
-              onClick={closeCreateModal}
+              onClick={clearCreateForm}
+              disabled={!hasDraftInput}
+              title="Clear draft"
+              aria-label="Clear draft"
+              data-testid="clear-user-support-draft"
+              className="mr-auto px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={cancelCreateModal}
               className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel

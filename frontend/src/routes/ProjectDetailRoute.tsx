@@ -448,10 +448,13 @@ export function ProjectDetailRoute() {
       })
     })
 
-    if (res.ok) {
-      await fetchDetails()
-      await fetchProjects()
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || err.detail || `Failed to create work item (HTTP ${res.status})`)
     }
+
+    await fetchDetails()
+    await fetchProjects()
   }
 
   const handleCreateUserSupportItem = async (data: {
@@ -473,10 +476,13 @@ export function ProjectDetailRoute() {
       })
     })
 
-    if (res.ok) {
-      await fetchDetails()
-      await fetchProjects()
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || err.detail || `Failed to create user support item (HTTP ${res.status})`)
     }
+
+    await fetchDetails()
+    await fetchProjects()
   }
 
   const handleUpdateStatus = async (key: string, newStatus: string) => {
@@ -783,9 +789,11 @@ export function ProjectDetailRoute() {
         project_key: projectKey
       })
     })
-    if (res.ok) {
-      await fetchDetails()
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || err.detail || `Failed to create incident (HTTP ${res.status})`)
     }
+    await fetchDetails()
   }
 
   const handleCreateMonitoringLog = async (data: {
@@ -806,9 +814,11 @@ export function ProjectDetailRoute() {
         project_key: projectKey
       })
     })
-    if (res.ok) {
-      await fetchDetails()
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.message || err.detail || `Failed to create monitoring log (HTTP ${res.status})`)
     }
+    await fetchDetails()
   }
 
   const handleUpdateIncident = async (

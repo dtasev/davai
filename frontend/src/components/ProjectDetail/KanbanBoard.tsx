@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, FormEvent, DragEvent } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, FormEvent, DragEvent } from 'react'
 import {
   Columns3,
   Plus,
@@ -12,8 +12,38 @@ import {
 import { WorkItem, Sprint, Release, ProjectStatus, DEFAULT_PROJECT_STATUSES } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
 import { Modal } from '../Common/Modal'
+import {
+  DraftValidators,
+  draftStorageKey,
+  readDraft,
+  useDraftPersistence
+} from '../../utils/draft'
+
+type WorkItemDraft = {
+  title: string
+  description: string
+  status: string
+  priority: 'LOW' | 'MEDIUM' | 'HIGH'
+  parentKey: string
+  sprintId: string
+  releaseId: string
+}
+
+/** Defaults a blank create form starts from (also drives blank detection). */
+function workItemDraftDefaults(status: string): WorkItemDraft {
+  return {
+    title: '',
+    description: '',
+    status,
+    priority: 'MEDIUM',
+    parentKey: '',
+    sprintId: '',
+    releaseId: ''
+  }
+}
 
 interface KanbanBoardProps {
+  projectKey?: string
   workItems: WorkItem[]
   statuses: ProjectStatus[]
   sprints: Sprint[]
@@ -39,6 +69,7 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({
+  projectKey,
   workItems,
   statuses,
   sprints,
@@ -52,6 +83,7 @@ export function KanbanBoard({
   isCreateOpen,
   onCloseCreate
 }: KanbanBoardProps) {
+  const effectiveProjectKey = projectKey || workItems[0]?.project_key || 'DAV'
   const [search, setSearch] = useState('')
   const [sprintFilter, setSprintFilter] = useState<string>('ALL')
   const [draggedOverStatus, setDraggedOverStatus] = useState<string | null>(null)
@@ -78,17 +110,6 @@ export function KanbanBoard({
     }
   }
 
-  // Create Work Item Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [status, setStatus] = useState(statuses[0]?.name || 'todo')
-  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
-  const [parentKey, setParentKey] = useState('')
-  const [sprintId, setSprintId] = useState<string>('')
-  const [releaseId, setReleaseId] = useState<string>('')
-  const [submitting, setSubmitting] = useState(false)
-
   // Ensure default statuses exist if project has none
   const effectiveStatuses: ProjectStatus[] = useMemo(() => {
     if (statuses && statuses.length > 0) {
@@ -97,23 +118,129 @@ export function KanbanBoard({
     return DEFAULT_PROJECT_STATUSES
   }, [statuses])
 
+  const defaultCreateStatus = effectiveStatuses[0]?.name || 'todo'
+
+  // Create Work Item Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [status, setStatus] = useState(defaultCreateStatus)
+  // Status the modal was opened with (per-column "+", a restored draft, or the
+  // first column). Clear/Cancel reset back to it instead of retargeting a column.
+  const [openedStatus, setOpenedStatus] = useState(defaultCreateStatus)
+  const [priority, setPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
+  const [parentKey, setParentKey] = useState('')
+  const [sprintId, setSprintId] = useState<string>('')
+  const [releaseId, setReleaseId] = useState<string>('')
+  const [submitting, setSubmitting] = useState(false)
+
   // The create modal can also be opened from the outside (`isCreateOpen`, e.g. the
   // 'c' shortcut); the local state keeps working as the uncontrolled fallback.
   const isCreateModalOpen = Boolean(isCreateOpen) || isModalOpen
-  const closeCreateModal = () => {
+
+  // Accidental close (Escape, X button, modal onClose): the draft is kept so
+  // re-opening the form restores everything the user typed.
+  const dismissCreateModal = () => {
     setIsModalOpen(false)
     onCloseCreate?.()
   }
 
-  // Externally opened create modal (e.g. 'c' shortcut) targets the first status
-  // column, matching the header "New Item" button.
+  // Draft persistence (DAV-87): shared with the list view's create form so a
+  // draft started in one view is available in the other.
+  const createDraftKey = draftStorageKey('work_item', effectiveProjectKey)
+
+  // The pre-selected status is not user input: the baseline uses the status the
+  // modal was opened with, so a blank form with a preselected column stays blank
+  // (no draft written, Clear disabled).
+  const initialDraftValues = useMemo<WorkItemDraft>(
+    () => workItemDraftDefaults(defaultCreateStatus),
+    [defaultCreateStatus]
+  )
+  const draftBaseline = useMemo<WorkItemDraft>(
+    () => ({ ...initialDraftValues, status: openedStatus }),
+    [initialDraftValues, openedStatus]
+  )
+
+  const restoreCreateDraft = useCallback((patch: Partial<WorkItemDraft>) => {
+    if (patch.title !== undefined) setTitle(patch.title)
+    if (patch.description !== undefined) setDescription(patch.description)
+    if (patch.status !== undefined) {
+      setStatus(patch.status)
+      setOpenedStatus(patch.status)
+    }
+    if (patch.priority !== undefined) setPriority(patch.priority)
+    if (patch.parentKey !== undefined) setParentKey(patch.parentKey)
+    if (patch.sprintId !== undefined) setSprintId(patch.sprintId)
+    if (patch.releaseId !== undefined) setReleaseId(patch.releaseId)
+  }, [])
+
+  const draftValidators = useMemo<DraftValidators<WorkItemDraft>>(
+    () => ({
+      status: value => effectiveStatuses.some(st => st.name === value),
+      priority: value => value === 'LOW' || value === 'MEDIUM' || value === 'HIGH'
+    }),
+    [effectiveStatuses]
+  )
+
+  const { isDirty: hasDraftInput, clear: clearStoredDraft } =
+    useDraftPersistence<WorkItemDraft>({
+      storageKey: createDraftKey,
+      values: { title, description, status, priority, parentKey, sprintId, releaseId },
+      initialValues: draftBaseline,
+      restore: restoreCreateDraft,
+      validators: draftValidators
+    })
+
+  const resetCreateForm = () => {
+    setTitle('')
+    setDescription('')
+    // Keep the column/draft status the modal was opened with.
+    setStatus(openedStatus)
+    setPriority('MEDIUM')
+    setParentKey('')
+    setSprintId('')
+    setReleaseId('')
+  }
+
+  // Clear button: drop the draft and blank the form, keeping the modal open.
+  const clearCreateForm = () => {
+    clearStoredDraft()
+    resetCreateForm()
+  }
+
+  // Explicit Cancel: drop the draft, blank the form and close.
+  const cancelCreateModal = () => {
+    clearStoredDraft()
+    resetCreateForm()
+    dismissCreateModal()
+  }
+
+  // Status to use when the modal is opened from the outside: a stored draft's
+  // status wins over the first-column default. Only an explicit per-column "+"
+  // may override the draft's status.
+  const resolveOpenedStatus = () =>
+    readDraft<WorkItemDraft>(createDraftKey, initialDraftValues, draftValidators)?.status ??
+    defaultCreateStatus
+
+  const openCreateModalFromHeader = () => {
+    const nextStatus = resolveOpenedStatus()
+    setOpenedStatus(nextStatus)
+    setStatus(nextStatus)
+    setIsModalOpen(true)
+  }
+
+  // Externally opened create modal (e.g. 'c' shortcut): the stored draft's
+  // status wins over the first-column default.
   const prevIsCreateOpenRef = useRef(false)
   useEffect(() => {
     if (isCreateOpen && !prevIsCreateOpenRef.current) {
-      setStatus(effectiveStatuses[0]?.name || 'todo')
+      const nextStatus = resolveOpenedStatus()
+      setOpenedStatus(nextStatus)
+      setStatus(nextStatus)
     }
     prevIsCreateOpenRef.current = Boolean(isCreateOpen)
-  }, [isCreateOpen, effectiveStatuses])
+  }, [isCreateOpen, createDraftKey, initialDraftValues, draftValidators, defaultCreateStatus])
+
 
   const filteredItems = useMemo(() => {
     return workItems.filter(item => {
@@ -196,6 +323,8 @@ export function KanbanBoard({
   }
 
   const openCreateModalForStatus = (statusName: string) => {
+    // An explicit per-column "+" is allowed to override the draft's status.
+    setOpenedStatus(statusName)
     setStatus(statusName)
     setIsModalOpen(true)
   }
@@ -215,16 +344,17 @@ export function KanbanBoard({
         sprint_id: sprintId ? parseInt(sprintId, 10) : null,
         release_id: releaseId ? parseInt(releaseId, 10) : null
       })
-      closeCreateModal()
-      setTitle('')
-      setDescription('')
-      setParentKey('')
-      setSprintId('')
-      setReleaseId('')
-      setPriority('MEDIUM')
+    } catch {
+      // Create failed: keep the draft and the modal open so the user can retry.
+      return
     } finally {
       setSubmitting(false)
     }
+
+    // Success: drop the draft, reset the form and close.
+    clearStoredDraft()
+    resetCreateForm()
+    dismissCreateModal()
   }
 
   return (
@@ -300,7 +430,7 @@ export function KanbanBoard({
 
           {onCreateWorkItem && (
             <button
-              onClick={() => openCreateModalForStatus(effectiveStatuses[0]?.name || 'todo')}
+              onClick={openCreateModalFromHeader}
               title="New Item (Press C)"
               aria-label="New Item"
               className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium flex items-center gap-1 transition shadow-sm shrink-0"
@@ -464,7 +594,7 @@ export function KanbanBoard({
       {/* Modal: New Work Item */}
       <Modal
         isOpen={isCreateModalOpen}
-        onClose={closeCreateModal}
+        onClose={dismissCreateModal}
         closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
@@ -595,7 +725,18 @@ export function KanbanBoard({
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800/60">
             <button
               type="button"
-              onClick={closeCreateModal}
+              onClick={clearCreateForm}
+              disabled={!hasDraftInput}
+              title="Clear draft"
+              aria-label="Clear draft"
+              data-testid="clear-work-item-draft"
+              className="mr-auto px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={cancelCreateModal}
               className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel

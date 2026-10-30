@@ -386,6 +386,7 @@ export function ProjectDetailView({
           )}
           {activeView === 'board' && (
             <KanbanBoard
+              projectKey={project.key}
               workItems={regularWorkItems}
               statuses={statuses}
               sprints={sprints}

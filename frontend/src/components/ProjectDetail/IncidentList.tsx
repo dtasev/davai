@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, FormEvent } from 'react'
+import { useState, useMemo, useCallback, useEffect, FormEvent } from 'react'
 import {
   Flame,
   Plus,
@@ -20,6 +20,27 @@ import { StatusFilterDropdown } from '../Common/StatusFilterDropdown'
 import { Modal } from '../Common/Modal'
 import { TrackButton } from '../Common/TrackButton'
 import { apiFetch } from '../../utils/apiFetch'
+import {
+  DraftValidators,
+  draftStorageKey,
+  useDraftPersistence
+} from '../../utils/draft'
+
+type IncidentDraft = {
+  title: string
+  cause: string
+  investigationNote: string
+  status: string
+  workItemKeysInput: string
+}
+
+const INCIDENT_DRAFT_DEFAULTS: IncidentDraft = {
+  title: '',
+  cause: '',
+  investigationNote: '',
+  status: 'reported',
+  workItemKeysInput: ''
+}
 
 interface IncidentListProps {
   projectKey: string
@@ -56,7 +77,10 @@ export function IncidentList({
   // The create modal can also be opened from the outside (`isCreateOpen`, e.g. the
   // 'c' shortcut); the local state keeps working as the uncontrolled fallback.
   const isCreateModalOpen = Boolean(isCreateOpen) || isModalOpen
-  const closeCreateModal = () => {
+
+  // Accidental close (Escape, X button, modal onClose): the draft is kept so
+  // re-opening the form restores everything the user typed.
+  const dismissCreateModal = () => {
     setIsModalOpen(false)
     onCloseCreate?.()
   }
@@ -75,6 +99,55 @@ export function IncidentList({
   const [status, setStatus] = useState('reported')
   const [workItemKeysInput, setWorkItemKeysInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // Draft persistence (DAV-87): every keystroke is stored so an accidental close
+  // never loses the form.
+  const createDraftKey = draftStorageKey('incident', effectiveProjectKey)
+
+  const restoreCreateDraft = useCallback((patch: Partial<IncidentDraft>) => {
+    if (patch.title !== undefined) setTitle(patch.title)
+    if (patch.cause !== undefined) setCause(patch.cause)
+    if (patch.investigationNote !== undefined) setInvestigationNote(patch.investigationNote)
+    if (patch.status !== undefined) setStatus(patch.status)
+    if (patch.workItemKeysInput !== undefined) setWorkItemKeysInput(patch.workItemKeysInput)
+  }, [])
+
+  const draftValidators = useMemo<DraftValidators<IncidentDraft>>(
+    () => ({
+      status: value => DEFAULT_INCIDENT_STATUSES.some(st => st.name === value)
+    }),
+    []
+  )
+
+  const { isDirty: hasDraftInput, clear: clearStoredDraft } =
+    useDraftPersistence<IncidentDraft>({
+      storageKey: createDraftKey,
+      values: { title, cause, investigationNote, status, workItemKeysInput },
+      initialValues: INCIDENT_DRAFT_DEFAULTS,
+      restore: restoreCreateDraft,
+      validators: draftValidators
+    })
+
+  const resetCreateForm = () => {
+    setTitle('')
+    setCause('')
+    setInvestigationNote('')
+    setStatus(INCIDENT_DRAFT_DEFAULTS.status)
+    setWorkItemKeysInput('')
+  }
+
+  // Clear button: drop the draft and blank the form, keeping the modal open.
+  const clearCreateForm = () => {
+    clearStoredDraft()
+    resetCreateForm()
+  }
+
+  // Explicit Cancel: drop the draft, blank the form and close.
+  const cancelCreateModal = () => {
+    clearStoredDraft()
+    resetCreateForm()
+    dismissCreateModal()
+  }
 
   // Debounced semantic/hybrid search
   useEffect(() => {
@@ -186,15 +259,17 @@ export function IncidentList({
         status,
         work_item_keys: keys.length > 0 ? keys : undefined
       })
-      closeCreateModal()
-      setTitle('')
-      setCause('')
-      setInvestigationNote('')
-      setStatus('reported')
-      setWorkItemKeysInput('')
+    } catch {
+      // Create failed: keep the draft and the modal open so the user can retry.
+      return
     } finally {
       setSubmitting(false)
     }
+
+    // Success: drop the draft, reset the form and close.
+    clearStoredDraft()
+    resetCreateForm()
+    dismissCreateModal()
   }
 
   return (
@@ -388,7 +463,7 @@ export function IncidentList({
       {/* Modal: New Incident */}
       <Modal
         isOpen={isCreateModalOpen}
-        onClose={closeCreateModal}
+        onClose={dismissCreateModal}
         closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
@@ -479,7 +554,18 @@ export function IncidentList({
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800/60">
             <button
               type="button"
-              onClick={closeCreateModal}
+              onClick={clearCreateForm}
+              disabled={!hasDraftInput}
+              title="Clear draft"
+              aria-label="Clear draft"
+              data-testid="clear-incident-draft"
+              className="mr-auto px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={cancelCreateModal}
               className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel

@@ -1,4 +1,4 @@
-import { useState, useMemo, FormEvent } from 'react'
+import { useState, useMemo, useCallback, FormEvent } from 'react'
 import {
   Activity,
   Plus,
@@ -16,6 +16,27 @@ import {
 import { StatusBadge, formatStatus } from '../Common/Badge'
 import { StatusFilterDropdown } from '../Common/StatusFilterDropdown'
 import { Modal } from '../Common/Modal'
+import {
+  DraftValidators,
+  draftStorageKey,
+  useDraftPersistence
+} from '../../utils/draft'
+
+type MonitoringLogDraft = {
+  agentId: string
+  description: string
+  status: string
+  incidentIdInput: string
+  jiraUrl: string
+}
+
+const MONITORING_LOG_DRAFT_DEFAULTS: MonitoringLogDraft = {
+  agentId: '',
+  description: '',
+  status: 'ok',
+  incidentIdInput: '',
+  jiraUrl: ''
+}
 
 interface MonitoringLogListProps {
   projectKey: string
@@ -35,12 +56,14 @@ interface MonitoringLogListProps {
 }
 
 export function MonitoringLogList({
+  projectKey,
   monitoringLogs,
   onSelectMonitoringLog,
   onCreateMonitoringLog,
   isCreateOpen,
   onCloseCreate
 }: MonitoringLogListProps) {
+  const effectiveProjectKey = projectKey || 'DAV'
   const [search, setSearch] = useState('')
   const [searchMode, setSearchMode] = useState<'hybrid' | 'keyword'>('keyword')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -48,7 +71,10 @@ export function MonitoringLogList({
   // The create modal can also be opened from the outside (`isCreateOpen`, e.g. the
   // 'c' shortcut); the local state keeps working as the uncontrolled fallback.
   const isCreateModalOpen = Boolean(isCreateOpen) || isModalOpen
-  const closeCreateModal = () => {
+
+  // Accidental close (Escape, X button, modal onClose): the draft is kept so
+  // re-opening the form restores everything the user typed.
+  const dismissCreateModal = () => {
     setIsModalOpen(false)
     onCloseCreate?.()
   }
@@ -64,6 +90,55 @@ export function MonitoringLogList({
   const [incidentIdInput, setIncidentIdInput] = useState('')
   const [jiraUrl, setJiraUrl] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // Draft persistence (DAV-87): every keystroke is stored so an accidental close
+  // never loses the form.
+  const createDraftKey = draftStorageKey('monitoring_log', effectiveProjectKey)
+
+  const restoreCreateDraft = useCallback((patch: Partial<MonitoringLogDraft>) => {
+    if (patch.agentId !== undefined) setAgentId(patch.agentId)
+    if (patch.description !== undefined) setDescription(patch.description)
+    if (patch.status !== undefined) setStatus(patch.status)
+    if (patch.incidentIdInput !== undefined) setIncidentIdInput(patch.incidentIdInput)
+    if (patch.jiraUrl !== undefined) setJiraUrl(patch.jiraUrl)
+  }, [])
+
+  const draftValidators = useMemo<DraftValidators<MonitoringLogDraft>>(
+    () => ({
+      status: value => DEFAULT_MONITORING_LOG_STATUSES.some(st => st.name === value)
+    }),
+    []
+  )
+
+  const { isDirty: hasDraftInput, clear: clearStoredDraft } =
+    useDraftPersistence<MonitoringLogDraft>({
+      storageKey: createDraftKey,
+      values: { agentId, description, status, incidentIdInput, jiraUrl },
+      initialValues: MONITORING_LOG_DRAFT_DEFAULTS,
+      restore: restoreCreateDraft,
+      validators: draftValidators
+    })
+
+  const resetCreateForm = () => {
+    setAgentId('')
+    setDescription('')
+    setStatus(MONITORING_LOG_DRAFT_DEFAULTS.status)
+    setIncidentIdInput('')
+    setJiraUrl('')
+  }
+
+  // Clear button: drop the draft and blank the form, keeping the modal open.
+  const clearCreateForm = () => {
+    clearStoredDraft()
+    resetCreateForm()
+  }
+
+  // Explicit Cancel: drop the draft, blank the form and close.
+  const cancelCreateModal = () => {
+    clearStoredDraft()
+    resetCreateForm()
+    dismissCreateModal()
+  }
 
   const filteredLogs = useMemo(() => {
     return monitoringLogs
@@ -103,15 +178,17 @@ export function MonitoringLogList({
         incident_id: incidentIdInput.trim() || null,
         jira_url: jiraUrl.trim()
       })
-      closeCreateModal()
-      setAgentId('')
-      setDescription('')
-      setStatus('ok')
-      setIncidentIdInput('')
-      setJiraUrl('')
+    } catch {
+      // Create failed: keep the draft and the modal open so the user can retry.
+      return
     } finally {
       setSubmitting(false)
     }
+
+    // Success: drop the draft, reset the form and close.
+    clearStoredDraft()
+    resetCreateForm()
+    dismissCreateModal()
   }
 
   return (
@@ -262,7 +339,7 @@ export function MonitoringLogList({
       {/* Modal: New Monitoring Log */}
       <Modal
         isOpen={isCreateModalOpen}
-        onClose={closeCreateModal}
+        onClose={dismissCreateModal}
         closeOnOverlayClick={false}
         title={
           <div className="flex items-center gap-2">
@@ -355,7 +432,18 @@ export function MonitoringLogList({
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-800/60">
             <button
               type="button"
-              onClick={closeCreateModal}
+              onClick={clearCreateForm}
+              disabled={!hasDraftInput}
+              title="Clear draft"
+              aria-label="Clear draft"
+              data-testid="clear-monitoring-log-draft"
+              className="mr-auto px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-zinc-500"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={cancelCreateModal}
               className="px-3 py-1.5 rounded-lg text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition"
             >
               Cancel
