@@ -357,6 +357,12 @@ def verify_oidc_jwt(token: str) -> Optional[dict]:
             signing_key.key,
             **decode_kwargs
         )
+        # PyJWT only validates `sub` when a specific subject is passed, so require
+        # its presence here: without a subject the claims cannot be tied to a
+        # stable identity, and username extraction would fall back to a display
+        # name or email prefix that the IdP is free to change.
+        if not str(payload.get("sub") or "").strip():
+            return None
         return payload
     except Exception:
         return None

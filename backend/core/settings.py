@@ -234,5 +234,21 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
+        # Uvicorn installs its own 'default' handler on the 'uvicorn' logger and
+        # 'uvicorn.error' propagates to it, so naming only uvicorn.access leaves
+        # WebSocket lifecycle lines unredacted: uvicorn.error emits
+        # '"WebSocket /ws?...&token=<key>" [accepted]' through that foreign handler.
+        # Both loggers must be re-pointed at the redacting handler explicitly, and
+        # must not propagate, or every record would be emitted twice.
+        'uvicorn': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'uvicorn.error': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }

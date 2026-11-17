@@ -1,6 +1,9 @@
 import io
 import importlib
 import logging
+import logging.config
+
+from uvicorn import config as uvicorn_config
 
 from tracker.log_redaction import MASK, CredentialRedactionFilter, redact
 
@@ -104,4 +107,64 @@ def test_logging_config_references_a_real_filter_class():
 
     assert getattr(importlib.import_module(module_path), class_name) is CredentialRedactionFilter
     assert "redact_credentials" in settings.LOGGING["handlers"]["console"]["filters"]
-    assert "uvicorn.access" in settings.LOGGING["loggers"]
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        assert name in settings.LOGGING["loggers"], f"{name} must be routed through the filter"
+
+
+def _reachable_handlers(logger):
+    """The handlers a record actually reaches, following propagation as logging does."""
+    handlers = []
+    while logger is not None:
+        handlers.extend(logger.handlers)
+        if not logger.propagate:
+            break
+        logger = logger.parent
+    return handlers
+
+
+def test_websocket_lifecycle_logs_are_redacted_in_uvicorns_real_startup_order():
+    """
+    Regression guard for the credential leak in WebSocket accept lines.
+
+    Uvicorn applies its own logging config at startup, which attaches an
+    unredacted 'default' handler to the 'uvicorn' logger; 'uvicorn.error' has no
+    handler of its own and propagates to it. Django then applies settings.LOGGING.
+    If that second config does not re-point both loggers, uvicorn.error writes
+    '"WebSocket /ws?...&token=<key>" [accepted]' through uvicorn's foreign handler
+    and the key reaches stderr in full.
+    """
+    from django.conf import settings
+
+    try:
+        logging.config.dictConfig(uvicorn_config.LOGGING_CONFIG)  # what uvicorn does first
+        logging.config.dictConfig(settings.LOGGING)              # what django.setup() does after
+
+        canary = "dav_live_LOGGINGORDERCANARY0001"
+
+        for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+            handlers = _reachable_handlers(logging.getLogger(name))
+            assert handlers, f"{name} reaches no handler at all"
+            for handler in handlers:
+                assert any(isinstance(f, CredentialRedactionFilter) for f in handler.filters), (
+                    f"{name} emits through {handler!r}, which does not redact credentials"
+                )
+
+        logger = logging.getLogger("uvicorn.error")
+        streams = {h: h.stream for h in _reachable_handlers(logger) if isinstance(h, logging.StreamHandler)}
+        assert streams, "uvicorn.error must emit through a stream handler"
+        replacements = {h: io.StringIO() for h in streams}
+        for handler, buffer in replacements.items():
+            handler.setStream(buffer)
+        try:
+            logger.info('10.0.0.1:1 - "WebSocket /ws?client_id=x&token=%s" [accepted]', canary)
+        finally:
+            captured = "".join(buffer.getvalue() for buffer in replacements.values())
+            for handler, stream in streams.items():
+                handler.setStream(stream)
+
+        assert captured, "the record must actually have been emitted"
+        assert canary not in captured, "the API key reached the log stream unredacted"
+        assert MASK in captured
+    finally:
+        # Leave the process on the application's own configuration.
+        logging.config.dictConfig(settings.LOGGING)
