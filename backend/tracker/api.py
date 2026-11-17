@@ -1390,7 +1390,7 @@ def _is_api_key_or_mcp_request(request) -> bool:
     user_agent = request.headers.get("User-Agent", "")
     if "Davai-MCP" in user_agent:
         return True
-    if request.headers.get("X-API-Key") or request.GET.get("api_key"):
+    if request.headers.get("X-API-Key"):
         return True
     return False
 

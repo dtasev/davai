@@ -11,7 +11,7 @@ import urllib.error
 import jwt
 from jwt import PyJWKClient
 from django.conf import settings
-from ninja.security import APIKeyHeader, APIKeyQuery, APIKeyCookie, HttpBearer, django_auth
+from ninja.security import APIKeyHeader, APIKeyCookie, HttpBearer, django_auth
 from tracker.models import APIKey
 
 logger = logging.getLogger(__name__)
@@ -209,13 +209,6 @@ class ApiKeyHeaderAuth(APIKeyHeader):
     def authenticate(self, request, key: Optional[str]) -> Optional[User]:
         return verify_api_key(key)
 
-class ApiKeyQueryAuth(APIKeyQuery):
-    """Authenticates API requests via '?api_key=dav_live_...' query param."""
-    param_name = "api_key"
-
-    def authenticate(self, request, key: Optional[str]) -> Optional[User]:
-        return verify_api_key(key)
-
 # NOTE: authenticating on the client-supplied 'Remote-User' / 'Remote-Groups'
 # headers was removed. Those headers are meant to be set by a trusted reverse
 # proxy, but nothing in front of this service strips or verifies them, so any
@@ -350,10 +343,12 @@ def verify_oidc_jwt(token: str) -> Optional[dict]:
 
         decode_kwargs = {
             "algorithms": ["RS256", "ES256"],
+            "audience": getattr(settings, "OIDC_AUDIENCE", None),
+            "issuer": getattr(settings, "OIDC_ISSUER_URL", None),
             "options": {
                 "verify_exp": True,
-                "verify_aud": False,
-                "verify_iss": False,
+                "verify_aud": True,
+                "verify_iss": True,
             },
         }
 
@@ -426,7 +421,8 @@ def verify_oidc_userinfo(token: str, request=None) -> Optional[User]:
     if not data:
         return None
 
-    logger.info("OIDC userinfo claims received: %s", json.dumps(data, indent=2, default=str))
+    # Log claim names, not values: the userinfo payload carries PII (email, name).
+    logger.debug("OIDC userinfo claims received: %s", sorted(data.keys()))
 
     username, email, name, groups_str = extract_oidc_user_details(data)
     if not username:
@@ -459,12 +455,12 @@ class JWTAuth(HttpBearer):
 
         return None
 
-# Composite authenticators: API key in header, query param, Django session cookie, OIDC JWT,
-# or server-validated authelia cookie. Client-supplied proxy headers (Remote-User) are
-# deliberately NOT trusted here.
+# Composite authenticators: API key in header, Django session cookie, OIDC JWT, or
+# server-validated authelia cookie. Client-supplied proxy headers (Remote-User) and
+# query-string credentials (?api_key=) are deliberately NOT trusted here: credentials
+# in URLs leak into access logs and browser history.
 api_key_auth = [
     ApiKeyHeaderAuth(),
-    ApiKeyQueryAuth(),
     django_auth,
     JWTAuth(),
     AutheliaSessionAuth()

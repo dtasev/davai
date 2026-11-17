@@ -39,7 +39,7 @@ class HasApiKey(BasePermission):
 
         api_key = None
         if request:
-            api_key = request.headers.get("X-API-Key") or request.GET.get("api_key")
+            api_key = request.headers.get("X-API-Key")
             if not api_key:
                 auth = request.headers.get("Authorization", "")
                 if auth.startswith("Bearer "):

@@ -461,7 +461,6 @@ describe('Davai Frontend App with React Router', () => {
             Promise.resolve({
               id: 1,
               username: 'admin',
-              email: 'admin@dtasev.co.uk',
               is_staff: true,
             }),
         } as Response)

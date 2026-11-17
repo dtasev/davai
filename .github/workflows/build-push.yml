@@ -26,6 +26,11 @@ jobs:
     - name: Run frontend tests
       run: docker compose --profile test run --rm frontend-test
 
+    - name: Typecheck and build frontend
+      # vitest does not run tsc; the production build (tsc -b && vite build) is the
+      # check that catches type errors, so run it explicitly here.
+      run: docker compose --profile test run --rm frontend-test npm run build
+
   build-push:
     needs: test
     runs-on: ubuntu-latest

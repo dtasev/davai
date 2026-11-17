@@ -249,7 +249,7 @@ describe('TrackingDrawer (DAV-83 active work item tracker)', () => {
       }
 
       if (urlStr.includes('/api/auth/me')) {
-        return okRes({ id: 1, username: 'admin', email: 'admin@dtasev.co.uk', is_staff: true })
+        return okRes({ id: 1, username: 'admin', is_staff: true })
       }
 
       if (urlStr.includes('/api/auth/keys')) {

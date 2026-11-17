@@ -37,11 +37,11 @@ class TestNinjaAPI:
         assert data["username"] == test_user.username
         assert "email" not in data
 
-    def test_auth_me_authorized_via_query_param(self, ninja_client, test_user, test_api_key):
+    def test_auth_me_rejects_query_param_credentials(self, ninja_client, test_user, test_api_key):
+        # Credentials must not be accepted in the URL: they leak into access logs.
         _, raw_key = test_api_key
         response = ninja_client.get(f"/auth/me?api_key={raw_key}")
-        assert response.status_code == 200
-        assert response.json()["username"] == test_user.username
+        assert response.status_code == 401
 
     def test_auth_me_rejects_remote_user_header(self, ninja_client):
         # Client-supplied proxy headers must NOT authenticate. They are only trustworthy
