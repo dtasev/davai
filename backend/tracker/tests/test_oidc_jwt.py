@@ -11,7 +11,6 @@ import types
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
-from django.test import override_settings
 
 from tracker.auth import verify_oidc_jwt
 
@@ -52,7 +51,13 @@ def _token(private_key=TRUSTED_KEY, drop=(), **overrides):
     return jwt.encode(payload, private_key, algorithm="RS256")
 
 
-@override_settings(OIDC_ISSUER_URL=ISSUER, OIDC_AUDIENCE=AUDIENCE)
+@pytest.fixture(autouse=True)
+def oidc_settings(settings):
+    """pytest-django's settings fixture restores the originals after each test."""
+    settings.OIDC_ISSUER_URL = ISSUER
+    settings.OIDC_AUDIENCE = AUDIENCE
+
+
 class TestVerifyOIDCJwt:
     def test_token_from_the_expected_client_is_accepted(self):
         claims = verify_oidc_jwt(_token())
