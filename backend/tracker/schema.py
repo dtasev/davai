@@ -30,7 +30,12 @@ def verify_api_key_with_fresh_connection(api_key):
 
 
 class HasApiKey(BasePermission):
-    message = "Authentication required: A valid API key must be provided via 'X-API-Key' header or 'api_key' query parameter."
+    # Keep this in step with what has_permission actually accepts: the '?api_key='
+    # route was removed, so advertising it would send users down a dead end.
+    message = (
+        "Authentication required: a valid API key must be provided via the "
+        "'X-API-Key' header or an 'Authorization: Bearer <key>' header."
+    )
 
     async def has_permission(self, source: Any, info: Info, **kwargs) -> bool:
         request = getattr(info.context, "request", None)

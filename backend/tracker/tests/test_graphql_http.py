@@ -62,3 +62,13 @@ class TestGraphQLHTTPLayer:
         body = res.json()
         assert body.get("data") is None
         assert any("Authentication required" in e["message"] for e in body.get("errors", []))
+
+    def test_auth_error_only_advertises_routes_that_work(self):
+        """The message must not point users at the removed '?api_key=' route."""
+        with TestClient(application) as client:
+            res = client.post("/graphql", json=HELLO)
+
+        message = res.json()["errors"][0]["message"]
+        assert "Authentication required" in message
+        assert "query parameter" not in message
+        assert "X-API-Key" in message
