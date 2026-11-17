@@ -35,7 +35,7 @@ class TestNinjaAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == test_user.username
-        assert data["email"] == test_user.email
+        assert "email" not in data
 
     def test_auth_me_authorized_via_query_param(self, ninja_client, test_user, test_api_key):
         _, raw_key = test_api_key
@@ -43,7 +43,9 @@ class TestNinjaAPI:
         assert response.status_code == 200
         assert response.json()["username"] == test_user.username
 
-    def test_auth_me_authorized_via_remote_user(self, ninja_client):
+    def test_auth_me_rejects_remote_user_header(self, ninja_client):
+        # Client-supplied proxy headers must NOT authenticate. They are only trustworthy
+        # from a proxy that sets and strips them, which is not configured in front of the API.
         response = ninja_client.get(
             "/auth/me",
             headers={
@@ -53,11 +55,7 @@ class TestNinjaAPI:
                 "Remote-Groups": "admins,dev",
             }
         )
-        assert response.status_code == 200
-        data = response.json()
-        assert data["username"] == "authelia_admin"
-        assert data["email"] == "authelia@ecmwf.int"
-        assert data["is_staff"] is True
+        assert response.status_code == 401
 
     def test_auth_me_authorized_via_authelia_cookie(self, ninja_client, monkeypatch):
         class MockResponse:
@@ -83,7 +81,7 @@ class TestNinjaAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == "cookie_user"
-        assert data["email"] == "cookie_user@ecmwf.int"
+        assert "email" not in data
 
     def test_auth_me_authorized_via_jwt(self, ninja_client, monkeypatch):
         mock_claims = {
@@ -102,7 +100,7 @@ class TestNinjaAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == "jwt_user"
-        assert data["email"] == "jwt_user@ecmwf.int"
+        assert "email" not in data
         assert data["is_staff"] is True
 
     def test_auth_me_invalid_jwt(self, ninja_client, monkeypatch):
@@ -121,7 +119,7 @@ class TestNinjaAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == test_user.username
-        assert data["email"] == test_user.email
+        assert "email" not in data
 
     def test_oidc_login_redirect(self, client):
         response = client.get("/api/auth/login")
@@ -198,7 +196,7 @@ class TestNinjaAPI:
         assert me_res.status_code == 200
         data = me_res.json()
         assert data["username"] == "oidc_session_user"
-        assert data["email"] == "session_user@ecmwf.int"
+        assert "email" not in data
 
     def test_oidc_logout(self, client, test_user):
         from tracker.auth import _AUTHELIA_SESSION_CACHE
@@ -366,7 +364,7 @@ class TestNinjaAPI:
         assert items_map[parent_key]["subtasks"] == [{"key": child_key, "title": "Subtask 1"}]
         assert items_map[child_key]["subtasks"] == []
 
-    def test_context_and_progress_flow(self, ninja_client, test_user, test_project, test_api_key):
+    def test_context_and_progress_flow(self, ninja_client, client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
 
         # 1. Create item
@@ -442,17 +440,15 @@ class TestNinjaAPI:
         assert "created_at" in prog_list_res.json()[0]
 
         # 6. Human / session-authenticated request without API key can omit agent_id (defaults to "")
-        human_prog_res = ninja_client.post(
-            f"/work-items/{item_key}/progress",
-            json={
+        client.force_login(test_user)
+        human_prog_res = client.post(
+            f"/api/work-items/{item_key}/progress",
+            data={
                 "summary": "Human UI progress update",
                 "proof": "git:9a1b2c3",
                 "status": "review"
             },
-            headers={
-                "Remote-User": test_user.username,
-                "Remote-Email": test_user.email,
-            }
+            content_type="application/json"
         )
         assert human_prog_res.status_code == 200
         assert human_prog_res.json()["agent_id"] == ""
@@ -1130,7 +1126,7 @@ class TestNinjaAPI:
         assert res_a4.json()["key"] == "PRJA-4"
         assert res_b3.json()["key"] == "PRJB-3"
 
-    def test_incidents_and_monitoring_logs_api(self, ninja_client, test_user, test_project, test_api_key):
+    def test_incidents_and_monitoring_logs_api(self, ninja_client, client, test_user, test_project, test_api_key):
         _, raw_key = test_api_key
         headers = {"X-API-Key": raw_key}
         mcp_headers = {"X-API-Key": raw_key, "User-Agent": "Davai-MCP/1.0"}
@@ -1268,28 +1264,26 @@ class TestNinjaAPI:
         )
         assert upd_nlr_llm.status_code == 400
 
-        # 7. Human (Remote-User header, non-API-key) CAN set incident to "done" and "no longer relevant"
-        human_headers = {
-            "Remote-User": "human_engineer",
-            "Remote-Email": "engineer@ecmwf.int",
-        }
-        upd_done_human = ninja_client.patch(
-            f"/incidents/{inc_key}",
-            json={"status": "done"},
-            headers=human_headers
+        # 7. Human / session-authenticated request (no API key) CAN set incident to "done"
+        #    and "no longer relevant".
+        client.force_login(test_user)
+        upd_done_human = client.patch(
+            f"/api/incidents/{inc_key}",
+            data={"status": "done"},
+            content_type="application/json"
         )
         assert upd_done_human.status_code == 200
         assert upd_done_human.json()["status"] == "done"
 
         # Create a second incident and mark it "no longer relevant" as human
-        inc2_res = ninja_client.post(
-            f"/projects/{test_project.key}/incidents",
-            json={
+        inc2_res = client.post(
+            f"/api/projects/{test_project.key}/incidents",
+            data={
                 "title": "Legacy NFS Mount Timeout on Decommissioned Cluster",
                 "cause": "Old storage array latency",
                 "status": "no longer relevant",
             },
-            headers=human_headers
+            content_type="application/json"
         )
         assert inc2_res.status_code == 200
         inc2_key = inc2_res.json()["key"]

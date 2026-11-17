@@ -118,7 +118,6 @@ export function SettingsView({
                     </span>
                   )}
                 </div>
-                <div className="text-sm text-zinc-400 mt-0.5">{userProfile.email}</div>
                 <div className="text-[11px] text-zinc-500 mt-0.5">User ID: #{userProfile.id}</div>
               </div>
             </div>

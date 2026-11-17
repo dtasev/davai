@@ -107,8 +107,8 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# CORS configuration
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS configuration: explicit origin allow-list (never "*" together with credentials).
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -121,6 +121,9 @@ CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:6477',
     'http://localhost:6477',
 ]
+
+# Reuse the same trusted-origin list for CORS.
+CORS_ALLOWED_ORIGINS = list(CSRF_TRUSTED_ORIGINS)
 
 AUTHELIA_AUTH_URL = os.environ.get(
     "AUTHELIA_AUTH_URL",

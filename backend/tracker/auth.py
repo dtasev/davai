@@ -216,23 +216,13 @@ class ApiKeyQueryAuth(APIKeyQuery):
     def authenticate(self, request, key: Optional[str]) -> Optional[User]:
         return verify_api_key(key)
 
-class RemoteUserAuth(APIKeyHeader):
-    """
-    Authenticates requests forwarded by Authelia / reverse proxy via 'Remote-User' header.
-    When present, automatically provisions or retrieves the Django User.
-    """
-    param_name = "Remote-User"
-
-    def authenticate(self, request, key: Optional[str]) -> Optional[User]:
-        username = (key or request.META.get("HTTP_REMOTE_USER") or "").strip()
-        if not username:
-            return None
-
-        email = request.headers.get("Remote-Email") or request.META.get("HTTP_REMOTE_EMAIL") or ""
-        name = request.headers.get("Remote-Name") or request.META.get("HTTP_REMOTE_NAME") or ""
-        groups = request.headers.get("Remote-Groups") or request.META.get("HTTP_REMOTE_GROUPS") or ""
-
-        return get_or_create_remote_user(username, email=email, name=name, groups=groups)
+# NOTE: authenticating on the client-supplied 'Remote-User' / 'Remote-Groups'
+# headers was removed. Those headers are meant to be set by a trusted reverse
+# proxy, but nothing in front of this service strips or verifies them, so any
+# client could present them and be provisioned as an arbitrary (optionally
+# staff) user via get_or_create_remote_user. If forward authentication is ever
+# enabled, the proxy must set these headers itself AND the Ingress must drop any
+# inbound copy before the backend is re-wired to trust them.
 
 # In-memory cache for validated Authelia sessions: session_cookie -> (User, expires_at_timestamp)
 _AUTHELIA_SESSION_CACHE = {}
@@ -469,13 +459,14 @@ class JWTAuth(HttpBearer):
 
         return None
 
-# Composite authenticators: API key in header, query param, Django session cookie, OIDC JWT, Remote-User, or authelia cookie
+# Composite authenticators: API key in header, query param, Django session cookie, OIDC JWT,
+# or server-validated authelia cookie. Client-supplied proxy headers (Remote-User) are
+# deliberately NOT trusted here.
 api_key_auth = [
     ApiKeyHeaderAuth(),
     ApiKeyQueryAuth(),
     django_auth,
     JWTAuth(),
-    RemoteUserAuth(),
     AutheliaSessionAuth()
 ]
 
