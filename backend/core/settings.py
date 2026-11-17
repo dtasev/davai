@@ -6,7 +6,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-dev-key-change-in-production-6477')
 DEBUG = os.getenv('DEBUG', '1') == '1'
 
-ALLOWED_HOSTS = ['*']
+# Comma-separated. Defaults to '*' so local Compose and the in-cluster health
+# probes (which reach the pod by IP) keep working; set it explicitly per
+# environment to enable Django's host-header validation.
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '*').split(',') if h.strip()]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -155,6 +158,10 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_AGE = 86400 * 7  # 7 days
 
+# The SPA reads the csrftoken value out of document.cookie, so this cookie stays
+# readable by JavaScript (Django's default); it is still tied to HTTPS in prod.
+CSRF_COOKIE_SECURE = not DEBUG
+
 # OIDC Client settings for Backend-driven flow (mozilla-django-oidc & custom views)
 OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "davai")
 OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "davai_oidc_client_secret_dev_key_40_chars_min")
@@ -194,10 +201,14 @@ LOGGING = {
             'style': '{',
         },
     },
+    'filters': {
+        'redact_credentials': {'()': 'tracker.log_redaction.CredentialRedactionFilter'},
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'filters': ['redact_credentials'],
         },
     },
     'root': {
@@ -211,6 +222,14 @@ LOGGING = {
             'propagate': False,
         },
         'tracker': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        # Uvicorn's access log writes the full request line, which carries
+        # ?token= / ?api_key= credentials on /ws and /mcp. Route it through the
+        # redacting handler rather than switching access logging off.
+        'uvicorn.access': {
             'handlers': ['console'],
             'level': 'INFO',
             'propagate': False,
