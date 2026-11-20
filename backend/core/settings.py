@@ -164,7 +164,13 @@ CSRF_COOKIE_SECURE = not DEBUG
 
 # OIDC Client settings for Backend-driven flow (mozilla-django-oidc & custom views)
 OIDC_CLIENT_ID = os.environ.get("OIDC_CLIENT_ID", "davai")
-OIDC_CLIENT_SECRET = os.environ.get("OIDC_CLIENT_SECRET", "davai_oidc_client_secret_dev_key_40_chars_min")
+# The client secret lives in Vault (field DAVAI_OIDC_SECRET of
+# user_applications_and_services_team/cems_web) and reaches the app as the
+# environment variable DAVAI_OIDC_SECRET. The fallback only fits the local
+# Authelia dev client.
+OIDC_CLIENT_SECRET = os.environ.get(
+    "DAVAI_OIDC_SECRET", "davai_oidc_client_secret_dev_key_40_chars_min"
+)
 OIDC_TOKEN_URL = _env_nonempty("OIDC_TOKEN_URL", f"{OIDC_ISSUER_URL}/api/oidc/token")
 OIDC_AUTHORIZATION_URL = _env_nonempty(
     "OIDC_AUTHORIZATION_URL", f"{OIDC_ISSUER_URL}/api/oidc/authorization"

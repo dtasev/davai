@@ -54,3 +54,10 @@ docker compose exec backend python manage.py shell
 - `authelia`: Authentication portal & OIDC IdP (`http://authelia:9091`)
 - `postgres`: PostgreSQL database
 - `nginx`: Local reverse proxy exposing the application on port 6477 (`http://127.0.0.1:6477`)
+
+## Secrets
+
+- The backend reads the OIDC client secret from `DAVAI_OIDC_SECRET`. Deployments
+  supply it from Vault (`user_applications_and_services_team/cems_web`); local
+  compose does not set it and uses the Authelia dev client default in
+  `backend/core/settings.py`.
