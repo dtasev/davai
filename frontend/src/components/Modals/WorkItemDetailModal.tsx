@@ -290,11 +290,12 @@ export function WorkItemDetailModal({
 
     const textToCopy = [
       `Key: ${item.key}\nTitle: ${title}\nURL: ${url}`,
-      `This is a Davai MCP item. Rename your session to a sensible slug, prefixed with the item key-ID-<short-slug-summary> (${item.key}-<short-slug-summary>)`
+      `This is a Davai MCP item. Rename your session to a sensible slug, prefixed with the item key-ID-<short-slug-summary> (${item.key}-<short-slug-summary>).
+      Proceed by following the @git-worktree skill for configuring the local development stack`
     ].join('\n\n')
 
     if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(textToCopy).catch(() => {})
+      navigator.clipboard.writeText(textToCopy).catch(() => { })
     }
     setHasCopiedStartPrompt(true)
     setTimeout(() => setHasCopiedStartPrompt(false), 2000)
