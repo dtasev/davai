@@ -2263,6 +2263,7 @@ class TrackedItemOut(Schema):
     status: str
     project_key: str
     added_at: str
+    target_date: Optional[str] = None
 
     @staticmethod
     def resolve_item_type(obj: TrackedItem) -> str:
@@ -2323,6 +2324,14 @@ class TrackedItemOut(Schema):
     @staticmethod
     def resolve_added_at(obj: TrackedItem) -> str:
         return obj.created_at.isoformat()
+
+    @staticmethod
+    def resolve_target_date(obj: TrackedItem) -> Optional[str]:
+        # Only work-item-backed rows carry a target date. Incidents have no date;
+        # sprints and releases have no target date either.
+        if obj.work_item_id and obj.work_item.target_date:
+            return obj.work_item.target_date.isoformat()
+        return None
 
 
 class CreateTrackedIn(Schema):

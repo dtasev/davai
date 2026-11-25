@@ -11,10 +11,12 @@ import {
   Trash2,
   X,
   Loader2,
+  Calendar,
   LucideIcon
 } from 'lucide-react'
 import { TrackedItem, TrackedItemType, TrackedSection } from '../../types'
 import { StatusBadge } from '../Common/Badge'
+import { formatDate } from '../ProjectDetail/WorkItemList'
 import { useTrackedItems } from '../../context/TrackedItemsContext'
 
 /**
@@ -372,8 +374,8 @@ export function TrackingDrawer() {
                         data-testid={`drawer-item-${item.item_type}-${item.key}`}
                       >
                         <div className="flex-1 min-w-0">
-                          {/* Row 1: key (or type icon) + status badge. */}
-                          <div className="flex items-center gap-1.5 min-w-0">
+                          {/* Row 1: key (or type icon) + status badge + target date. */}
+                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap gap-y-1">
                             {item.item_type === 'sprint' || item.item_type === 'release' ? (
                               item.item_type === 'sprint' ? (
                                 <Zap className="w-3 h-3 text-amber-400 shrink-0" />
@@ -386,6 +388,16 @@ export function TrackingDrawer() {
                               </span>
                             )}
                             <StatusBadge status={item.status} compact />
+                            {item.target_date && (
+                              <span
+                                data-testid={`drawer-target-date-${item.item_type}-${item.key}`}
+                                title={`Target date: ${formatDate(item.target_date)}`}
+                                className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded border leading-none shrink-0 bg-zinc-800/60 text-zinc-400 border-zinc-800"
+                              >
+                                <Calendar className="w-2.5 h-2.5 text-zinc-500" />
+                                <span>{formatDate(item.target_date)}</span>
+                              </span>
+                            )}
                           </div>
                           {/* Row 2: title on its own line, same size as the rest of the app. */}
                           <span className="mt-1 block text-sm text-zinc-200 truncate">

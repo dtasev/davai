@@ -139,8 +139,8 @@ describe('TrackingDrawer (DAV-83 active work item tracker)', () => {
     // ---- server-side tracked rows for the logged-in user -------------------
     nextTrackedId = 100
     trackedRows = [
-      { id: 11, item_type: 'work_item', ref_id: 1, key: 'DAV-1', title: 'Build AI-Native Data Models', status: 'in progress', project_key: 'DAV', added_at: '2026-10-01T08:00:00Z' },
-      { id: 12, item_type: 'work_item', ref_id: 3, key: 'DAV-3', title: 'Write Release Notes', status: 'done', project_key: 'DAV', added_at: '2026-10-02T08:00:00Z' },
+      { id: 11, item_type: 'work_item', ref_id: 1, key: 'DAV-1', title: 'Build AI-Native Data Models', status: 'in progress', project_key: 'DAV', added_at: '2026-10-01T08:00:00Z', target_date: '2026-10-20T00:00:00Z' },
+      { id: 12, item_type: 'work_item', ref_id: 3, key: 'DAV-3', title: 'Write Release Notes', status: 'done', project_key: 'DAV', added_at: '2026-10-02T08:00:00Z', target_date: null },
       { id: 21, item_type: 'incident', ref_id: 1, key: 'DAV-INC-1', title: 'Redis Cluster Failover', status: 'ongoing', project_key: 'DAV', added_at: '2026-10-01T09:00:00Z' },
       { id: 22, item_type: 'incident', ref_id: 2, key: 'DAV-INC-2', title: 'Decommissioned Storage Alert', status: 'no longer relevant', project_key: 'DAV', added_at: '2026-10-03T09:00:00Z' },
       { id: 31, item_type: 'user_support', ref_id: 501, key: 'DAV-SUP-1', title: 'Cannot download GRIB2 forecast', status: 'todo', project_key: 'DAV', added_at: '2026-10-01T10:00:00Z' },
@@ -698,6 +698,26 @@ describe('TrackingDrawer (DAV-83 active work item tracker)', () => {
 
     // Titles use the same size as the rest of the app.
     expect(title.className).toContain('text-sm')
+  })
+
+  it('shows the work item target date in the meta row and omits it for other item types', async () => {
+    await renderOpenDrawerWithRows()
+
+    // DAV-1 carries a target date: the pill shares the meta row with the key and badge.
+    const row = screen.getByTestId('drawer-item-work_item-DAV-1')
+    const pill = within(row).getByTestId('drawer-target-date-work_item-DAV-1')
+    expect(pill).toHaveTextContent(/2026/)
+    expect(pill.parentElement).toBe(within(row).getByText('DAV-1').parentElement)
+
+    // DAV-3 has no target date → no pill.
+    expect(
+      within(screen.getByTestId('drawer-item-work_item-DAV-3')).queryByTestId(/^drawer-target-date-/)
+    ).not.toBeInTheDocument()
+
+    // Sprint rows never carry a target date.
+    expect(
+      within(screen.getByTestId('drawer-item-sprint-1')).queryByTestId(/^drawer-target-date-/)
+    ).not.toBeInTheDocument()
   })
 
   it('ends an in-flight drag on window blur and focuses the handle on mousedown', async () => {

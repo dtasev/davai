@@ -55,6 +55,7 @@ function makeRow(
     status: 'todo',
     project_key: 'DAV',
     added_at: '2026-10-01T00:00:00Z',
+    target_date: null,
     ...overrides
   }
 }

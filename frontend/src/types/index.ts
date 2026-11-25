@@ -295,5 +295,6 @@ export interface TrackedItem {
   status: string
   project_key: string
   added_at: string
+  target_date: string | null
 }
 

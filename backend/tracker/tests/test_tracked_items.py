@@ -5,7 +5,7 @@ Permanent test coverage for the per-user tracked-items feature (DAV-83):
 - TrackedItem model constraints (exactly-one-target, per-user uniqueness)
 - CASCADE removal of tracked rows when their target object is deleted
 """
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from django.db import IntegrityError, transaction
@@ -110,6 +110,29 @@ class TestTrackedItemsAPI:
         listing = ninja_client.get("/tracked-items", headers=headers)
         assert listing.status_code == 200
         assert [row["key"] for row in listing.json()] == [item.key]
+
+    def test_target_date_is_exposed_for_work_items_and_null_for_others(
+        self, ninja_client, headers, test_user, test_project
+    ):
+        item = make_work_item(test_project, test_user, "Dated work item")
+        WorkItem.objects.filter(id=item.id).update(
+            target_date=datetime(2026, 10, 15, 12, 0, 0, tzinfo=timezone.utc)
+        )
+        sprint = Sprint.objects.create(project=test_project, name="Dated sprint", status="planned")
+        incident = make_incident(test_project, test_user, "Dated incident")
+
+        ninja_client.post("/tracked-items", headers=headers, json={"item_type": "work_item", "key": item.key})
+        ninja_client.post("/tracked-items", headers=headers, json={"item_type": "sprint", "id": sprint.id})
+        ninja_client.post("/tracked-items", headers=headers, json={"item_type": "incident", "key": incident.key})
+
+        rows = {
+            row["item_type"]: row
+            for row in ninja_client.get("/tracked-items", headers=headers).json()
+        }
+        # Work items carry the target date; sprints and incidents have none.
+        assert rows["work_item"]["target_date"].startswith("2026-10-15")
+        assert rows["sprint"]["target_date"] is None
+        assert rows["incident"]["target_date"] is None
 
     def test_add_user_support_ticket(self, ninja_client, headers, test_user, test_project):
         ticket = make_work_item(
