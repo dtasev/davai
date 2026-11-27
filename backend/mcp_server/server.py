@@ -70,6 +70,7 @@ def create_work_item(
     status: Optional[str] = None,
     active_assignee_username: Optional[str] = None,
     parent_key: Optional[str] = None,
+    session_url: str = "",
     sprint_id: Optional[int] = None,
     release_id: Optional[int] = None,
     start_date: Optional[str] = None,
@@ -91,6 +92,7 @@ def create_work_item(
         status: Status ('todo', 'planned', 'in progress', 'blocked', 'review', 'cancelled'). Defaults to 'todo'. Note: 'done' is not permitted via MCP.
         active_assignee_username: Optional username of assigned user. Defaults to the current user (creator) if omitted. Pass empty string to leave unassigned.
         parent_key: Optional parent work item key for subtasks (e.g. 'DAV-1').
+        session_url: Optional URL to the live agent session (e.g. OpenCode web session).
         sprint_id: Optional sprint ID to assign to.
         release_id: Optional release ID to tag with.
         start_date: Optional start date (YYYY-MM-DD or ISO format).
@@ -112,6 +114,7 @@ def create_work_item(
         status=status,
         active_assignee_username=active_assignee_username,
         parent_key=parent_key,
+        session_url=session_url,
         sprint_id=sprint_id,
         release_id=release_id,
         start_date=start_date,
@@ -128,6 +131,7 @@ def update_work_item(
     priority: Optional[str] = None,
     active_assignee_username: Optional[str] = None,
     parent_key: Optional[str] = None,
+    session_url: Optional[str] = None,
     sprint_id: Optional[int] = None,
     release_id: Optional[int] = None,
     start_date: Optional[str] = None,
@@ -143,6 +147,7 @@ def update_work_item(
         priority: Optional new priority ('LOW', 'MEDIUM', 'HIGH').
         active_assignee_username: Optional username to assign to. Pass empty string to unassign.
         parent_key: Optional parent key to reparent or nest this work item.
+        session_url: Optional URL to the live agent session. Pass empty string '' to clear.
         sprint_id: Optional sprint ID to assign to. Pass 0 to remove from sprint.
         release_id: Optional release ID to tag with. Pass 0 to remove from release.
         start_date: Optional start date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
@@ -166,6 +171,8 @@ def update_work_item(
         kwargs["active_assignee_username"] = active_assignee_username
     if parent_key is not None:
         kwargs["parent_key"] = parent_key
+    if session_url is not None:
+        kwargs["session_url"] = session_url
     if sprint_id is not None:
         kwargs["sprint_id"] = sprint_id
     if release_id is not None:
@@ -694,6 +701,7 @@ def create_user_support_ticket(
     active_assignee_username: Optional[str] = None,
     parent_key: Optional[str] = None,
     source: str = "",
+    session_url: str = "",
     start_date: Optional[str] = None,
     target_date: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -711,6 +719,7 @@ def create_user_support_ticket(
         active_assignee_username: Optional username of assigned user. Defaults to the current user (creator) if omitted. Pass empty string to leave unassigned.
         parent_key: Optional parent ticket key for subtasks.
         source: Optional source reference (e.g. requester or external URL).
+        session_url: Optional URL to the live agent session (e.g. OpenCode web session).
         start_date: Optional start date (YYYY-MM-DD or ISO format).
         target_date: Optional target completion date (YYYY-MM-DD or ISO format).
     """
@@ -731,6 +740,7 @@ def create_user_support_ticket(
         active_assignee_username=active_assignee_username,
         parent_key=parent_key,
         source=source,
+        session_url=session_url,
         start_date=start_date,
         target_date=target_date,
         context=context,
@@ -745,6 +755,7 @@ def update_user_support_ticket(
     priority: Optional[str] = None,
     active_assignee_username: Optional[str] = None,
     parent_key: Optional[str] = None,
+    session_url: Optional[str] = None,
     start_date: Optional[str] = None,
     target_date: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -758,6 +769,7 @@ def update_user_support_ticket(
         priority: Optional new priority ('LOW', 'MEDIUM', 'HIGH').
         active_assignee_username: Optional username to assign to. Pass empty string to unassign.
         parent_key: Optional parent key to reparent or nest this ticket.
+        session_url: Optional URL to the live agent session. Pass empty string '' to clear.
         start_date: Optional start date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
         target_date: Optional target date (YYYY-MM-DD or ISO format). Pass empty string '' or 'clear' to clear/unset.
     """
@@ -779,6 +791,8 @@ def update_user_support_ticket(
         kwargs["active_assignee_username"] = active_assignee_username
     if parent_key is not None:
         kwargs["parent_key"] = parent_key
+    if session_url is not None:
+        kwargs["session_url"] = session_url
     if start_date is not None:
         kwargs["start_date"] = start_date
     if target_date is not None:

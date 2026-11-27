@@ -93,6 +93,7 @@ class DavaiClient:
         active_assignee_username: Optional[str] = None,
         parent_key: Optional[str] = None,
         source: str = "",
+        session_url: str = "",
         sprint_id: Optional[int] = None,
         release_id: Optional[int] = None,
         start_date: Optional[str] = None,
@@ -106,6 +107,7 @@ class DavaiClient:
             "priority": priority,
             "project_key": project_key,
             "source": source,
+            "session_url": session_url,
         }
         if status:
             payload["status"] = status
@@ -134,6 +136,7 @@ class DavaiClient:
         priority: Optional[str] = None,
         active_assignee_username: Optional[str] = None,
         parent_key: Optional[str] = None,
+        session_url: Optional[str] = None,
         sprint_id: Optional[int] = None,
         release_id: Optional[int] = None,
         start_date: Any = _UNSET,
@@ -153,6 +156,8 @@ class DavaiClient:
             payload["active_assignee_username"] = active_assignee_username
         if parent_key is not None:
             payload["parent_key"] = parent_key
+        if session_url is not None:
+            payload["session_url"] = session_url
         if sprint_id is not None:
             payload["sprint_id"] = sprint_id
         if release_id is not None:
@@ -567,6 +572,7 @@ class DavaiClient:
         active_assignee_username: Optional[str] = None,
         parent_key: Optional[str] = None,
         source: str = "",
+        session_url: str = "",
         start_date: Optional[str] = None,
         target_date: Optional[str] = None,
         context: Optional[str] = None,
@@ -578,6 +584,7 @@ class DavaiClient:
             "priority": priority,
             "project_key": project_key,
             "source": source,
+            "session_url": session_url,
         }
         if status:
             payload["status"] = status
@@ -602,6 +609,7 @@ class DavaiClient:
         priority: Optional[str] = None,
         active_assignee_username: Optional[str] = None,
         parent_key: Optional[str] = None,
+        session_url: Optional[str] = None,
         start_date: Any = _UNSET,
         target_date: Any = _UNSET,
     ) -> Dict[str, Any]:
@@ -619,6 +627,8 @@ class DavaiClient:
             payload["active_assignee_username"] = active_assignee_username
         if parent_key is not None:
             payload["parent_key"] = parent_key
+        if session_url is not None:
+            payload["session_url"] = session_url
         if start_date is not _UNSET:
             if start_date in (None, "", "null", "none", "clear"):
                 payload["start_date"] = None

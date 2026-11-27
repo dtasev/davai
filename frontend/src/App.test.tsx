@@ -3316,5 +3316,103 @@ describe('Davai Frontend App with React Router', () => {
       expect(screen.getByTestId('clear-work-item-draft')).toBeDisabled()
     })
   })
+
+  describe('session_url split-pane iframe in WorkItemDetailModal', () => {
+    const sampleSessionUrl =
+      'https://pi-lfcb.dtasev.co.uk/server/aHR0cHM6Ly9waS1sZmNiLmR0YXNldi5jby51aw/session/ses_ded3bdf8dffeD2RGxqDRs0IG0T'
+
+    it('widens the modal and opens an iframe on the right when clicking session_url, with a separate external link', () => {
+      const itemWithSession: WorkItem = {
+        ...mockWorkItem,
+        session_url: sampleSessionUrl
+      }
+
+      render(
+        <WorkItemDetailModal
+          item={itemWithSession}
+          sprints={[]}
+          releases={[]}
+          onClose={vi.fn()}
+        />
+      )
+
+      const modalWrapper = screen.getByTestId('work-item-detail-modal')
+      expect(modalWrapper).toHaveAttribute('data-session-open', 'false')
+      expect(screen.queryByTestId('work-item-session-iframe-pane')).not.toBeInTheDocument()
+
+      // External link icon points to session_url in a new tab and does not trigger split pane
+      const extLink = screen.getByTestId('work-item-session-external-link')
+      expect(extLink).toHaveAttribute('href', sampleSessionUrl)
+      expect(extLink).toHaveAttribute('target', '_blank')
+      expect(extLink).toHaveAttribute('rel', 'noopener noreferrer')
+      fireEvent.click(extLink)
+      expect(modalWrapper).toHaveAttribute('data-session-open', 'false')
+
+      // Clicking the session URL button widens the modal and renders details on left + iframe on right
+      const sessionBtn = screen.getByTestId('work-item-session-url-button')
+      fireEvent.click(sessionBtn)
+
+      expect(modalWrapper).toHaveAttribute('data-session-open', 'true')
+      expect(modalWrapper.className).toContain('grid-cols-1')
+      expect(screen.getByTestId('work-item-details-pane')).toBeInTheDocument()
+      expect(screen.getByTestId('work-item-session-iframe-pane')).toBeInTheDocument()
+
+      const iframe = screen.getByTestId('work-item-session-iframe')
+      expect(iframe).toHaveAttribute('src', sampleSessionUrl)
+
+      // Pane header also includes a new-tab link and close button
+      const paneExtLink = screen.getByTestId('work-item-session-pane-external-link')
+      expect(paneExtLink).toHaveAttribute('href', sampleSessionUrl)
+      expect(paneExtLink).toHaveAttribute('target', '_blank')
+
+      fireEvent.click(screen.getByTestId('close-session-iframe-button'))
+      expect(modalWrapper).toHaveAttribute('data-session-open', 'false')
+      expect(screen.queryByTestId('work-item-session-iframe-pane')).not.toBeInTheDocument()
+    })
+
+    it('supports editing and saving session_url in WorkItemDetailModal', async () => {
+      const onUpdateDetailsMock = vi.fn().mockResolvedValue(undefined)
+
+      render(
+        <WorkItemDetailModal
+          item={{ ...mockWorkItem, session_url: '' }}
+          sprints={[]}
+          releases={[]}
+          onClose={vi.fn()}
+          onUpdateDetails={onUpdateDetailsMock}
+        />
+      )
+
+      fireEvent.click(screen.getByTestId('add-session-url-button'))
+      const input = screen.getByTestId('edit-work-item-session-url-input')
+      fireEvent.change(input, { target: { value: `  ${sampleSessionUrl}  ` } })
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('save-work-item-button'))
+      })
+
+      expect(onUpdateDetailsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          session_url: sampleSessionUrl
+        })
+      )
+    })
+
+    it('refuses unsafe non-http(s) session_url values', () => {
+      render(
+        <WorkItemDetailModal
+          item={{ ...mockWorkItem, session_url: 'javascript:alert(1)' }}
+          sprints={[]}
+          releases={[]}
+          onClose={vi.fn()}
+        />
+      )
+
+      expect(screen.queryByTestId('work-item-session-url-button')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('work-item-session-external-link')).not.toBeInTheDocument()
+      expect(screen.queryByTestId('work-item-session-iframe')).not.toBeInTheDocument()
+      expect(screen.getByTestId('work-item-session-url-invalid')).toBeInTheDocument()
+    })
+  })
 })
 

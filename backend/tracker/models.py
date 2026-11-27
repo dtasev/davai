@@ -276,6 +276,12 @@ class WorkItem(models.Model):
     assigned = models.ManyToManyField(User, blank=True, related_name="assigned_work_items")
     watching = models.ManyToManyField(User, blank=True, related_name="watching_work_items")
     source = models.TextField(blank=True, help_text="Link or description of the source of this work item")
+    session_url = models.CharField(
+        max_length=1000,
+        blank=True,
+        default="",
+        help_text="Optional URL to the live agent session (e.g. OpenCode web session)",
+    )
     start_date = models.DateTimeField(null=True, blank=True)
     target_date = models.DateTimeField(null=True, blank=True)
     sprint = models.ForeignKey(Sprint, null=True, blank=True, on_delete=models.SET_NULL, related_name="work_items")

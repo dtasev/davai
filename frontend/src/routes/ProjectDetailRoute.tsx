@@ -65,6 +65,7 @@ export interface ProjectDetailOutletContext {
       start_date?: string | null
       target_date?: string | null
       active_assignee_username?: string | null
+      session_url?: string | null
     }
   ) => Promise<WorkItem>
   handleUpdateIncident: (
@@ -751,6 +752,7 @@ export function ProjectDetailRoute() {
       start_date?: string | null
       target_date?: string | null
       active_assignee_username?: string | null
+      session_url?: string | null
     }
   ) => {
     const res = await apiFetch(`/api/work-items/${key}`, {

@@ -19,7 +19,10 @@ import {
   ListTree,
   ChevronRight,
   Bot,
-  Server
+  Server,
+  ExternalLink,
+  Terminal,
+  PanelRightClose
 } from 'lucide-react'
 import { WorkItem, Sprint, Release, ProjectStatus, UserSummary, PROGRESS_STATUS_OPTIONS } from '../../types'
 import { PriorityBadge, StatusBadge, formatStatus } from '../Common/Badge'
@@ -29,6 +32,20 @@ import { apiFetch } from '../../utils/apiFetch'
 
 const PROGRESS_LIST_HEIGHT_KEY = 'davai_progress_list_height'
 const DEFAULT_PROGRESS_HEIGHT = 320
+
+function getSafeSessionUrl(rawUrl?: string | null): string | null {
+  const trimmed = (rawUrl || '').trim()
+  if (!trimmed) return null
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href
+    }
+  } catch {
+    // Ignore malformed URLs
+  }
+  return null
+}
 
 function formatDateTime(dateStr: string | null | undefined): string {
   if (!dateStr) return ''
@@ -77,6 +94,7 @@ interface WorkItemDetailModalProps {
     start_date?: string | null
     target_date?: string | null
     active_assignee_username?: string | null
+    session_url?: string | null
   }) => Promise<void>
 }
 
@@ -135,6 +153,8 @@ export function WorkItemDetailModal({
     item?.target_date ? item.target_date.slice(0, 10) : ''
   )
   const [editAssignee, setEditAssignee] = useState<string>(item?.active_assignee || '')
+  const [editSessionUrl, setEditSessionUrl] = useState<string>(item?.session_url || '')
+  const [isSessionOpen, setIsSessionOpen] = useState(false)
   const [isSavingDetails, setIsSavingDetails] = useState(false)
 
   // Users lazy loading state
@@ -335,6 +355,7 @@ export function WorkItemDetailModal({
       setEditStartDate(item.start_date ? item.start_date.slice(0, 10) : '')
       setEditTargetDate(item.target_date ? item.target_date.slice(0, 10) : '')
       setEditAssignee(item.active_assignee || '')
+      setEditSessionUrl(item.session_url || '')
     }
   }, [
     item?.key,
@@ -347,12 +368,19 @@ export function WorkItemDetailModal({
     item?.release_id,
     item?.start_date,
     item?.target_date,
-    item?.active_assignee
+    item?.active_assignee,
+    item?.session_url
   ])
+
+  useEffect(() => {
+    setIsSessionOpen(false)
+  }, [item?.key])
 
   if (!item) return null
 
   const isSupport = Boolean(item.is_support || /^[^-]+-SUP-\d+$/i.test(item.key))
+  const safeSessionUrl = getSafeSessionUrl(item.session_url)
+  const sessionPaneVisible = Boolean(isSessionOpen && safeSessionUrl)
 
   const handleSaveDetails = async () => {
     if (!onUpdateDetails || !editTitle.trim()) return
@@ -370,7 +398,8 @@ export function WorkItemDetailModal({
             }),
         start_date: editStartDate ? editStartDate : null,
         target_date: editTargetDate ? editTargetDate : null,
-        active_assignee_username: editAssignee
+        active_assignee_username: editAssignee,
+        session_url: editSessionUrl.trim()
       })
       setIsEditingDetails(false)
     } finally {
@@ -388,6 +417,7 @@ export function WorkItemDetailModal({
       setEditStartDate(item.start_date ? item.start_date.slice(0, 10) : '')
       setEditTargetDate(item.target_date ? item.target_date.slice(0, 10) : '')
       setEditAssignee(item.active_assignee || '')
+      setEditSessionUrl(item.session_url || '')
     }
     setIsEditingDetails(false)
   }
@@ -508,7 +538,7 @@ export function WorkItemDetailModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      maxWidth="max-w-2xl md:max-w-4xl lg:max-w-5xl"
+      maxWidth={sessionPaneVisible ? 'max-w-[95vw] xl:max-w-[92vw]' : 'max-w-2xl md:max-w-4xl lg:max-w-5xl'}
       closeOnOverlayClick={!isEditingDetails}
       headerActions={
         <div className="flex items-center gap-1.5">
@@ -658,7 +688,23 @@ export function WorkItemDetailModal({
         </div>
       }
     >
-      <div className="space-y-4" data-testid="work-item-detail-modal">
+      <div
+        className={
+          sessionPaneVisible
+            ? 'grid grid-cols-1 lg:grid-cols-12 gap-5 items-start'
+            : ''
+        }
+        data-testid="work-item-detail-modal"
+        data-session-open={sessionPaneVisible ? 'true' : 'false'}
+      >
+        <div
+          data-testid="work-item-details-pane"
+          className={
+            sessionPaneVisible
+              ? 'space-y-4 lg:col-span-5 lg:max-h-[78vh] lg:overflow-y-auto lg:pr-2'
+              : 'space-y-4'
+          }
+        >
         {showDeleteConfirm && (
           <div className="p-3 bg-rose-950/40 border border-rose-800/60 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
             <div className="flex items-center gap-2 text-rose-300 text-sm font-medium">
@@ -965,6 +1011,88 @@ export function WorkItemDetailModal({
             </span>
           </div>
         </div>
+
+        {/* Session URL */}
+        {(isEditingDetails || safeSessionUrl || item.session_url || onUpdateDetails) && (
+          <div
+            data-testid="work-item-session-row"
+            className="flex items-center justify-between gap-2 px-3 py-2 bg-zinc-950/70 border border-zinc-800 rounded-lg"
+          >
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="text-[11px] text-zinc-500 flex items-center gap-1 shrink-0">
+                <Terminal className="w-3.5 h-3.5 text-sky-400" />
+                <span>Session:</span>
+              </span>
+              {isEditingDetails ? (
+                <input
+                  type="url"
+                  value={editSessionUrl}
+                  onChange={e => setEditSessionUrl(e.target.value)}
+                  placeholder="https://.../session/..."
+                  data-testid="edit-work-item-session-url-input"
+                  aria-label="Work Item Session URL"
+                  className="w-full px-2 py-0.5 rounded bg-zinc-900 border border-indigo-500 text-xs font-mono text-zinc-200 focus:outline-none"
+                />
+              ) : safeSessionUrl ? (
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsSessionOpen(prev => !prev)}
+                    title={sessionPaneVisible ? 'Hide embedded session' : 'Open session in split view'}
+                    data-testid="work-item-session-url-button"
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono border transition min-w-0 max-w-full cursor-pointer ${
+                      sessionPaneVisible
+                        ? 'text-indigo-200 bg-indigo-950/60 border-indigo-500/70'
+                        : 'text-sky-400 hover:text-sky-300 bg-sky-950/30 border-sky-800/40 hover:border-sky-600/60'
+                    }`}
+                  >
+                    <span className="truncate">{safeSessionUrl}</span>
+                  </button>
+                  <a
+                    href={safeSessionUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Open session in new tab"
+                    aria-label="Open session in new tab"
+                    data-testid="work-item-session-external-link"
+                    className="p-1 rounded text-zinc-400 hover:text-sky-300 hover:bg-zinc-800 transition shrink-0"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              ) : item.session_url ? (
+                <span
+                  data-testid="work-item-session-url-invalid"
+                  className="text-xs font-mono text-amber-400 truncate"
+                  title="Only http:// or https:// URLs can be opened"
+                >
+                  {item.session_url} (invalid URL)
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingDetails(true)}
+                  data-testid="add-session-url-button"
+                  className="text-xs text-zinc-500 hover:text-zinc-300 italic transition cursor-pointer"
+                >
+                  Add session URL...
+                </button>
+              )}
+            </div>
+            {!isEditingDetails && onUpdateDetails && (safeSessionUrl || item.session_url) && (
+              <button
+                type="button"
+                onClick={() => setIsEditingDetails(true)}
+                title="Edit session URL"
+                aria-label="Edit session URL"
+                data-testid="edit-session-url-button"
+                className="p-1 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition shrink-0 cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Description */}
         <div className="space-y-1">
@@ -1444,6 +1572,55 @@ export function WorkItemDetailModal({
             </div>
           )}
         </div>
+        </div>
+
+        {sessionPaneVisible && safeSessionUrl && (
+          <div
+            data-testid="work-item-session-iframe-pane"
+            className="lg:col-span-7 flex flex-col rounded-xl border border-zinc-800 bg-zinc-950 overflow-hidden h-[65vh] lg:h-[78vh]"
+          >
+            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-zinc-800 bg-zinc-900/90">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                <span className="text-xs font-semibold text-zinc-200 shrink-0">Live Session</span>
+                <span className="text-xs font-mono text-zinc-400 truncate" title={safeSessionUrl}>
+                  {safeSessionUrl}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <a
+                  href={safeSessionUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open session in new tab"
+                  aria-label="Open session in new tab"
+                  data-testid="work-item-session-pane-external-link"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-sky-400 hover:text-sky-300 hover:bg-zinc-800 transition"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">New tab</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setIsSessionOpen(false)}
+                  title="Close session panel"
+                  aria-label="Close session panel"
+                  data-testid="close-session-iframe-button"
+                  className="p-1 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition cursor-pointer"
+                >
+                  <PanelRightClose className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <iframe
+              src={safeSessionUrl}
+              title={`Session for ${item.key}`}
+              data-testid="work-item-session-iframe"
+              className="w-full flex-1 border-0 bg-zinc-950"
+              allow="clipboard-read; clipboard-write"
+            />
+          </div>
+        )}
       </div>
     </Modal>
   )

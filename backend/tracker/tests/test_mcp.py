@@ -576,3 +576,46 @@ class TestMCPWithApiClient:
         for field in ("incident_id", "log_id"):
             allowed = {b.get("type") for b in tool.input_schema["properties"][field]["anyOf"]}
             assert allowed == {"integer", "string"}, f"{field} must accept JSON ints and strings"
+
+    def test_session_url_in_mcp_tools(self, ninja_client, test_project, test_user, test_api_key):
+        from mcp_server.server import (
+            create_user_support_ticket,
+            update_user_support_ticket,
+            get_user_support_ticket,
+        )
+
+        _, raw_key = test_api_key
+        set_client(InProcessDavaiClient(ninja_client, api_key=raw_key))
+
+        sample_url = (
+            "https://pi-lfcb.dtasev.co.uk/server/"
+            "aHR0cHM6Ly9waS1sZmNiLmR0YXNldi5jby51aw/session/ses_ded3bdf8dffeD2RGxqDRs0IG0T"
+        )
+        created = create_work_item(
+            title="MCP Session Task",
+            project_key=test_project.key,
+            session_url=sample_url,
+        )
+        assert created["session_url"] == sample_url
+        assert get_work_item(key=created["key"])["session_url"] == sample_url
+
+        updated_url = "https://pi-lfcb.dtasev.co.uk/server/xyz/session/ses_2"
+        updated = update_work_item(key=created["key"], session_url=updated_url)
+        assert updated["session_url"] == updated_url
+
+        # Updating another field without session_url preserves the existing session_url
+        preserved = update_work_item(key=created["key"], title="MCP Session Task Renamed")
+        assert preserved["session_url"] == updated_url
+
+        cleared = update_work_item(key=created["key"], session_url="")
+        assert cleared["session_url"] == ""
+
+        sup = create_user_support_ticket(
+            title="MCP Support Session",
+            project_key=test_project.key,
+            session_url=sample_url,
+        )
+        assert sup["session_url"] == sample_url
+        sup_updated = update_user_support_ticket(key=sup["key"], session_url=updated_url)
+        assert sup_updated["session_url"] == updated_url
+        assert get_user_support_ticket(key=sup["key"])["session_url"] == updated_url

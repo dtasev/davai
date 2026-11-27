@@ -148,6 +148,7 @@ class WorkItemType:
     priority: str
     project_key: str
     active_assignee: Optional[str]
+    session_url: str
     created_by: str
     created: str
     updated: str
@@ -200,6 +201,7 @@ def _to_work_item_type(item: WorkItemModel) -> WorkItemType:
         priority=item.priority,
         project_key=item.project.key,
         active_assignee=item.active_assignee.username if item.active_assignee else None,
+        session_url=item.session_url or "",
         created_by=item.created_by.username if item.created_by else "System",
         created=item.created.isoformat(),
         updated=item.updated.isoformat(),

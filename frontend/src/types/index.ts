@@ -134,6 +134,7 @@ export interface WorkItem {
   assigned: string[]
   watching: string[]
   source: string
+  session_url?: string
   start_date: string | null
   target_date: string | null
   sprint_id: number | null

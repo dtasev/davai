@@ -2,6 +2,7 @@ import sys
 import logging
 from typing import List, Optional, Any, Literal
 from datetime import datetime
+from urllib.parse import urlparse
 import django
 import ninja
 from ninja import NinjaAPI, Schema, errors
@@ -309,6 +310,7 @@ class WorkItemListOut(Schema):
     assigned: List[str]
     watching: List[str]
     source: str
+    session_url: str = ""
     start_date: Optional[str] = None
     target_date: Optional[str] = None
     sprint_id: Optional[int] = None
@@ -320,6 +322,10 @@ class WorkItemListOut(Schema):
     @staticmethod
     def resolve_is_support(obj: WorkItem) -> bool:
         return bool(obj.is_support)
+
+    @staticmethod
+    def resolve_session_url(obj: WorkItem) -> str:
+        return obj.session_url or ""
 
     @staticmethod
     def resolve_subtasks(obj: WorkItem) -> List[SubtaskSummaryOut]:
@@ -414,6 +420,7 @@ class CreateWorkItemIn(Schema):
     priority: str = "MEDIUM"
     active_assignee_username: Optional[str] = None
     source: str = ""
+    session_url: str = ""
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     sprint_id: Optional[int] = None
@@ -430,6 +437,7 @@ class UpdateWorkItemIn(Schema):
     priority: Optional[str] = None
     active_assignee_username: Optional[str] = None
     source: Optional[str] = None
+    session_url: Optional[str] = None
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     sprint_id: Optional[int] = None
@@ -445,6 +453,7 @@ class CreateUserSupportIn(Schema):
     priority: str = "MEDIUM"
     active_assignee_username: Optional[str] = None
     source: str = ""
+    session_url: str = ""
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
     context: Optional[str] = None
@@ -458,6 +467,7 @@ class UpdateUserSupportIn(Schema):
     priority: Optional[str] = None
     active_assignee_username: Optional[str] = None
     source: Optional[str] = None
+    session_url: Optional[str] = None
     start_date: Optional[datetime] = None
     target_date: Optional[datetime] = None
 
@@ -1058,6 +1068,19 @@ def get_work_item(request, key: str):
     )
 
 
+def _normalize_session_url(raw_url: Optional[str]) -> str:
+    """Validate and normalize an optional HTTP(S) session URL."""
+    cleaned = (raw_url or "").strip()
+    if not cleaned:
+        return ""
+    if len(cleaned) > 1000:
+        raise errors.HttpError(400, "session_url must be at most 1000 characters.")
+    parsed = urlparse(cleaned)
+    if parsed.scheme.lower() not in ("http", "https") or not parsed.netloc:
+        raise errors.HttpError(400, "session_url must be a valid http:// or https:// URL.")
+    return cleaned
+
+
 @api.post("/work-items", response=WorkItemOut, auth=api_key_auth, summary="Create Work Item")
 def create_work_item(request, payload: CreateWorkItemIn):
     user = request.auth
@@ -1110,6 +1133,7 @@ def create_work_item(request, payload: CreateWorkItemIn):
             active_assignee=assignee,
             created_by=user,
             source=payload.source,
+            session_url=_normalize_session_url(payload.session_url),
             start_date=payload.start_date,
             target_date=payload.target_date,
             sprint=sprint,
@@ -1170,6 +1194,8 @@ def update_work_item(request, key: str, payload: UpdateWorkItemIn):
                 item.active_assignee = assignee
     if payload.source is not None:
         item.source = payload.source
+    if "session_url" in payload.model_fields_set:
+        item.session_url = _normalize_session_url(payload.session_url)
     if "start_date" in payload.model_fields_set:
         item.start_date = payload.start_date
     if "target_date" in payload.model_fields_set:
@@ -1307,6 +1333,7 @@ def _create_user_support_for_project(request, project: Project, payload: CreateU
             active_assignee=assignee,
             created_by=user,
             source=payload.source,
+            session_url=_normalize_session_url(payload.session_url),
             start_date=payload.start_date,
             target_date=payload.target_date,
             sprint=None,

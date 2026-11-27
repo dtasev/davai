@@ -1613,6 +1613,92 @@ class TestNinjaAPI:
         assert del_res.status_code == 200
         assert del_res.json()["success"] is True
 
+    def test_work_item_session_url_crud_and_validation(self, ninja_client, test_project, test_api_key):
+        _, raw_key = test_api_key
+        headers = {"X-API-Key": raw_key}
+        sample_url = (
+            "https://pi-lfcb.dtasev.co.uk/server/"
+            "aHR0cHM6Ly9waS1sZmNiLmR0YXNldi5jby51aw/session/ses_ded3bdf8dffeD2RGxqDRs0IG0T"
+        )
+
+        # Create work item with session_url
+        res = ninja_client.post(
+            "/work-items",
+            json={
+                "title": "Session URL item",
+                "project_key": test_project.key,
+                "session_url": f"  {sample_url}  ",
+            },
+            headers=headers,
+        )
+        assert res.status_code == 200
+        created = res.json()
+        assert created["session_url"] == sample_url
+        key = created["key"]
+
+        # Verify present in detail and list endpoints
+        detail = ninja_client.get(f"/work-items/{key}", headers=headers)
+        assert detail.status_code == 200
+        assert detail.json()["session_url"] == sample_url
+
+        items = ninja_client.get(f"/work-items?project_key={test_project.key}", headers=headers).json()
+        assert next(i for i in items if i["key"] == key)["session_url"] == sample_url
+
+        # Update and then clear session_url
+        new_url = "https://pi-lfcb.dtasev.co.uk/server/abc/session/ses_other"
+        patch_res = ninja_client.patch(
+            f"/work-items/{key}",
+            json={"session_url": new_url},
+            headers=headers,
+        )
+        assert patch_res.status_code == 200
+        assert patch_res.json()["session_url"] == new_url
+
+        clear_res = ninja_client.patch(
+            f"/work-items/{key}",
+            json={"session_url": ""},
+            headers=headers,
+        )
+        assert clear_res.status_code == 200
+        assert clear_res.json()["session_url"] == ""
+
+        # Reject invalid / non-http(s) URLs
+        for bad_url in ("javascript:alert(1)", "not-a-url", "ftp://example.com/ses"):
+            bad_post = ninja_client.post(
+                "/work-items",
+                json={"title": "Bad URL", "project_key": test_project.key, "session_url": bad_url},
+                headers=headers,
+            )
+            assert bad_post.status_code == 400
+            bad_patch = ninja_client.patch(
+                f"/work-items/{key}",
+                json={"session_url": bad_url},
+                headers=headers,
+            )
+            assert bad_patch.status_code == 400
+
+        # User support ticket also supports session_url
+        sup_res = ninja_client.post(
+            "/user-support",
+            json={
+                "title": "Support with session",
+                "project_key": test_project.key,
+                "session_url": sample_url,
+            },
+            headers=headers,
+        )
+        assert sup_res.status_code == 200
+        sup = sup_res.json()
+        assert sup["session_url"] == sample_url
+
+        sup_patch = ninja_client.patch(
+            f"/user-support/{sup['key']}",
+            json={"session_url": new_url},
+            headers=headers,
+        )
+        assert sup_patch.status_code == 200
+        assert sup_patch.json()["session_url"] == new_url
+
 
 
 

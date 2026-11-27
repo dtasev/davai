@@ -59,6 +59,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
         title="GraphQL Test Item",
         description="Created for testing GraphQL schema",
         priority="HIGH",
+        session_url="https://pi-lfcb.dtasev.co.uk/server/abc/session/ses_123",
         created_by=test_user
     )
     await sync_to_async(Context.objects.create)(
@@ -94,6 +95,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
             status
             priority
             projectKey
+            sessionUrl
             subtasks {
                 key
                 title
@@ -104,6 +106,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
             title
             description
             status
+            sessionUrl
             subtasks {
                 key
                 title
@@ -134,6 +137,7 @@ async def test_graphql_projects_and_items(test_project, test_user, test_api_key)
     assert res.data["workItem"]["title"] == "GraphQL Test Item"
     assert res.data["workItem"]["subtasks"] == [{"key": f"{test_project.key}-101", "title": "GraphQL Child Subtask"}]
     assert res.data["workItem"]["description"] == "Created for testing GraphQL schema"
+    assert res.data["workItem"]["sessionUrl"] == "https://pi-lfcb.dtasev.co.uk/server/abc/session/ses_123"
     assert res.data["workItem"]["status"] == "in progress"
     assert res.data["workItem"]["context"]["summary"] == "GraphQL Context Summary"
     assert len(res.data["workItem"]["progress"]) == 1
