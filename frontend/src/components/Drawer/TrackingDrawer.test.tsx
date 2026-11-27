@@ -750,4 +750,35 @@ describe('TrackingDrawer (DAV-83 active work item tracker)', () => {
     })
     expect(await screen.findByTestId('drawer-resize-handle')).toBeInTheDocument()
   })
+
+  it('uses fixed viewport positioning with an overflow-y-auto scroll container and synced layout spacer', async () => {
+    await renderWithRouter(['/projects/DAV'], false)
+
+    const spacer = screen.getByTestId('drawer-spacer')
+    const aside = screen.getByTestId('drawer-toggle').closest('aside') as HTMLElement
+    expect(aside.className).toContain('fixed')
+    expect(aside.className).toContain('top-16')
+    expect(aside.className).toContain('bottom-0')
+    expect(aside.className).toContain('w-11')
+    expect(spacer.className).toContain('w-11')
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('drawer-toggle'))
+    })
+
+    const drawer = await screen.findByTestId('tracking-drawer')
+    const scrollContainer = screen.getByTestId('drawer-scroll-container')
+    expect(drawer.className).toContain('fixed')
+    expect(drawer.className).toContain('top-16')
+    expect(drawer.className).toContain('bottom-0')
+    expect(scrollContainer.className).toContain('overflow-y-auto')
+    expect(scrollContainer.className).toContain('min-h-0')
+    expect(spacer.style.width).toBe('360px')
+
+    await act(async () => {
+      fireEvent.keyDown(screen.getByTestId('drawer-resize-handle'), { key: 'ArrowRight' })
+    })
+    expect(drawer.style.width).toBe('376px')
+    expect(spacer.style.width).toBe('376px')
+  })
 })

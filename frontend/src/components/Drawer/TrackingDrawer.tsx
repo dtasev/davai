@@ -256,174 +256,189 @@ export function TrackingDrawer() {
     clearDone(section)
   }
 
+  const widthClass = open ? '' : 'w-11'
+  const transitionClass = resizing ? '' : 'transition-[width] duration-150'
+  const widthStyle = open ? { width: `${width}px` } : undefined
+
   return (
-    <aside
-      className={`relative shrink-0 border-r border-zinc-800/80 bg-zinc-900/40 flex flex-col ${
-        resizing ? '' : 'transition-[width] duration-150'
-      } ${open ? '' : 'w-11'}`}
-      style={open ? { width: `${width}px` } : undefined}
-      data-testid={open ? 'tracking-drawer' : undefined}
-    >
-      {open && (
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Resize tracking drawer"
-          aria-valuemin={DRAWER_MIN_WIDTH}
-          aria-valuemax={DRAWER_MAX_WIDTH}
-          aria-valuenow={width}
-          tabIndex={0}
-          data-testid="drawer-resize-handle"
-          title="Drag to resize · double-click to reset"
-          onMouseDown={handleResizeStart}
-          onDoubleClick={() => setWidth(DRAWER_DEFAULT_WIDTH)}
-          onKeyDown={handleResizeKeyDown}
-          className="group absolute inset-y-0 right-0 w-1.5 cursor-col-resize z-10 flex justify-center focus:outline-none"
-        >
-          <span
-            className={`h-full w-0.5 rounded-full transition-colors ${
-              resizing
-                ? 'bg-indigo-400'
-                : 'bg-transparent group-hover:bg-indigo-400/70 group-focus-visible:bg-indigo-400/70'
-            }`}
-          />
-        </div>
-      )}
+    <>
       <div
-        className={`flex items-center py-3 border-b border-zinc-800/80 ${
-          open ? 'justify-between gap-2 px-3' : 'justify-center'
-        }`}
+        aria-hidden="true"
+        data-testid="drawer-spacer"
+        className={`shrink-0 ${transitionClass} ${widthClass}`}
+        style={widthStyle}
+      />
+      <aside
+        className={`fixed top-16 bottom-0 left-0 z-30 border-r border-zinc-800/80 bg-zinc-950 flex flex-col ${transitionClass} ${widthClass}`}
+        style={widthStyle}
+        data-testid={open ? 'tracking-drawer' : undefined}
       >
-        {open ? (
-          <>
-            <div className="flex items-center gap-2 min-w-0">
-              <h2 className="text-sm font-bold text-zinc-100 tracking-tight">Tracking</h2>
-              {loadingTracked && (
-                <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" data-testid="drawer-loading" />
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(false)}
-              data-testid="drawer-collapse"
-              title="Collapse tracking drawer"
-              aria-label="Collapse tracking drawer"
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition shrink-0"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setDrawerOpen(true)}
-            data-testid="drawer-toggle"
-            title="Open tracking drawer"
-            aria-label="Open tracking drawer"
-            className="p-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition"
+        {open && (
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize tracking drawer"
+            aria-valuemin={DRAWER_MIN_WIDTH}
+            aria-valuemax={DRAWER_MAX_WIDTH}
+            aria-valuenow={width}
+            tabIndex={0}
+            data-testid="drawer-resize-handle"
+            title="Drag to resize · double-click to reset"
+            onMouseDown={handleResizeStart}
+            onDoubleClick={() => setWidth(DRAWER_DEFAULT_WIDTH)}
+            onKeyDown={handleResizeKeyDown}
+            className="group absolute inset-y-0 right-0 w-1.5 cursor-col-resize z-10 flex justify-center focus:outline-none"
           >
-            <Menu className="w-4 h-4" />
-          </button>
+            <span
+              className={`h-full w-0.5 rounded-full transition-colors ${
+                resizing
+                  ? 'bg-indigo-400'
+                  : 'bg-transparent group-hover:bg-indigo-400/70 group-focus-visible:bg-indigo-400/70'
+              }`}
+            />
+          </div>
         )}
-      </div>
-
-      {open && (
-      <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-4">
-        {sectionViews.map(({ config, items, doneCount }) => {
-          const SectionIcon = config.icon
-          return (
-            <section key={config.section} data-testid={`drawer-section-${config.section}`}>
-              <div className="flex items-center gap-2 px-0.5 mb-1.5">
-                <div
-                  className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${config.tileClass} ${config.iconClass}`}
-                >
-                  <SectionIcon className="w-3.5 h-3.5" />
+        <div className="flex-1 min-h-0 flex flex-col bg-zinc-900/40">
+          <div
+            className={`shrink-0 flex items-center py-3 border-b border-zinc-800/80 ${
+              open ? 'justify-between gap-2 px-3' : 'justify-center'
+            }`}
+          >
+            {open ? (
+              <>
+                <div className="flex items-center gap-2 min-w-0">
+                  <h2 className="text-sm font-bold text-zinc-100 tracking-tight">Tracking</h2>
+                  {loadingTracked && (
+                    <Loader2 className="w-3.5 h-3.5 text-zinc-500 animate-spin" data-testid="drawer-loading" />
+                  )}
                 </div>
-                <h3 className="text-sm font-semibold text-zinc-200 truncate flex-1 min-w-0">
-                  {config.label}
-                  <span className="ml-1.5 font-mono text-xs text-zinc-500 font-normal">
-                    ({items.length})
-                  </span>
-                </h3>
-                {doneCount > 0 && (
-                  <button
-                    type="button"
-                    onClick={event => handleClearDoneClick(event, config.section)}
-                    data-testid={`drawer-clear-done-${config.section}`}
-                    title="Clear done items"
-                    aria-label={`Clear done ${config.label.toLowerCase()}`}
-                    className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(false)}
+                  data-testid="drawer-collapse"
+                  title="Collapse tracking drawer"
+                  aria-label="Collapse tracking drawer"
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition shrink-0"
+                >
+                  <PanelLeftClose className="w-4 h-4" />
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                data-testid="drawer-toggle"
+                title="Open tracking drawer"
+                aria-label="Open tracking drawer"
+                className="p-2 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 transition"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+            )}
+          </div>
 
-              {items.length > 0 && (
-                <ul className="space-y-0.5">
-                  {items.map(item => (
-                    <li key={item.id}>
-                      <div
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => handleRowClick(item)}
-                        onKeyDown={event => {
-                          if (event.key === 'Enter') handleRowClick(item)
-                        }}
-                        className="group flex items-start gap-1.5 px-1.5 py-1.5 rounded-lg cursor-pointer transition hover:bg-zinc-800/40"
-                        data-testid={`drawer-item-${item.item_type}-${item.key}`}
+          {open && (
+          <div
+            data-testid="drawer-scroll-container"
+            className="flex-1 min-h-0 overflow-y-auto px-2.5 py-3 space-y-4"
+          >
+            {sectionViews.map(({ config, items, doneCount }) => {
+              const SectionIcon = config.icon
+              return (
+                <section key={config.section} data-testid={`drawer-section-${config.section}`}>
+                  <div className="flex items-center gap-2 px-0.5 mb-1.5">
+                    <div
+                      className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${config.tileClass} ${config.iconClass}`}
+                    >
+                      <SectionIcon className="w-3.5 h-3.5" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-zinc-200 truncate flex-1 min-w-0">
+                      {config.label}
+                      <span className="ml-1.5 font-mono text-xs text-zinc-500 font-normal">
+                        ({items.length})
+                      </span>
+                    </h3>
+                    {doneCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={event => handleClearDoneClick(event, config.section)}
+                        data-testid={`drawer-clear-done-${config.section}`}
+                        title="Clear done items"
+                        aria-label={`Clear done ${config.label.toLowerCase()}`}
+                        className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition shrink-0"
                       >
-                        <div className="flex-1 min-w-0">
-                          {/* Row 1: key (or type icon) + status badge + target date. */}
-                          <div className="flex items-center gap-1.5 min-w-0 flex-wrap gap-y-1">
-                            {item.item_type === 'sprint' || item.item_type === 'release' ? (
-                              item.item_type === 'sprint' ? (
-                                <Zap className="w-3 h-3 text-amber-400 shrink-0" />
-                              ) : (
-                                <Rocket className="w-3 h-3 text-indigo-400 shrink-0" />
-                              )
-                            ) : (
-                              <span className={`font-mono text-[11px] leading-none shrink-0 ${config.keyClass}`}>
-                                {item.key}
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {items.length > 0 && (
+                    <ul className="space-y-0.5">
+                      {items.map(item => (
+                        <li key={item.id}>
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleRowClick(item)}
+                            onKeyDown={event => {
+                              if (event.key === 'Enter') handleRowClick(item)
+                            }}
+                            className="group flex items-start gap-1.5 px-1.5 py-1.5 rounded-lg cursor-pointer transition hover:bg-zinc-800/40"
+                            data-testid={`drawer-item-${item.item_type}-${item.key}`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              {/* Row 1: key (or type icon) + status badge + target date. */}
+                              <div className="flex items-center gap-1.5 min-w-0 flex-wrap gap-y-1">
+                                {item.item_type === 'sprint' || item.item_type === 'release' ? (
+                                  item.item_type === 'sprint' ? (
+                                    <Zap className="w-3 h-3 text-amber-400 shrink-0" />
+                                  ) : (
+                                    <Rocket className="w-3 h-3 text-indigo-400 shrink-0" />
+                                  )
+                                ) : (
+                                  <span className={`font-mono text-[11px] leading-none shrink-0 ${config.keyClass}`}>
+                                    {item.key}
+                                  </span>
+                                )}
+                                <StatusBadge status={item.status} compact />
+                                {item.target_date && (
+                                  <span
+                                    data-testid={`drawer-target-date-${item.item_type}-${item.key}`}
+                                    title={`Target date: ${formatDate(item.target_date)}`}
+                                    className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded border leading-none shrink-0 bg-zinc-800/60 text-zinc-400 border-zinc-800"
+                                  >
+                                    <Calendar className="w-2.5 h-2.5 text-zinc-500" />
+                                    <span>{formatDate(item.target_date)}</span>
+                                  </span>
+                                )}
+                              </div>
+                              {/* Row 2: title on its own line, same size as the rest of the app. */}
+                              <span className="mt-1 block text-sm text-zinc-200 truncate">
+                                {item.title}
                               </span>
-                            )}
-                            <StatusBadge status={item.status} compact />
-                            {item.target_date && (
-                              <span
-                                data-testid={`drawer-target-date-${item.item_type}-${item.key}`}
-                                title={`Target date: ${formatDate(item.target_date)}`}
-                                className="inline-flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded border leading-none shrink-0 bg-zinc-800/60 text-zinc-400 border-zinc-800"
-                              >
-                                <Calendar className="w-2.5 h-2.5 text-zinc-500" />
-                                <span>{formatDate(item.target_date)}</span>
-                              </span>
-                            )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={event => handleRemoveClick(event, item.id)}
+                              data-testid={`drawer-remove-${item.id}`}
+                              title="Remove from tracking"
+                              aria-label="Remove from tracking"
+                              className="mt-0.5 p-0.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/60 transition opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
                           </div>
-                          {/* Row 2: title on its own line, same size as the rest of the app. */}
-                          <span className="mt-1 block text-sm text-zinc-200 truncate">
-                            {item.title}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={event => handleRemoveClick(event, item.id)}
-                          data-testid={`drawer-remove-${item.id}`}
-                          title="Remove from tracking"
-                          aria-label="Remove from tracking"
-                          className="mt-0.5 p-0.5 rounded text-zinc-500 hover:text-zinc-200 hover:bg-zinc-700/60 transition opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )
-        })}
-      </div>
-      )}
-    </aside>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )
+            })}
+          </div>
+          )}
+        </div>
+      </aside>
+    </>
   )
 }
